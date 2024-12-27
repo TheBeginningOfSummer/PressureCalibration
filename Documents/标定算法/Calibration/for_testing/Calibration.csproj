@@ -1,0 +1,23 @@
+<Project Sdk = "Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<OutputType>library</OutputType>
+		<DebugType>None</DebugType>
+		<Optimize>true</Optimize>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+		<CopyReferenceAssemblies>false</CopyReferenceAssemblies>
+		<DefineConstants>$(DefineConstants); __IN_MCC</DefineConstants>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<Version>2.0.0.0</Version>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove = "*.cs" />
+		<Compile Include = "Method.cs" />
+		<EmbeddedResource Include = "Calibration.ctf" />
+		<Reference Include = "F:\MATLAB\R2023b\toolbox\dotnetbuilder\bin\win64\netstandard2.0\MWArray.dll">
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+</Project>

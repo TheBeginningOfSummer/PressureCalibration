@@ -1,0 +1,18 @@
+Calibration.Method cal = new Calibration.Method();
+
+MWNumericArray aquilaTs = new MWNumericArray(3, 1, new double[] { 56.1, 36.23, 16.37 });
+MWNumericArray T12s = new MWNumericArray(3, 1, new double[] { 59.93, 39.92, 19.95 });
+
+var value1 = cal.TemperatureCalibrationV03(aquilaTs, T12s);
+
+MWNumericArray P_ref = new MWNumericArray(15, 1, new double[] { 1000.068, 1099.875, 800.084, 500.113, 900.016, 1000.013,
+    1099.934, 800.025, 500.086, 900.029, 999.796, 1099.879, 800.026, 500.131, 900.065});
+MWNumericArray digT = new MWNumericArray(15, 1, new int[] { 42633, 42637, 42623, 42599, 42609, 40074, 40078, 40065, 40038, 40047, 37516,
+    37518, 37503, 37475, 37490});
+MWNumericArray digC = new MWNumericArray(15, 1, new int[] { 4141951, 4498850, 3604105, 3053623, 3849013, 4131078, 4483630,
+    3599036, 3052867, 3841729, 4118067, 4465710, 3593123, 3051817, 3833226});
+
+MWArray value2 = cal.PresCalCode_V1(P_ref, digT, digC);
+Array array1 = value2 .ToArray();
+
+result = PresCalCode_V0([1000.068; 1099.875; 800.084; 500.113; 900.016; 1000.013; 1099.934; 800.025; 500.086; 900.029; 999.796; 1099.879; 800.026; 500.131; 900.065],[42633; 42637; 42623; 42599; 42609; 40074; 40078; 40065; 40038; 40047; 37516; 37518; 37503; 37475; 37490],[4141951; 4498850; 3604105; 3053623; 3849013; 4131078; 4483630; 3599036; 3052867; 3841729; 4118067; 4465710; 3593123; 3051817; 3833226])
