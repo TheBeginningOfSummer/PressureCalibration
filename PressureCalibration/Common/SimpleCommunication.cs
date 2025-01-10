@@ -2,7 +2,7 @@
 using System.Net.Sockets;
 using System.Text;
 
-namespace Calibration.Services
+namespace CSKit
 {
     public class SimpleCommunication
     {

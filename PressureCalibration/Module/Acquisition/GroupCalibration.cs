@@ -4,7 +4,7 @@ using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using System.Collections.Concurrent;
 
-namespace Calibration.Services
+namespace Module
 {
     public class GroupCalibration : ParameterManager
     {
@@ -27,14 +27,15 @@ namespace Calibration.Services
         public bool IsAcqOK = false;
         #endregion
 
-        /// <summary>
-        /// 每个采集组采集16个传感器，序号0-15
-        /// </summary>
-        public readonly ConcurrentDictionary<int, SensorCalibration> SensorDataGroup = [];
+        Random random = new();
         /// <summary>
         /// 采集卡连接
         /// </summary>
         public SerialPortTool Connection = new();
+        /// <summary>
+        /// 每个采集组采集16个传感器，序号0-15
+        /// </summary>
+        public readonly ConcurrentDictionary<int, SensorCalibration> SensorDataGroup = [];
 
         public GroupCalibration(byte deviceAddress, int sensorCount = 16)
         {
@@ -177,19 +178,30 @@ namespace Calibration.Services
         /// 读取四路温度值
         /// </summary>
         /// <returns>读取的温度值</returns>
-        public decimal[] ReadTemperature()
+        public decimal[] ReadTemperature(bool isTest = false)
         {
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
-            var result = Connection.SendWithRead(CRC16.CRC16_1(sendBytes), 20);
-            short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
-            if (result.Length >= 18)
+            if (isTest)
             {
-                v1 = BitConverter.ToInt16([result[17], result[16]]);
-                v2 = BitConverter.ToInt16([result[15], result[14]]);
-                v3 = BitConverter.ToInt16([result[13], result[12]]);
-                v4 = BitConverter.ToInt16([result[11], result[10]]);
+                var v1 = random.NextDouble() * 100;
+                var v2 = random.NextDouble() * 100;
+                var v3 = random.NextDouble() * 100;
+                var v4 = random.NextDouble() * 100;
+                return [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
             }
-            return [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+            else
+            {
+                short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
+                byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
+                var result = Connection.SendWithRead(CRC16.CRC16_1(sendBytes), 20);
+                if (result.Length >= 18)
+                {
+                    v1 = BitConverter.ToInt16([result[17], result[16]]);
+                    v2 = BitConverter.ToInt16([result[15], result[14]]);
+                    v3 = BitConverter.ToInt16([result[13], result[12]]);
+                    v4 = BitConverter.ToInt16([result[11], result[10]]);
+                }
+                return [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+            }
         }
 
         public static byte[] GetArray(byte value, int length = 16)
@@ -331,8 +343,14 @@ namespace Calibration.Services
         /// <param name="acquisitionTimes">采集次数</param>
         /// <param name="setP">设置压力</param>
         /// <param name="setT">设置温度</param>
-        public decimal[] GetData(int acquisitionTimes, decimal setP, decimal setT)
+        public decimal[] GetData(int acquisitionTimes, decimal setP, decimal setT, out decimal press, bool isTest = false)
         {
+            if (isTest)
+            {
+                //采集温度压力实时数据
+                press = (decimal)random.NextDouble() * 1000000;
+                return ReadTemperature(isTest);
+            }
             //UID读取
             int[] uidArray = GetSensorsUID();
             for (int i = 0; i < SensorCount; i++)
@@ -342,8 +360,8 @@ namespace Calibration.Services
                 ori.uid = uidArray[i];
             }
             //采集温度压力实时数据
-            decimal press = Get<PressController>().GetPress();
-            decimal[] currentTemp = ReadTemperature();
+            press = Get<PressController>().GetPress();
+            decimal[] currentTemp = ReadTemperature(isTest);
             //平均数存储列表
             List<RawData[]> averageList = [];
             //采集平均数据
@@ -406,6 +424,7 @@ namespace Calibration.Services
         /// </summary>
         public void Initialize()
         {
+            //初始化每个传感器数据
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorDataGroup[i].Initialize(Get<CalibrationParameter>());

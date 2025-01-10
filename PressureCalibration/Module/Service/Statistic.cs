@@ -3,7 +3,7 @@ using CSharpKit.FileManagement;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 
-namespace Services
+namespace Module
 {
 
     public class StatisticTime
@@ -140,4 +140,5 @@ namespace Services
 
         
     }
+    
 }

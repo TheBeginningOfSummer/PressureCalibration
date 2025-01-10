@@ -1,8 +1,9 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
+using CSKit;
 
-namespace Calibration.Services
+namespace Module
 {
     public class PressController : ParameterManager
     {

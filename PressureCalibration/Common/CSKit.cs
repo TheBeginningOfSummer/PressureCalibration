@@ -2364,7 +2364,7 @@ namespace CSharpKit
             /// <returns></returns>
             public static T Get<T>()
             {
-                var value = Loader.Values.Where(t => t is T).First();
+                var value = Loader.Values.ToList().Where(t => t is T).First();
                 return (T)Convert.ChangeType(value, typeof(T));
             }
             /// <summary>
@@ -2424,7 +2424,9 @@ namespace CSharpKit
             /// <returns></returns>
             public static T Load<T>(string path, string name, string key) where T : ParameterManager, new()
             {
+                //从Json加载实例
                 var result = JsonManager.ReadJsonString<T>(path, name);
+                //如果为空建立新实例
                 if (result == null)
                 {
                     result = new T
@@ -2434,9 +2436,12 @@ namespace CSharpKit
                     };
                     JsonManager.Save(path, name, result);
                 }
+                //更新存储路径
                 result.FilePath = path;
                 result.FileName = name;
+                //初始化
                 result.InitializeParameter();
+                //加入存储列表
                 Loader.TryAdd(key, result);
                 return result;
             }

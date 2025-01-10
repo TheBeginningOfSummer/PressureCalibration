@@ -1,6 +1,6 @@
 ﻿using CSharpKit.FileManagement;
 
-namespace Calibration.Services
+namespace Module
 {
     public class CalibrationParameter : ParameterManager
     {

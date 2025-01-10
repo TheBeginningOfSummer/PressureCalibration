@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace Services
+namespace WinformKit
 {
     public class FormKit
     {
@@ -118,6 +118,11 @@ namespace Services
             {
                 if (cmdPara != null) button.CommandParameter = cmdPara;
                 else button.CommandParameter = button;
+                if (color != null)
+                    button.BackColor = (Color)color;
+                if (foreColor != null)
+                    button.ForeColor = (Color)foreColor;
+                button.FlatStyle = FlatStyle.Flat;
             }
             return control;
         }

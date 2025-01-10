@@ -2,7 +2,7 @@
 using CSharpKit.DataManagement;
 using MathWorks.MATLAB.NET.Arrays;
 
-namespace Calibration.Services
+namespace Module
 {
     public class Calculation
     {

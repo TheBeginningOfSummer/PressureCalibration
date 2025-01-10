@@ -1,6 +1,6 @@
 ﻿using CSharpKit.FileManagement;
 
-namespace Calibration.Services
+namespace Module
 {
     public class Config
     {
@@ -31,14 +31,22 @@ namespace Calibration.Services
         public string TECName { get; private set; } = "[Device]Temperature.json";
         #endregion
 
+        #region 加载的实例
+        public Database DB { get; private set; }
+        public CalibrationParameter CP { get; private set; }
+        public PressController PACE { get; private set; }
+        public TECController TEC { get; private set; }
+        public Acquisition ACQ { get; private set; }
+        #endregion
+
         public Config()
         {
             //注意加载顺序
-            ParameterManager.Load<Database>(ConfigPath, DatabaseName, nameof(Database));//加载数据库
-            ParameterManager.Load<CalibrationParameter>(ConfigPath, CalibName, nameof(CalibrationParameter));//加载参数
-            //ParameterManager.Load<Workflow>(ConfigPath, ACQCardName, nameof(Workflow));//加载参数
-            ParameterManager.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
-            ParameterManager.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
+            DB = ParameterManager.Load<Database>(ConfigPath, DatabaseName, nameof(Database));//加载数据库
+            CP = ParameterManager.Load<CalibrationParameter>(ConfigPath, CalibName, nameof(CalibrationParameter));//加载参数
+            PACE = ParameterManager.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
+            TEC = ParameterManager.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
+            ACQ = ParameterManager.Load<Acquisition>(ConfigPath, ACQCardName, nameof(Acquisition));//加载参数
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.DataManagement;
 
-namespace Calibration.Services
+namespace Module
 {
     public class ReceivedData
     {

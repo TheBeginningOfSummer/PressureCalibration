@@ -3,7 +3,7 @@ using System.Reflection;
 using Calibration.Data;
 using OfficeOpenXml;
 
-namespace Calibration.Services
+namespace Module
 {
     public class ExcelOutput
     {

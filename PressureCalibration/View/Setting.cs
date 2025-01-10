@@ -1,18 +1,20 @@
 ﻿using CommunityToolkit.Mvvm.Input;
 using CSharpKit.FileManagement;
-using Services;
+using Module;
 using System.ComponentModel;
 using System.Reflection;
+using WinformKit;
 
 namespace PressureCalibration.View
 {
     public partial class Setting : Form
     {
         public Point IniPoint = new(30, 30);
-        public Point Interval = new(300, 30);
+        public Point Interval = new(400, 30);
         public int RowCount = 12;
+        public int Offset = 80;
 
-        private ParameterManager? settingPara;
+        private List<ParameterManager> settingPara = [];
         //参数设置的所有控件
         readonly Dictionary<string, Control> settingBoxesDic = [];
         //绑定的列表数组
@@ -21,26 +23,32 @@ namespace PressureCalibration.View
         public Setting()
         {
             InitializeComponent();
+
+            settingPara.Add(ParameterManager.Get<CalibrationParameter>());
+            settingPara.Add(ParameterManager.Get<Acquisition>());
+            settingPara.Add(ParameterManager.Get<PressController>());
+            settingPara.Add(ParameterManager.Get<TECController>());
+            for (int i = 0; i < settingPara.Count; i++)
+                Initialize(settingPara[i], HTP设置.TabPages[i]);
         }
 
-        public void Initialize(ParameterManager parameter)
+        public void Initialize(ParameterManager parameter, Control parent)
         {
-            settingPara = parameter;
             //变量点
             int x = IniPoint.X;
             int y = IniPoint.Y;
             int j = 0;
             PropertyInfo[] properties;
-            //通信属性设置
+            #region 通信属性设置
             if (parameter.SocketPara != null)
             {
                 properties = parameter.SocketPara.GetType().GetProperties();
                 foreach (var property in properties)
                 {
                     if (property.Name == "Parity" || property.Name == "DataBits" || property.Name == "StopBits") continue;
-                    TextBox tb = FormKit.AddSettingBox(this,
+                    TextBox tb = FormKit.AddSettingBox(parent,
                              FormKit.ControlFactory<Label>(new Point(x, y), $"[LB]({j}){property.Name}", parameter.SocketPara!.Translate(property.Name)),
-                             FormKit.ControlFactory<TextBox>(new Point(x, y), $"[TB]({j}){property.Name}", property.GetValue(parameter.SocketPara)!.ToString()!, new Size(50, 25)));
+                             FormKit.ControlFactory<TextBox>(new Point(x, y), $"[TB]({j}){property.Name}", property.GetValue(parameter.SocketPara)!.ToString()!, new Size(50, 25)), Offset);
                     if (property.Name == "Ip") tb.Width = 100;
                     settingBoxesDic.TryAdd(property.Name, tb);
 
@@ -58,9 +66,9 @@ namespace PressureCalibration.View
                 foreach (var property in properties)
                 {
                     if (property.Name == "Parity" || property.Name == "DataBits" || property.Name == "StopBits") continue;
-                    TextBox tb = FormKit.AddSettingBox(this,
+                    TextBox tb = FormKit.AddSettingBox(parent,
                              FormKit.ControlFactory<Label>(new Point(x, y), $"[LB]({j}){property.Name}", parameter.SerialPara!.Translate(property.Name)),
-                             FormKit.ControlFactory<TextBox>(new Point(x, y), $"[TB]({j}){property.Name}", property.GetValue(parameter.SerialPara)!.ToString()!, new Size(50, 25)));
+                             FormKit.ControlFactory<TextBox>(new Point(x, y), $"[TB]({j}){property.Name}", property.GetValue(parameter.SerialPara)!.ToString()!, new Size(50, 25)), Offset);
                     if (property.Name == "Ip") tb.Width = 100;
                     settingBoxesDic.TryAdd(property.Name, tb);
 
@@ -72,38 +80,47 @@ namespace PressureCalibration.View
                     }
                 }
             }
-            //参数属性设置
+            #endregion
+
+            #region 参数属性设置
             properties = parameter.GetType().GetProperties();
             foreach (var property in properties)
             {
                 if (property.Name == "FilePath" || property.Name == "FileName" || property.Name == "SerialPara" || property.Name == "SocketPara") continue;
+                if (property.Name == "CurrentState" || property.Name == "Instance") continue;
                 if (property.GetValue(parameter) is List<decimal> list)
                 {
                     BindingList<decimal> listData = [];
                     foreach (var item in list) listData.Add(item);
                     bindingListDic.TryAdd(property.Name, listData);
 
-                    ComboBox cBox = FormKit.AddSettingBox<ComboBox>(this, new Point(x, y), $"[CB]{property.Name}", parameter.Translate(property.Name), "", listData, 70);
+                    ComboBox cBox = FormKit.AddSettingBox<ComboBox>(parent, new Point(x, y), $"[CB]{property.Name}", parameter.Translate(property.Name), "", listData, 60, Offset);
                     cBox.SelectedIndexChanged += CBox_SelectedIndexChanged;
                     cBox.Tag = 0;
                     settingBoxesDic.TryAdd(property.Name, cBox);
 
-                    var b1 = FormKit.AddControl(this, FormKit.ControlFactory<Button>(new Point(x + 150, y - 5), $"[BN]{property.Name}添加", "添加", new Size(40, 25), cmdPara: new Dictionary<string, string>() { [property.Name] = "Add" }));
-                    var b2 = FormKit.AddControl(this, FormKit.ControlFactory<Button>(new Point(x + 190, y - 5), $"[BN]{property.Name}更改", "更改", new Size(40, 25), cmdPara: new Dictionary<string, string>() { [property.Name] = "Change" }));
-                    var b3 = FormKit.AddControl(this, FormKit.ControlFactory<Button>(new Point(x + 230, y - 5), $"[BN]{property.Name}删除", "删除", new Size(40, 25), cmdPara: new Dictionary<string, string>() { [property.Name] = "Delete" }));
+                    var b1 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                        (new Point(x + 150, y - 5), $"[BN]{property.Name}添加", "添加", new Size(40, 25), Color.DarkGray, Color.White, cmdPara: new Dictionary<string, string>() { [property.Name] = "Add" }));
+                    var b2 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                        (new Point(x + 190, y - 5), $"[BN]{property.Name}更改", "更改", new Size(40, 25), Color.DarkGray, Color.White, cmdPara: new Dictionary<string, string>() { [property.Name] = "Change" }));
+                    var b3 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                        (new Point(x + 230, y - 5), $"[BN]{property.Name}删除", "删除", new Size(40, 25), Color.DarkGray, Color.White, cmdPara: new Dictionary<string, string>() { [property.Name] = "Delete" }));
                     b1.Command = new RelayCommand<object>(ChangeItem);
                     b2.Command = new RelayCommand<object>(ChangeItem);
                     b3.Command = new RelayCommand<object>(ChangeItem);
+                    b1.Font = new Font("Segoe UI", 7f);
+                    b2.Font = new Font("Segoe UI", 7f);
+                    b3.Font = new Font("Segoe UI", 7f);
                 }
                 else if (property.GetValue(parameter) is bool onOff)
                 {
-                    var checkBox = FormKit.AddSettingBox<CheckBox>(this, new Point(x, y), $"[CHB]{property.Name}", parameter.Translate(property.Name), "");
+                    var checkBox = FormKit.AddSettingBox<CheckBox>(parent, new Point(x, y), $"[CHB]{property.Name}", parameter.Translate(property.Name), "", xOffset: Offset);
                     checkBox.Checked = onOff;
                     settingBoxesDic.TryAdd(property.Name, checkBox);
                 }
                 else
                 {
-                    var textBox = FormKit.AddSettingBox<TextBox>(this, new Point(x, y), $"[TB]{property.Name}", parameter.Translate(property.Name), property.GetValue(parameter)!.ToString()!);
+                    var textBox = FormKit.AddSettingBox<TextBox>(parent, new Point(x, y), $"[TB]{property.Name}", parameter.Translate(property.Name), property.GetValue(parameter)!.ToString()!, xOffset: Offset);
                     settingBoxesDic.TryAdd(property.Name, textBox);
                 }
 
@@ -114,6 +131,7 @@ namespace PressureCalibration.View
                     y = IniPoint.Y;
                 }
             }
+            #endregion
         }
 
         private void CBox_SelectedIndexChanged(object? sender, EventArgs e)
@@ -169,10 +187,9 @@ namespace PressureCalibration.View
                 else
                     saveDic.TryAdd(item.Key, item.Value.Text);
             }
-            if (settingPara.Save(saveDic))
+            if (settingPara[HTP设置.SelectedIndex].Save(saveDic))
                 MessageBox.Show("保存成功。", "提示");
         }
-
 
     }
 }

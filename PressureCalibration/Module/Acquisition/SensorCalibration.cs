@@ -2,7 +2,7 @@
 using CSharpKit.Communication;
 using CSharpKit.DataManagement;
 
-namespace Calibration.Services
+namespace Module
 {
     public class SensorCalibration
     {
@@ -16,7 +16,27 @@ namespace Calibration.Services
         #region 标定参数
         public byte DeviceAddress { get; set; }//所在采集卡的地址
         public int SensorIndex { get; set; }//采集卡中的哪一路
-        public string Result { get; set; } = "Default";//测试结果
+        public double SingleYield { get; set; } = 1.0;//良率
+        public double MinYield { get; set; } = 0.8;//最小良率
+        public bool ContinuousNG { get; set; } = false;//连续NG
+
+        private string result = "Default";
+        public string Result
+        {
+            get { return result; }
+            set
+            {
+                if (value == "NG" && result != "NG")
+                {
+                    SingleYield = SingleYield * 100 / 101;
+                }
+                if (value == "GOOD" && result != "GOOD")
+                {
+                    SingleYield = (SingleYield * 100 + 1) / 101;
+                }
+                result = value;
+            }
+        }//测试结果
         public bool IsFused { get; set; } = false;//是否烧录过
         #endregion
 
@@ -302,6 +322,12 @@ namespace Calibration.Services
                     if (Result != "NG") Result = "GOOD";
                 }
             }
+        }
+
+        public bool CheckYield()
+        {
+            if (SingleYield < MinYield) return false;
+            return true;
         }
 
         /// <summary>

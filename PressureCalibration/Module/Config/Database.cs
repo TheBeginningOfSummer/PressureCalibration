@@ -2,7 +2,7 @@
 using SQLite;
 using System.Collections;
 
-namespace Calibration.Services
+namespace Module
 {
     public class Database : ParameterManager
     {
