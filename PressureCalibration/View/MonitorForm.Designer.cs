@@ -28,16 +28,16 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
             FP图表 = new ScottPlot.WinForms.FormsPlot();
             BGW监测 = new System.ComponentModel.BackgroundWorker();
             LB压力数据 = new Label();
-            T1 = new System.Windows.Forms.Timer(components);
             LB温度数据 = new Label();
             menuStrip1 = new MenuStrip();
             TMI停止 = new ToolStripMenuItem();
-            TMI开始 = new ToolStripMenuItem();
+            TMI刷新 = new ToolStripMenuItem();
             TMI清除 = new ToolStripMenuItem();
+            CKBP1 = new CheckBox();
+            CKBP2 = new CheckBox();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -49,7 +49,7 @@
             FP图表.Location = new Point(0, 26);
             FP图表.Margin = new Padding(1);
             FP图表.Name = "FP图表";
-            FP图表.Size = new Size(695, 422);
+            FP图表.Size = new Size(870, 595);
             FP图表.TabIndex = 0;
             // 
             // BGW监测
@@ -61,7 +61,7 @@
             LB压力数据.AutoSize = true;
             LB压力数据.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold);
             LB压力数据.ForeColor = Color.LightSkyBlue;
-            LB压力数据.Location = new Point(699, 407);
+            LB压力数据.Location = new Point(1082, 584);
             LB压力数据.Name = "LB压力数据";
             LB压力数据.Size = new Size(56, 17);
             LB压力数据.TabIndex = 3;
@@ -69,16 +69,12 @@
             LB压力数据.Text = "数据信息";
             LB压力数据.Visible = false;
             // 
-            // T1
-            // 
-            T1.Interval = 1000;
-            // 
             // LB温度数据
             // 
             LB温度数据.AutoSize = true;
             LB温度数据.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold);
             LB温度数据.ForeColor = Color.Orange;
-            LB温度数据.Location = new Point(699, 424);
+            LB温度数据.Location = new Point(1082, 601);
             LB温度数据.Name = "LB温度数据";
             LB温度数据.Size = new Size(56, 17);
             LB温度数据.TabIndex = 4;
@@ -89,10 +85,10 @@
             // menuStrip1
             // 
             menuStrip1.BackColor = Color.Transparent;
-            menuStrip1.Items.AddRange(new ToolStripItem[] { TMI停止, TMI开始, TMI清除 });
+            menuStrip1.Items.AddRange(new ToolStripItem[] { TMI停止, TMI刷新, TMI清除 });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
-            menuStrip1.Size = new Size(800, 25);
+            menuStrip1.Size = new Size(1150, 25);
             menuStrip1.TabIndex = 6;
             menuStrip1.Text = "menuStrip1";
             // 
@@ -104,13 +100,13 @@
             TMI停止.Text = "停止";
             TMI停止.Click += TMI停止_Click;
             // 
-            // TMI开始
+            // TMI刷新
             // 
-            TMI开始.Alignment = ToolStripItemAlignment.Right;
-            TMI开始.Name = "TMI开始";
-            TMI开始.Size = new Size(44, 21);
-            TMI开始.Text = "开始";
-            TMI开始.Click += TMI开始_Click;
+            TMI刷新.Alignment = ToolStripItemAlignment.Right;
+            TMI刷新.Name = "TMI刷新";
+            TMI刷新.Size = new Size(44, 21);
+            TMI刷新.Text = "刷新";
+            TMI刷新.Click += TMI刷新_Click;
             // 
             // TMI清除
             // 
@@ -120,15 +116,40 @@
             TMI清除.Text = "清除";
             TMI清除.Click += TMI清除_Click;
             // 
+            // CKBP1
+            // 
+            CKBP1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            CKBP1.AutoSize = true;
+            CKBP1.ForeColor = Color.LightSkyBlue;
+            CKBP1.Location = new Point(870, 60);
+            CKBP1.Name = "CKBP1";
+            CKBP1.Size = new Size(41, 21);
+            CKBP1.TabIndex = 7;
+            CKBP1.Text = "P1";
+            CKBP1.UseVisualStyleBackColor = true;
+            // 
+            // CKBP2
+            // 
+            CKBP2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            CKBP2.AutoSize = true;
+            CKBP2.Location = new Point(935, 60);
+            CKBP2.Name = "CKBP2";
+            CKBP2.Size = new Size(41, 21);
+            CKBP2.TabIndex = 8;
+            CKBP2.Text = "P2";
+            CKBP2.UseVisualStyleBackColor = true;
+            // 
             // MonitorForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(1150, 623);
+            Controls.Add(CKBP2);
+            Controls.Add(CKBP1);
             Controls.Add(LB温度数据);
             Controls.Add(LB压力数据);
-            Controls.Add(FP图表);
             Controls.Add(menuStrip1);
+            Controls.Add(FP图表);
             MainMenuStrip = menuStrip1;
             Name = "MonitorForm";
             StartPosition = FormStartPosition.CenterScreen;
@@ -144,11 +165,12 @@
         private ScottPlot.WinForms.FormsPlot FP图表;
         private System.ComponentModel.BackgroundWorker BGW监测;
         private Label LB压力数据;
-        private System.Windows.Forms.Timer T1;
         private Label LB温度数据;
         private MenuStrip menuStrip1;
         private ToolStripMenuItem TMI停止;
-        private ToolStripMenuItem TMI开始;
+        private ToolStripMenuItem TMI刷新;
         private ToolStripMenuItem TMI清除;
+        private CheckBox CKBP1;
+        private CheckBox CKBP2;
     }
 }

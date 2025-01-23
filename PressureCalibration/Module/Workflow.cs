@@ -1,6 +1,7 @@
 ﻿using Calibration.Data;
 using CSharpKit.Communication;
 using CSharpKit.FileManagement;
+using ScottPlot.Colormaps;
 using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 
@@ -66,9 +67,9 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, GroupCalibration> GroupDic = [];
         /// <summary>
-        /// 需要展示的数据
+        /// 数据监控键值
         /// </summary>
-        public readonly ConcurrentDictionary<string, List<double>> DisplayedData = [];
+        public readonly List<string> DisplayedKeys = [];
 
         #region 控制变量
         /// <summary>
@@ -87,8 +88,9 @@ namespace Module
 
         public Acquisition()
         {
-            //初始化采集时间数据
-            DisplayedData.TryAdd($"Time", []);
+            //初始化通信参数
+            SerialPara = new();
+            //初始化需监视数据的键值
             for (int i = 1; i <= CardAmount; i++)
             {
                 //通信连接
@@ -100,13 +102,11 @@ namespace Module
                 GroupDic.TryAdd(i, group);
                 //初始化采集温度数据
                 for (int j = 1; j <= 4; j++)
-                    DisplayedData.TryAdd($"D{i}T{j}", []);
+                    DisplayedKeys.Add($"D{i}T{j}");
             }
-            //初始化采集压力数据
-            DisplayedData.TryAdd($"P1", []);
-            DisplayedData.TryAdd($"P2", []);
-            //初始化通信参数
-            SerialPara = new();
+            DisplayedKeys.Add("P1");
+            DisplayedKeys.Add("P2");
+            DataMonitor.Initialize([.. DisplayedKeys]);
         }
 
         public override string Translate(string name)
@@ -156,6 +156,26 @@ namespace Module
         {
             return Connection.CloseMySerialPort();
         }
+
+        public void TPMonitor(Dictionary<string, double> monitorData, int cardIndex, decimal[]? temp, decimal? press)
+        {
+            if (cardIndex < 1 || cardIndex > CardAmount) return;
+            if (cardIndex == 1)
+            {
+                monitorData["Time"] = DateTime.Now.ToOADate();
+                if (press == null)
+                    monitorData["P1"] = (double)Pace.GetPress(isTest: CalPara.IsTestVer);
+                else
+                    monitorData["P1"] = (double)press;
+            }
+            temp ??= GroupDic[cardIndex].ReadTemperature(isTest: CalPara.IsTestVer);
+            for (int j = 0; j < temp.Length; j++)
+            {
+                if (monitorData.ContainsKey($"D{cardIndex}T{j + 1}"))
+                    monitorData[$"D{cardIndex}T{j + 1}"] = (double)temp[j];
+            }
+        }
+
         /// <summary>
         /// 采集所有采集卡的标定数据
         /// </summary>
@@ -163,26 +183,22 @@ namespace Module
         /// <param name="setT">设置温度，用于寻找目标数据</param>
         public bool GetData(decimal setP, decimal setT)
         {
-            //采集时间
-            if (IsShowData) DisplayedData[$"Time"].Add(DateTime.Now.ToOADate());
+            Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
             for (int i = 1; i <= CardAmount; i++)
             {
                 Thread.Sleep(10);
                 //采集数据
                 var temp = GroupDic[i].GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, CalPara.IsTestVer);
-                //展示温度数据
-                for (int j = 0; j < temp.Length; j++)
-                {
-                    if (IsShowData) DisplayedData[$"D{i}T{j + 1}"].Add((double)temp[j]);
-                }
-                //展示压力数据
-                if (IsShowData) DisplayedData[$"P1"].Add((double)pressure);
+                //采集监视数据
+                TPMonitor(monitorData, i, temp, pressure);
+                //暂停
                 if (IsSuspend)
                 {
                     WorkProcess?.Invoke($"暂停");
                     return false;
                 }
             }
+            DataMonitor.Cache.Writer.TryWrite(monitorData);
             return true;
         }
 
@@ -210,15 +226,17 @@ namespace Module
             tempTest = new() { Date = DateTime.Now.ToString("HH:mm:ss") };
             decimal minT = 99;
             decimal maxT = 0;
-            if (IsShowData) DisplayedData[$"Time"].Add(DateTime.Now.ToOADate());
+            Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
             for (int i = 1; i <= CardAmount; i++)
             {
                 var temp = GroupDic[i].ReadTemperature(CalPara.IsTestVer);
+                //测试数据
                 tempTest.TempList.Add(temp);
+                //采集监视数据
+                TPMonitor(monitorData, i, temp, null);
                 //判断目标温度范围
                 for (int j = 0; j < temp.Length; j++)
                 {
-                    if (IsShowData) DisplayedData[$"D{i}T{j + 1}"].Add((double)temp[j]);
                     if (CalPara.IsTestVer) continue;//跳过检测
                     if (temp[j] == -256m)
                     {
@@ -234,6 +252,7 @@ namespace Module
                     if (maxT < temp[j]) maxT = temp[j];
                 }
             }
+            DataMonitor.Cache.Writer.TryWrite(monitorData);
             //参考温度最大最小差值
             if (maxT < minT)
             {
@@ -251,20 +270,27 @@ namespace Module
         public bool WaitPressure(decimal targetT)
         {
             decimal[] setPPara = [.. CalPara.PressurePoints];
-
+           
             for (int i = 0; i < setPPara.Length; i++)
             {
                 WorkProcess?.Invoke($"开始采集压力{setPPara[i]}");
                 //计时
                 int count = 0;
                 //设置压力
-                Pace.SetPress(setPPara[i]);
+                Pace.SetPress(setPPara[i], CalPara.IsTestVer);
                 //等待压力(5S)
                 for (int j = 0; j < CalPara.PressDelay; j++)
                 {
+                    Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
                     count++;
                     //得到压力
-                    decimal result = Pace.GetPress();
+                    decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
+                    //采集监视数据
+                    for (int k = 1; k <= CardAmount; k++)
+                    {
+                        //采集监视数据
+                        TPMonitor(monitorData, k, null, result);
+                    }
                     //检测压力差值
                     if (Math.Abs(result - setPPara[i]) > CalPara.MaxPressureDiff) j--;
                     Thread.Sleep(1000);
@@ -272,15 +298,16 @@ namespace Module
                     if (count >= CalPara.PTimeout)
                     {
                         WorkProcess?.Invoke($"Warning:采集压力时间已超时。");
-                        Pace.Vent();
+                        Pace.Vent(CalPara.IsTestVer);
                         return false;
                     }
+                    DataMonitor.Cache.Writer.TryWrite(monitorData);
                 }
                 //采集数据
                 if (GetData(setPPara[i], targetT)) return false;
                 WorkProcess?.Invoke($"完成采集压力{setPPara[i]}");
             }
-            Pace.Vent();
+            Pace.Vent(CalPara.IsTestVer);
             return true;
         }
         //等待所有压力值达标，采集验证数据
@@ -318,14 +345,6 @@ namespace Module
             }
             Pace.Vent();
             return true;
-        }
-
-        public void ClearDisplayedData()
-        {
-            foreach (var item in DisplayedData)
-            {
-                item.Value.Clear();
-            }
         }
 
         public bool OutputExcel(string path = $"Data\\Excel\\")

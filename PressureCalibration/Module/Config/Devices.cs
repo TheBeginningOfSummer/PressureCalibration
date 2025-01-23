@@ -2,11 +2,14 @@
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using CSKit;
+using System.Collections.Generic;
+using System;
 
 namespace Module
 {
     public class PressController : ParameterManager
     {
+        Random random = new();
         //网口
         public TcpComm Connection = new();
 
@@ -42,27 +45,38 @@ namespace Module
         }
 
         //设置压力
-        public void SetPress(decimal press)
+        public void SetPress(decimal press, bool isTest = false)
         {
-            SendCommand($":SOUR {press}");//控制模式
-            Thread.Sleep(500);
-            SendCommand(":OUTP1 1");//控制模式
+            if(!isTest)
+            {
+                SendCommand($":SOUR {press}");//控制模式
+                Thread.Sleep(500);
+                SendCommand(":OUTP1 1");//控制模式
+            }
         }
 
-        public decimal GetPress(int count = 5)
+        public decimal GetPress(int count = 5, bool isTest = false)
         {
             decimal press = 0;
-            for (int i = 0; i < count; i++)
+            if (isTest)
             {
-                if (Connection != null && Connection.IsOnline())
+                press = (decimal)random.NextDouble() * 1000000;
+                return press;
+            }
+            else
+            {
+                for (int i = 0; i < count; i++)
                 {
-                    //tcpComm.SendMsg(":OUTP1 0", out recvStr);//测量模式
-                    Connection.SendMsg(":SENS:PRES:PSE?", out string recvStr);
-                    if (recvStr.Split(' ').Length == 2)
-                        press = Convert.ToDecimal(recvStr.Split(' ')[1]);
+                    if (Connection != null && Connection.IsOnline())
+                    {
+                        //tcpComm.SendMsg(":OUTP1 0", out recvStr);//测量模式
+                        Connection.SendMsg(":SENS:PRES:PSE?", out string recvStr);
+                        if (recvStr.Split(' ').Length == 2)
+                            press = Convert.ToDecimal(recvStr.Split(' ')[1]);
+                    }
+                    if (press != 0) break;
+                    Thread.Sleep(1000);
                 }
-                if (press != 0) break;
-                Thread.Sleep(1000);
             }
             return press;
         }
@@ -108,8 +122,9 @@ namespace Module
          * 
          *     
          */
-        public void Vent()
+        public void Vent(bool isTest = false)
         {
+            if (isTest) return;
             SendCommand(":SOUR1:VENT 1");
         }
 

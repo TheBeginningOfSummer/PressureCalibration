@@ -82,7 +82,7 @@
             // TMI数据监视
             // 
             TMI数据监视.Name = "TMI数据监视";
-            TMI数据监视.Size = new Size(180, 22);
+            TMI数据监视.Size = new Size(124, 22);
             TMI数据监视.Text = "数据监视";
             TMI数据监视.Click += TMI窗口_Click;
             // 

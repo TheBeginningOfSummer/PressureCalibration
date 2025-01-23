@@ -1,6 +1,7 @@
 ﻿using Module;
 using ScottPlot.WinForms;
 using SkiaSharp;
+using System.Collections.Concurrent;
 
 namespace PressureCalibration.View
 {
@@ -10,22 +11,65 @@ namespace PressureCalibration.View
         public Point Interval = new(300, 30);
         public int RowCount = 12;
 
-        readonly ScottPlot.IYAxis[] yAxes = [];
-        readonly List<Label> labelList = [];
-        readonly Config config = Config.Instance;
+        readonly ScottPlot.IYAxis[] yAxes = [];//Y轴
+        readonly ConcurrentDictionary<string, MinDisPoint> pDisPoints = [];//压力数据
+        readonly ConcurrentDictionary<string, MinDisPoint> tDisPoints = [];//温度数据
+        bool isUpdate = true;
 
         public MonitorForm()
         {
             InitializeComponent();
 
             yAxes = InitializePlot(FP图表);
-            labelList.Add(LB压力数据);
-            labelList.Add(LB温度数据);
-            T1.Tick += T1_Tick;
+            DataMonitor.UpdataData += UpdateData;
+
+            #region 数据初始化
+            //压力数据初始化
+            MinDisPoint p1DisPoint = new(this, $"P1", FP图表.Plot, Color.LightSkyBlue, CKBP1, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P1"]);
+            MinDisPoint p2DisPoint = new(this, $"P2", FP图表.Plot, Color.Black, CKBP2, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P2"]);
+            //压力加入数据集
+            pDisPoints.TryAdd(p1DisPoint.Name, p1DisPoint);
+            pDisPoints.TryAdd(p2DisPoint.Name, p2DisPoint);
+            //温度数据初始化
+            int x = 870;
+            int y = 80;
+            Color color = Color.White;
+            for (int i = 1; i <= 9; i++)
+            {
+                for (int j = 1; j <= 4; j++)
+                {
+                    //切换是否显示的控件
+                    CheckBox checkBox = new();
+                    checkBox.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                    checkBox.Location = new Point(x + (j - 1) * 65, y);
+                    checkBox.Name = $"CKBD{i}T{j}";
+                    checkBox.AutoSize = false;
+                    checkBox.Size = new Size(64, 20);
+                    checkBox.Text = $"D{i}T{j}";
+
+                    switch (j)
+                    {
+                        case 1: color = Color.Orange; break;
+                        case 2: color = Color.Blue; break;
+                        case 3: color = Color.DarkRed; break;
+                        case 4: color = Color.YellowGreen; break;
+                    };
+                    //温度数据
+                    MinDisPoint disPoint = new(this, $"D{i}T{j}", FP图表.Plot, color, checkBox, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"D{i}T{j}"]);
+                    //温度数据集加入数据集
+                    tDisPoints.TryAdd(disPoint.Name!, disPoint);
+                }
+                y += 20;
+            }
+            #endregion
         }
 
         #region 图表
-        //初始化设置图表和轴
+        /// <summary>
+        /// 初始化设置图表和轴
+        /// </summary>
+        /// <param name="formsPlot">需设置的图表</param>
+        /// <returns></returns>
         public ScottPlot.IYAxis[] InitializePlot(FormsPlot formsPlot)
         {
             formsPlot.Plot.Font.Set(SKFontManager.Default.MatchCharacter('汉').FamilyName);
@@ -33,7 +77,7 @@ namespace PressureCalibration.View
             formsPlot.Plot.Title("P-T Curve");
             formsPlot.Plot.Axes.DateTimeTicksBottom();
             formsPlot.MouseMove += FP图表_MouseMove;
-
+            //设置Y轴
             ScottPlot.IYAxis y1 = formsPlot.Plot.Axes.Left;
             ScottPlot.IYAxis y2 = formsPlot.Plot.Axes.Right;
             y1.Label.Text = "P(Pa)";
@@ -42,71 +86,186 @@ namespace PressureCalibration.View
             y2.Label.ForeColor = ScottPlot.Color.FromColor(Color.Orange);
             return [y1, y2];
         }
-        //显示每个轴的数据
-        public static void ShowPointData(ScottPlot.Plot plot, ScottPlot.IYAxis[] yAxes, Point mouseLocation, List<Label> labels, List<double> timeLine, params List<double>[] data)
+        /// <summary>
+        /// 显示每个轴数据点的数据
+        /// </summary>
+        /// <param name="plot">数据表</param>
+        /// <param name="yAxis">显示轴</param>
+        /// <param name="mouseLocation">鼠标坐标</param>
+        /// <param name="label">显示的标签</param>
+        /// <param name="timeLine">时间轴</param>
+        /// <param name="data">数据轴</param>
+        public void ShowPointData(Point mouseLocation, int minDistance)
         {
-            int[] index = new int[data.Length];
-            double[] distance = Enumerable.Repeat(999.9, data.Length).ToArray();
-            for (int i = 0; i < timeLine.Count; i++)
-            {
-                for (int j = 0; j < data.Length; j++)
-                {
-                    if (data[j].Count <= i) continue;//不显示无数据
-                    var valuePoint = plot.GetPixel(new ScottPlot.Coordinates(timeLine[i], data[j][i]), plot.Axes.Bottom, yAxes[j]);
-                    double temp = Math.Pow(valuePoint.X - mouseLocation.X, 2) + Math.Pow(valuePoint.Y - mouseLocation.Y, 2);
-                    if (temp <= distance[j])
-                    {
-                        distance[j] = Math.Sqrt(temp);
-                        index[j] = i;
-                    }
-                }
-            }
-            for (int j = 0; j < data.Length; j++)
-            {
-                if (distance[j] < 10)
-                {
-                    labels[j].Text = $"[{index[j]}] [{DateTime.FromOADate(timeLine[index[j]]):HH:mm:ss}] {data[j][index[j]]:N3}{labels[j].Tag}";
-                    labels[j].Location = new Point(mouseLocation.X + 30, mouseLocation.Y + labels[j].Height * j);
-                    labels[j].Visible = true;
-                }
-            }
+            //计算最小距离
+            foreach (var item in pDisPoints)
+                item.Value.GetMinDistance(yAxes[0], mouseLocation);
+            //显示符合条件的坐标
+            int i = 0;
+            foreach (var item in pDisPoints)
+                item.Value.ShowData(mouseLocation, minDistance, ref i);
+
+            //计算最小距离
+            foreach (var item in tDisPoints)
+                item.Value.GetMinDistance(yAxes[1], mouseLocation);
+            //显示符合条件的坐标
+            int j = 0;
+            foreach (var item in tDisPoints)
+                item.Value.ShowData(mouseLocation, minDistance, ref j);
         }
-        //图表刷新
-        private void T1_Tick(object? sender, EventArgs e)
+        /// <summary>
+        /// 图表数据刷新
+        /// </summary>
+        private void UpdateData()
         {
-            FP图表.Plot.Add.Scatter(config.ACQ.DisplayedData["Time"], config.ACQ.DisplayedData["P1"], yAxes[0].Label.ForeColor).Axes.YAxis = yAxes[0];
-            FP图表.Plot.Add.Scatter(config.ACQ.DisplayedData["Time"], config.ACQ.DisplayedData["D1T1"], yAxes[1].Label.ForeColor).Axes.YAxis = yAxes[1];
+            if (!isUpdate) return;
+            //更新数据轴上的数据
+            foreach (var item in pDisPoints)
+                item.Value.UpdateData(yAxes[0]);
+            foreach (var item in tDisPoints)
+                item.Value.UpdateData(yAxes[1]);
+            //刷新图表
             FP图表.Plot.Axes.AutoScale();
             Invoke(new Action(FP图表.Refresh));
         }
-        //数据点查看
+        /// <summary>
+        /// 鼠标图表事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void FP图表_MouseMove(object? sender, MouseEventArgs e)
         {
-            if (config.ACQ.DisplayedData["Time"].Count <= 0) return;
-            foreach (var item in labelList) item.Visible = false;
-            ShowPointData(FP图表.Plot, yAxes, e.Location, labelList, config.ACQ.DisplayedData["Time"],
-                config.ACQ.DisplayedData["P1"], config.ACQ.DisplayedData["D1T1"]);
+            if (DataMonitor.DisplayedData["Time"].Count <= 0) return;
+            ShowPointData(e.Location, 10);
         }
         #endregion
 
         #region 按钮
-        private void TMI开始_Click(object sender, EventArgs e)
+        private void TMI清除_Click(object sender, EventArgs e)
         {
-            T1.Start();
+            //T1.Stop();
+            DataMonitor.ClearDisplayedData();
+            FP图表.Plot.Clear();
+            FP图表.Refresh();
+        }
+
+        private void TMI刷新_Click(object sender, EventArgs e)
+        {
+            if (isUpdate)
+            {
+                UpdateData();
+            }
+            else
+            {
+                isUpdate = true;
+                UpdateData();
+                isUpdate = false;
+            }
         }
 
         private void TMI停止_Click(object sender, EventArgs e)
         {
-            T1.Stop();
-        }
-
-        private void TMI清除_Click(object sender, EventArgs e)
-        {
-            T1.Stop();
-            config.ACQ.ClearDisplayedData();
-            FP图表.Plot.Clear();
-            FP图表.Refresh();
+            var button = (ToolStripMenuItem)sender;
+            isUpdate = !isUpdate;
+            if (isUpdate)
+                button.Text = "停止";
+            else
+                button.Text = "继续";
         }
         #endregion
+
+    }
+
+    public class MinDisPoint
+    {
+        public string Name { get; set; }
+        public int TimeIndex { get; set; }
+        public double Distance { get; set; } = 999.9;
+        public ScottPlot.Plot Plot { get; set; }
+        public Color ControlColor { get; set; }
+        public CheckBox SelectBox { get; set; } = new();
+        public Label InfoLabel { get; set; } = new();
+        public List<double> Time { get; set; } = [];
+        public List<double> Data { get; set; } = [];
+
+        public MinDisPoint(Control control, string name, ScottPlot.Plot plot, Color color, CheckBox selectBox, List<double> time, List<double> data)
+        {
+            Name = name;
+            Plot = plot;
+            ControlColor = color;
+            SelectBox = selectBox;
+            Time = time;
+            Data = data;
+
+            SelectBox.ForeColor = ControlColor;
+            InfoLabel.ForeColor = ControlColor;
+            InfoLabel.Name = $"LB{name}";
+            InfoLabel.AutoSize = true;
+            InfoLabel.Visible = false;
+
+            control.Controls.Add(SelectBox);
+            control.Controls.Add(InfoLabel);
+            InfoLabel.BringToFront();
+
+            SelectBox.CheckedChanged += SelectBox_CheckedChanged;
+        }
+
+        private void SelectBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (sender is CheckBox checkBox)
+            {
+                if (!checkBox.Checked) Plot.Clear();
+            }
+        }
+        /// <summary>
+        /// 更新数据显示
+        /// </summary>
+        /// <param name="yAxis">数据的纵坐标轴</param>
+        public void UpdateData(ScottPlot.IYAxis yAxis)
+        {
+            if (SelectBox.Checked)
+                Plot.Add.Scatter(Time, Data, ScottPlot.Color.FromColor(ControlColor)).Axes.YAxis = yAxis;
+        }
+        /// <summary>
+        /// 计算鼠标位置与数据点的最小距离
+        /// </summary>
+        /// <param name="yAxis">纵坐标轴</param>
+        /// <param name="mouseLocation">光标位置</param>
+        public void GetMinDistance(ScottPlot.IYAxis yAxis, Point mouseLocation)
+        {
+            InfoLabel.Visible = false;
+            Distance = 999.9;
+            for (int i = 0; i < Time.Count; i++)
+            {
+
+                var valuePoint = Plot.GetPixel(new ScottPlot.Coordinates(Time[i], Data[i]), Plot.Axes.Bottom, yAxis);
+                double dis = Math.Sqrt(Math.Pow(valuePoint.X - mouseLocation.X, 2) + Math.Pow(valuePoint.Y - mouseLocation.Y, 2));
+                if (dis <= Distance)
+                {
+                    Distance = dis;
+                    TimeIndex = i;
+                }
+            }
+        }
+        /// <summary>
+        /// 展示鼠标指向的数据点的数据
+        /// </summary>
+        /// <param name="mouseLocation">鼠标位置</param>
+        /// <param name="minDistance">最小距离</param>
+        /// <param name="height">数据标签显示高度</param>
+        public void ShowData(Point mouseLocation, int minDistance, ref int height)
+        {
+            if (SelectBox.Checked)
+            {
+                if (Distance < minDistance)
+                {
+                    InfoLabel.Text = $"[{Name}] [{DateTime.FromOADate(Time[TimeIndex]):HH:mm:ss}] {Data[TimeIndex]:N3}";
+                    InfoLabel.Location = new Point(mouseLocation.X + 30, mouseLocation.Y + InfoLabel.Height * height);
+                    InfoLabel.Visible = true;
+                    height++;
+                }
+            }
+        }
+
     }
 }

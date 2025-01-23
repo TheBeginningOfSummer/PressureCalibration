@@ -33,6 +33,7 @@
             RBN温度一 = new RadioButton();
             RBN温度二 = new RadioButton();
             RBN温度三 = new RadioButton();
+            RBN压力 = new RadioButton();
             SuspendLayout();
             // 
             // LBN确定
@@ -100,12 +101,25 @@
             RBN温度三.UseVisualStyleBackColor = true;
             RBN温度三.CheckedChanged += RB状态更改_CheckedChanged;
             // 
+            // RBN压力
+            // 
+            RBN压力.AutoSize = true;
+            RBN压力.Location = new Point(390, 60);
+            RBN压力.Name = "RBN压力";
+            RBN压力.Size = new Size(50, 21);
+            RBN压力.TabIndex = 5;
+            RBN压力.Tag = "P";
+            RBN压力.Text = "压力";
+            RBN压力.UseVisualStyleBackColor = true;
+            RBN压力.CheckedChanged += RB状态更改_CheckedChanged;
+            // 
             // SwitchState
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.LightGray;
             ClientSize = new Size(800, 450);
+            Controls.Add(RBN压力);
             Controls.Add(RBN温度三);
             Controls.Add(RBN温度二);
             Controls.Add(RBN温度一);
@@ -125,5 +139,6 @@
         private RadioButton RBN温度一;
         private RadioButton RBN温度二;
         private RadioButton RBN温度三;
+        private RadioButton RBN压力;
     }
 }

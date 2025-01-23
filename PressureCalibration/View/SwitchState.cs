@@ -39,6 +39,9 @@ namespace PressureCalibration.View
                         Config.Instance.ACQ.CurrentTempIndex = 2;
                         acqState = new WaitT();
                         break;
+                    case "P":
+                        acqState = new WaitP();
+                        break;
                 }
             }
         }
