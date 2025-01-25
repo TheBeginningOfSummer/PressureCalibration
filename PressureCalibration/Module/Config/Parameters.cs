@@ -33,23 +33,41 @@ namespace Module
         /// </summary>
         public List<decimal> VerifyPressures { get; set; } = [50000, 100000, 110000];
         /// <summary>
-        /// 稳定温差
+        /// 采集数据时稳定的温差
         /// </summary>
         public decimal MaxTemperatureDiff { get; set; } = 1M;
-
+        /// <summary>
+        /// 采集温度时稳定的压差
+        /// </summary>
         public decimal MaxPressureDiff { get; set; } = 10;
-
+        /// <summary>
+        /// 超时时间
+        /// </summary>
         public decimal TTimeout { get; set; } = 360;
-
+        /// <summary>
+        /// 压力超时
+        /// </summary>
         public decimal PTimeout { get; set; } = 120;
+        /// <summary>
+        /// 烧录的最大温差
+        /// </summary>
+        public double FuseTDiff { get; set; } = 0.5;
         /// <summary>
         /// 烧录时的最大差值
         /// </summary>
         public double FusePDiff { get; set; } = 30;
-
-        public double FuseTDiff { get; set; } = 0.5;
-
+        /// <summary>
+        /// 是否烧录
+        /// </summary>
         public bool IsFuse { get; set; } = false;
+
+        public decimal CheckTemperatureDiff { get; set; } = 0.5m;
+        /// <summary>
+        /// 检测压力
+        /// </summary>
+        public decimal CheckPressure { get; set; } = 90000;
+
+        public decimal CheckPressureDiff { get; set; } = 80;
 
         public bool IsTestVer { get; set; } = true;
 
@@ -83,7 +101,7 @@ namespace Module
                 nameof(IsTestVer) => "测试版本",
                 nameof(Method) => "计算方法",
                 nameof(IsSave) => "数据保存",
-                _ => "",
+                _ => name,
             };
         }
 

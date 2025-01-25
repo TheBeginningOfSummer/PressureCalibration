@@ -1,5 +1,4 @@
-﻿using Calibration.Data;
-using CSharpKit.DataManagement;
+﻿using CSharpKit.DataManagement;
 using Module;
 using System.ComponentModel;
 using WinformKit;

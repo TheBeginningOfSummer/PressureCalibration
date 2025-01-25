@@ -153,12 +153,12 @@ namespace PressureCalibration.View
         {
             if (isUpdate)
             {
-                UpdateData();
+                UpdateData([]);
             }
             else
             {
                 isUpdate = true;
-                UpdateData();
+                UpdateData([]);
                 isUpdate = false;
             }
         }

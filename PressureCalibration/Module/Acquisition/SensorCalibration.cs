@@ -34,6 +34,10 @@ namespace Module
                 {
                     SingleYield = (SingleYield * 100 + 1) / 101;
                 }
+                if (value == "Check" && result != "Check")
+                {
+                    SingleYield = SingleYield * 100 / 101;
+                }
                 result = value;
             }
         }//测试结果

@@ -27,7 +27,7 @@ namespace Module
         public bool IsAcqOK = false;
         #endregion
 
-        Random random = new();
+        readonly Random random = new();
         /// <summary>
         /// 采集卡连接
         /// </summary>

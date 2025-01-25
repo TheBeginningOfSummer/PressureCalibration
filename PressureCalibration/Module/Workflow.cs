@@ -386,6 +386,46 @@ namespace Module
             return true;
         }
 
+        public bool Check()
+        {
+            //计时
+            int count = 0; decimal result = 0; //decimal temp = 0;
+            //设置检测压力
+            Pace.SetPress(CalPara.CheckPressure, CalPara.IsTestVer);
+            //等待压力(5S)
+            for (int j = 0; j < CalPara.PressDelay; j++)
+            {
+                count++;
+                //得到压力
+                result = Pace.GetPress();
+                //检测压力差值
+                if (Math.Abs(result - CalPara.CheckPressure) > CalPara.MaxPressureDiff) j--;
+                Thread.Sleep(1000);
+                //超时处理
+                if (count >= CalPara.PTimeout)
+                {
+                    WorkProcess?.Invoke($"Warning:采集验证压力时间已超时。");
+                    Pace.Vent();
+                    return false;
+                }
+            }
+            //检测并保存标定数据
+            for (int i = 1; i <= GroupDic.Count; i++)
+            {
+                GroupDic[i].GetSensorsValue(out decimal[] tempArray, out decimal[] pressArray);
+                for (int j = 0; j < GroupDic[i].SensorCount; j++)
+                {
+                    if ((pressArray[j] - result) > CalPara.CheckPressureDiff)
+                    {
+                        GroupDic[i].SensorDataGroup[j].Result = "Check";
+                    }
+                }
+                if (CalPara.IsSave)
+                    GroupDic[i].SaveDatabase().Wait();
+            }
+            return true;
+        }
+
         public bool OutputExcel(string path = $"Data\\Excel\\")
         {
             try
@@ -645,15 +685,12 @@ namespace Module
     {
         public void Process(Acquisition context)
         {
-            context.WorkProcess?.Invoke("开始检查");
-            //保存标定数据
-            if (context.CalPara.IsSave)
-                for (int i = 1; i <= context.GroupDic.Count; i++)
-                    context.GroupDic[i].SaveDatabase().Wait();
-
+            //context.WorkProcess?.Invoke("开始检查");
+            //context.Check();//手动检测？
             context.PowerOff();
             context.SetState(new Idle());
         }
+
     }
 
 }

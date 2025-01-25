@@ -33,6 +33,7 @@
             TMI设置 = new ToolStripMenuItem();
             TMI窗口 = new ToolStripMenuItem();
             TMI数据监视 = new ToolStripMenuItem();
+            TMI测试 = new ToolStripMenuItem();
             TMI导出 = new ToolStripMenuItem();
             TMI导出Excel = new ToolStripMenuItem();
             TMI导出数据 = new ToolStripMenuItem();
@@ -45,11 +46,12 @@
             LBN切换 = new ReaLTaiizor.Controls.LostButton();
             LBN运行 = new ReaLTaiizor.Controls.LostButton();
             TP查看 = new TabPage();
+            GB结果 = new GroupBox();
             BGWRun = new System.ComponentModel.BackgroundWorker();
-            TMI测试 = new ToolStripMenuItem();
             MS菜单.SuspendLayout();
             ATP主选项卡.SuspendLayout();
             TP操作.SuspendLayout();
+            TP查看.SuspendLayout();
             SuspendLayout();
             // 
             // MS菜单
@@ -83,9 +85,16 @@
             // TMI数据监视
             // 
             TMI数据监视.Name = "TMI数据监视";
-            TMI数据监视.Size = new Size(180, 22);
+            TMI数据监视.Size = new Size(124, 22);
             TMI数据监视.Text = "数据监视";
             TMI数据监视.Click += TMI窗口_Click;
+            // 
+            // TMI测试
+            // 
+            TMI测试.Name = "TMI测试";
+            TMI测试.Size = new Size(124, 22);
+            TMI测试.Text = "测试";
+            TMI测试.Click += TMI测试_Click;
             // 
             // TMI导出
             // 
@@ -244,6 +253,7 @@
             // TP查看
             // 
             TP查看.BackColor = Color.White;
+            TP查看.Controls.Add(GB结果);
             TP查看.Location = new Point(84, 4);
             TP查看.Name = "TP查看";
             TP查看.Padding = new Padding(3);
@@ -251,12 +261,15 @@
             TP查看.TabIndex = 1;
             TP查看.Text = "查看";
             // 
-            // TMI测试
+            // GB结果
             // 
-            TMI测试.Name = "TMI测试";
-            TMI测试.Size = new Size(180, 22);
-            TMI测试.Text = "测试";
-            TMI测试.Click += TMI测试_Click;
+            GB结果.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            GB结果.Location = new Point(220, 6);
+            GB结果.Name = "GB结果";
+            GB结果.Size = new Size(500, 400);
+            GB结果.TabIndex = 0;
+            GB结果.TabStop = false;
+            GB结果.Text = "Result";
             // 
             // MainForm
             // 
@@ -276,6 +289,7 @@
             MS菜单.PerformLayout();
             ATP主选项卡.ResumeLayout(false);
             TP操作.ResumeLayout(false);
+            TP查看.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -299,5 +313,6 @@
         private ReaLTaiizor.Controls.LostButton LBN断电;
         private ReaLTaiizor.Controls.LostButton LBN暂停;
         private ToolStripMenuItem TMI测试;
+        private GroupBox GB结果;
     }
 }
