@@ -99,6 +99,11 @@ namespace PressureCalibration
             new MonitorForm().Show();
         }
 
+        private void TMI≤‚ ‘_Click(object sender, EventArgs e)
+        {
+            new Test().Show();
+        }
+
         private void TMI«Â≥˝_Click(object sender, EventArgs e)
         {
             HRTB–≈œ¢.Clear();

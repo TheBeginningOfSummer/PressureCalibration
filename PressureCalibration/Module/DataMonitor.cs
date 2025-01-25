@@ -8,7 +8,7 @@ namespace Module
         public static Channel<Dictionary<string, double>> Cache { get; set; } = Channel.CreateUnbounded<Dictionary<string, double>>();
         public static ConcurrentDictionary<string, List<double>> DisplayedData { get; set; } = [];
 
-        public static Action? UpdataData;
+        public static Action<Dictionary<string, double>>? UpdataData;
         
         public DataMonitor()
         {
@@ -48,8 +48,11 @@ namespace Module
             {
                 if (Cache.Reader.TryRead(out Dictionary<string, double>? data))
                 {
-                    if (data != null) AddData(data);
-                    UpdataData?.Invoke();
+                    if (data != null)
+                    {
+                        AddData(data);
+                        UpdataData?.Invoke(data);
+                    }
                 }
             }
         }

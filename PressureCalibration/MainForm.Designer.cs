@@ -46,6 +46,7 @@
             LBN运行 = new ReaLTaiizor.Controls.LostButton();
             TP查看 = new TabPage();
             BGWRun = new System.ComponentModel.BackgroundWorker();
+            TMI测试 = new ToolStripMenuItem();
             MS菜单.SuspendLayout();
             ATP主选项卡.SuspendLayout();
             TP操作.SuspendLayout();
@@ -73,7 +74,7 @@
             // 
             // TMI窗口
             // 
-            TMI窗口.DropDownItems.AddRange(new ToolStripItem[] { TMI数据监视 });
+            TMI窗口.DropDownItems.AddRange(new ToolStripItem[] { TMI数据监视, TMI测试 });
             TMI窗口.Image = Properties.Resources.application_16x;
             TMI窗口.Name = "TMI窗口";
             TMI窗口.Size = new Size(60, 21);
@@ -82,7 +83,7 @@
             // TMI数据监视
             // 
             TMI数据监视.Name = "TMI数据监视";
-            TMI数据监视.Size = new Size(124, 22);
+            TMI数据监视.Size = new Size(180, 22);
             TMI数据监视.Text = "数据监视";
             TMI数据监视.Click += TMI窗口_Click;
             // 
@@ -250,6 +251,13 @@
             TP查看.TabIndex = 1;
             TP查看.Text = "查看";
             // 
+            // TMI测试
+            // 
+            TMI测试.Name = "TMI测试";
+            TMI测试.Size = new Size(180, 22);
+            TMI测试.Text = "测试";
+            TMI测试.Click += TMI测试_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -290,5 +298,6 @@
         private ToolStripMenuItem TMI清除;
         private ReaLTaiizor.Controls.LostButton LBN断电;
         private ReaLTaiizor.Controls.LostButton LBN暂停;
+        private ToolStripMenuItem TMI测试;
     }
 }

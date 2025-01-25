@@ -157,7 +157,7 @@ namespace Module
             return Connection.CloseMySerialPort();
         }
 
-        public void TPMonitor(Dictionary<string, double> monitorData, int cardIndex, decimal[]? temp, decimal? press)
+        public void UpdateMonitorData(Dictionary<string, double> monitorData, int cardIndex, decimal[]? temp, decimal? press)
         {
             if (cardIndex < 1 || cardIndex > CardAmount) return;
             if (cardIndex == 1)
@@ -186,11 +186,10 @@ namespace Module
             Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
             for (int i = 1; i <= CardAmount; i++)
             {
-                Thread.Sleep(10);
                 //采集数据
                 var temp = GroupDic[i].GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, CalPara.IsTestVer);
                 //采集监视数据
-                TPMonitor(monitorData, i, temp, pressure);
+                UpdateMonitorData(monitorData, i, temp, pressure);
                 //暂停
                 if (IsSuspend)
                 {
@@ -218,53 +217,93 @@ namespace Module
         /// <summary>
         /// 等待所有采集卡温度达标
         /// </summary>
-        /// <param name="targetTemperature">目标温度</param>
-        /// <param name="tempTest">采集到的所有采集卡的一组温度数据</param>
+        /// <param name="targetT">目标温度</param>
         /// <returns></returns>
-        public bool WaitTemperature(decimal targetTemperature, out TempTest tempTest)
+        public bool WaitTemperature(decimal targetT)
         {
-            tempTest = new() { Date = DateTime.Now.ToString("HH:mm:ss") };
-            decimal minT = 99;
-            decimal maxT = 0;
-            Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
-            for (int i = 1; i <= CardAmount; i++)
+            Dictionary<string, double> temp1 = [];
+            Dictionary<string, double> temp2 = [];
+            for (int i = 0; i <= CalPara.TTimeout; i++)
             {
-                var temp = GroupDic[i].ReadTemperature(CalPara.IsTestVer);
-                //测试数据
-                tempTest.TempList.Add(temp);
-                //采集监视数据
-                TPMonitor(monitorData, i, temp, null);
-                //判断目标温度范围
-                for (int j = 0; j < temp.Length; j++)
+                bool isTempOK = true;
+                double minT = 99;
+                double maxT = 0;
+                //采集温度数据
+                Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
+                for (int m = 1; m <= CardAmount; m++)
                 {
-                    if (CalPara.IsTestVer) continue;//跳过检测
-                    if (temp[j] == -256m)
+                    //采集监视数据
+                    UpdateMonitorData(monitorData, m, null, null);
+                }
+                DataMonitor.Cache.Writer.TryWrite(monitorData);
+                //温度数据检测
+                foreach (var tempData in monitorData)
+                {
+                    if (CalPara.IsTestVer) break;//跳过检测
+                    if (tempData.Key == "Time") continue;
+                    if (tempData.Key == "P1") continue;
+                    if (tempData.Key == "P2") continue;
+                    if (minT > tempData.Value) minT = tempData.Value;
+                    if (maxT < tempData.Value) maxT = tempData.Value;
+                    if (tempData.Value == -256)
                     {
-                        WorkProcess?.Invoke($"得到温度传感器数据失败。采集卡{GroupDic[i].DeviceAddress},温度{j + 1}");
+                        WorkProcess?.Invoke($"Warning:得到温度传感器数据失败。采集卡{tempData.Key}");
                         continue;
                     }
-                    if (Math.Abs(temp[j] - targetTemperature) > 1)
+                    if (Math.Abs((decimal)tempData.Value - targetT) > 1)
                     {
                         //WorkProcess?.Invoke($"采集卡{GroupDic[i].DeviceAddress},温度{j + 1}[{temp[j]}]与目标温度差超过规定值");
-                        return false;
+                        isTempOK = false;
                     }
-                    if (minT > temp[j]) minT = temp[j];
-                    if (maxT < temp[j]) maxT = temp[j];
+                }
+                //参考温度最大最小差值
+                if (maxT < minT)
+                {
+                    //WorkProcess?.Invoke($"最大最小温度记录错误");
+                    isTempOK = false;
+                }
+                if ((maxT - minT) > 1)
+                {
+                    //WorkProcess?.Invoke($"最大最小温度差超过规定值");
+                    isTempOK = false;
+                }
+
+                if (i == 0) temp1 = monitorData;
+                //温度在范围内时检测
+                if (isTempOK)
+                {
+                    //每10S检测
+                    if (i % 10 == 0)
+                    {
+                        bool isOK = true;
+                        temp2 = monitorData;
+                        foreach (var item in temp1)
+                        {
+                            if (item.Key == "Time") continue;
+                            if (item.Key == "P1") continue;
+                            if (item.Key == "P2") continue;
+                            var diff = temp2[item.Key] - temp1[item.Key];
+                            if (diff > 0.1) isOK = false;
+                        }
+                        temp1 = monitorData;
+                        //温度达标转换下一阶段
+                        if (isOK)
+                        {
+                            WorkProcess?.Invoke($"温度OK。");
+                            return true;
+                        }
+                    }
+                }
+                Thread.Sleep(800);
+
+                if (IsSuspend)
+                {
+                    WorkProcess?.Invoke($"暂停");
+                    return false;
                 }
             }
-            DataMonitor.Cache.Writer.TryWrite(monitorData);
-            //参考温度最大最小差值
-            if (maxT < minT)
-            {
-                //WorkProcess?.Invoke($"最大最小温度记录错误");
-                return false;
-            }
-            if ((maxT - minT) > 1)
-            {
-                //WorkProcess?.Invoke($"最大最小温度差超过规定值");
-                return false;
-            }
-            return true;
+            WorkProcess?.Invoke($"Warning:采集温度时间已超时。请检查温度后重新启动。");
+            return false;
         }
         //等待所有压力值达标，采集数据
         public bool WaitPressure(decimal targetT)
@@ -281,19 +320,19 @@ namespace Module
                 //等待压力(5S)
                 for (int j = 0; j < CalPara.PressDelay; j++)
                 {
-                    Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
-                    count++;
+                    count++; 
                     //得到压力
                     decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
-                    //采集监视数据
+                    //数据容器，采集监视数据
+                    Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
                     for (int k = 1; k <= CardAmount; k++)
                     {
                         //采集监视数据
-                        TPMonitor(monitorData, k, null, result);
+                        UpdateMonitorData(monitorData, k, null, result);
                     }
+                    DataMonitor.Cache.Writer.TryWrite(monitorData);
                     //检测压力差值
                     if (Math.Abs(result - setPPara[i]) > CalPara.MaxPressureDiff) j--;
-                    Thread.Sleep(1000);
                     //超时处理
                     if (count >= CalPara.PTimeout)
                     {
@@ -301,7 +340,7 @@ namespace Module
                         Pace.Vent(CalPara.IsTestVer);
                         return false;
                     }
-                    DataMonitor.Cache.Writer.TryWrite(monitorData);
+                    Thread.Sleep(1000);
                 }
                 //采集数据
                 if (GetData(setPPara[i], targetT)) return false;
@@ -430,62 +469,17 @@ namespace Module
             var targetTemp = actualTData[context.CurrentTempIndex];
             context.WorkProcess?.Invoke($"等待温度{targetTemp}");
 
-            //计时
-            int count = 0;
             if (!context.CalPara.IsTestVer)
             {
                 //设置温度
                 context.Tec.TECOnOff(true);
                 context.Tec.SetTemp((short)(targetTemp * 100));
             }
-            TempTest temp1 = new();//临时温度组1
-            TempTest temp2 = new();//临时温度组2
-            //在超时时间内运行
-            for (int i = 0; i <= context.CalPara.TTimeout; i++)
+            if (context.WaitTemperature(targetTemp))
             {
-                //每秒循环判定温度是否达标
-                if (context.WaitTemperature(actualTData[context.CurrentTempIndex], out TempTest temp))//如果达到了温度范围标准
-                {
-                    if (i == 0) temp1 = temp;
-                    else if (count % 10 == 0)//每10秒检测温度波动
-                    {
-                        bool isOK = true;
-                        //得到当前温度
-                        temp2 = temp;
-                        //检测10S的温度波动，大于0.1度为不达标
-                        for (int j = 0; j < temp2.TempList.Count; j++)
-                        {
-                            for (int k = 0; k < temp2.TempList[j].Length; k++)
-                            {
-                                var diff = temp2.TempList[j][k] - temp1.TempList[j][k];
-                                if (diff > 0.1m) isOK = false;
-                            }
-                        }
-                        //温度1变为当前温度
-                        temp1 = temp;
-                        //温度达标转换下一阶段
-                        if (isOK)
-                        {
-                            context.WorkProcess?.Invoke($"温度OK。");
-                            context.SetState(new WaitP());
-                            context.Run();
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    if (i == 0) temp1 = temp;
-                    if (i == context.CalPara.TTimeout)
-                        context.WorkProcess?.Invoke($"Warning:采集温度时间已超时。请检查温度后重新启动。");
-                }
-                Thread.Sleep(800);
-
-                if (context.IsSuspend)
-                {
-                    context.WorkProcess?.Invoke($"暂停");
-                    break;
-                }
+                context.WorkProcess?.Invoke($"温度OK。");
+                context.SetState(new WaitP());
+                context.Run();
             }
         }
     }
@@ -652,9 +646,11 @@ namespace Module
         public void Process(Acquisition context)
         {
             context.WorkProcess?.Invoke("开始检查");
+            //保存标定数据
             if (context.CalPara.IsSave)
                 for (int i = 1; i <= context.GroupDic.Count; i++)
                     context.GroupDic[i].SaveDatabase().Wait();
+
             context.PowerOff();
             context.SetState(new Idle());
         }

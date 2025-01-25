@@ -116,7 +116,7 @@ namespace PressureCalibration.View
         /// <summary>
         /// 图表数据刷新
         /// </summary>
-        private void UpdateData()
+        private void UpdateData(Dictionary<string, double> data)
         {
             if (!isUpdate) return;
             //更新数据轴上的数据
