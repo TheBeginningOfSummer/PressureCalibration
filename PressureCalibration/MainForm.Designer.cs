@@ -48,6 +48,7 @@
             TP查看 = new TabPage();
             GB结果 = new GroupBox();
             BGWRun = new System.ComponentModel.BackgroundWorker();
+            label1 = new Label();
             MS菜单.SuspendLayout();
             ATP主选项卡.SuspendLayout();
             TP操作.SuspendLayout();
@@ -138,7 +139,7 @@
             HRTB信息.ForeColor = Color.FromArgb(48, 49, 51);
             HRTB信息.Hint = "";
             HRTB信息.HoverBorderColor = Color.FromArgb(64, 158, 255);
-            HRTB信息.Location = new Point(5, 6);
+            HRTB信息.Location = new Point(5, 88);
             HRTB信息.Margin = new Padding(2, 3, 2, 3);
             HRTB信息.MaxLength = 32767;
             HRTB信息.Multiline = true;
@@ -148,7 +149,7 @@
             HRTB信息.SelectedText = "";
             HRTB信息.SelectionLength = 0;
             HRTB信息.SelectionStart = 0;
-            HRTB信息.Size = new Size(203, 276);
+            HRTB信息.Size = new Size(213, 302);
             HRTB信息.TabIndex = 5;
             HRTB信息.TabStop = false;
             HRTB信息.UseSystemPasswordChar = false;
@@ -179,6 +180,7 @@
             // TP操作
             // 
             TP操作.BackColor = Color.White;
+            TP操作.Controls.Add(label1);
             TP操作.Controls.Add(LBN断电);
             TP操作.Controls.Add(LBN暂停);
             TP操作.Controls.Add(LBN切换);
@@ -271,6 +273,17 @@
             GB结果.TabStop = false;
             GB结果.Text = "Result";
             // 
+            // label1
+            // 
+            label1.Anchor = AnchorStyles.Top;
+            label1.AutoSize = true;
+            label1.Font = new Font("Microsoft YaHei UI", 20F, FontStyle.Bold);
+            label1.Location = new Point(373, 24);
+            label1.Name = "label1";
+            label1.Size = new Size(231, 36);
+            label1.TabIndex = 10;
+            label1.Text = "压力标定测试软件";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -289,6 +302,7 @@
             MS菜单.PerformLayout();
             ATP主选项卡.ResumeLayout(false);
             TP操作.ResumeLayout(false);
+            TP操作.PerformLayout();
             TP查看.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
@@ -314,5 +328,6 @@
         private ReaLTaiizor.Controls.LostButton LBN暂停;
         private ToolStripMenuItem TMI测试;
         private GroupBox GB结果;
+        private Label label1;
     }
 }

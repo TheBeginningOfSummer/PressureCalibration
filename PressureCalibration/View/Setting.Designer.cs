@@ -37,11 +37,14 @@
             lostButton2 = new ReaLTaiizor.Controls.LostButton();
             TP温控 = new TabPage();
             lostButton3 = new ReaLTaiizor.Controls.LostButton();
+            TP控制卡 = new TabPage();
+            lostButton4 = new ReaLTaiizor.Controls.LostButton();
             HTP设置.SuspendLayout();
             TP采集参数.SuspendLayout();
             TP采集组.SuspendLayout();
             TP压控.SuspendLayout();
             TP温控.SuspendLayout();
+            TP控制卡.SuspendLayout();
             SuspendLayout();
             // 
             // HTP设置
@@ -51,6 +54,7 @@
             HTP设置.Controls.Add(TP采集组);
             HTP设置.Controls.Add(TP压控);
             HTP设置.Controls.Add(TP温控);
+            HTP设置.Controls.Add(TP控制卡);
             HTP设置.Dock = DockStyle.Fill;
             HTP设置.Font = new Font("Segoe UI", 12F);
             HTP设置.ForeColorA = Color.Black;
@@ -176,6 +180,32 @@
             lostButton3.Text = "保存";
             lostButton3.Click += BTN保存_Click;
             // 
+            // TP控制卡
+            // 
+            TP控制卡.Controls.Add(lostButton4);
+            TP控制卡.Font = new Font("Segoe UI", 8F);
+            TP控制卡.Location = new Point(0, 40);
+            TP控制卡.Name = "TP控制卡";
+            TP控制卡.Size = new Size(804, 421);
+            TP控制卡.TabIndex = 4;
+            TP控制卡.Text = "控制卡";
+            TP控制卡.UseVisualStyleBackColor = true;
+            // 
+            // lostButton4
+            // 
+            lostButton4.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            lostButton4.BackColor = Color.DarkGray;
+            lostButton4.Font = new Font("Segoe UI", 9F);
+            lostButton4.ForeColor = Color.White;
+            lostButton4.HoverColor = Color.DodgerBlue;
+            lostButton4.Image = null;
+            lostButton4.Location = new Point(712, 379);
+            lostButton4.Name = "lostButton4";
+            lostButton4.Size = new Size(80, 30);
+            lostButton4.TabIndex = 3;
+            lostButton4.Text = "保存";
+            lostButton4.Click += BTN保存_Click;
+            // 
             // Setting
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -190,6 +220,7 @@
             TP采集组.ResumeLayout(false);
             TP压控.ResumeLayout(false);
             TP温控.ResumeLayout(false);
+            TP控制卡.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -203,5 +234,7 @@
         private ReaLTaiizor.Controls.LostButton lostButton1;
         private ReaLTaiizor.Controls.LostButton lostButton2;
         private ReaLTaiizor.Controls.LostButton lostButton3;
+        private TabPage TP控制卡;
+        private ReaLTaiizor.Controls.LostButton lostButton4;
     }
 }

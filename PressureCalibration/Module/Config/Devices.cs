@@ -2,8 +2,6 @@
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using CSKit;
-using System.Collections.Generic;
-using System;
 
 namespace Module
 {
@@ -151,7 +149,7 @@ namespace Module
             return name switch
             {
                 nameof(DeviceAddress) => "设备地址",
-                _ => "",
+                _ => name,
             };
         }
 

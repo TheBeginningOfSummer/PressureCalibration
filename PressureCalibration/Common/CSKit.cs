@@ -2335,12 +2335,6 @@ namespace CSharpKit
             [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
             public SocketParameter? SocketPara { get; set; }
 
-            public ParameterManager(string filePath, string fileName)
-            {
-                FilePath = filePath;
-                FileName = fileName;
-            }
-
             public ParameterManager() { }
 
             public virtual string Translate(string name)
@@ -2349,7 +2343,7 @@ namespace CSharpKit
                 {
                     "FilePath" => "保存路径",
                     "FileName" => "文件名称",
-                    _ => "",
+                    _ => name,
                 };
             }
 
@@ -2402,6 +2396,11 @@ namespace CSharpKit
                 }
             }
 
+            public bool Save()
+            {
+                return JsonManager.Save(FilePath, FileName, this);
+            }
+
             public bool Save(Dictionary<string, object> propertyInfo)
             {
                 Set(this, propertyInfo);
@@ -2425,18 +2424,8 @@ namespace CSharpKit
             public static T Load<T>(string path, string name, string key) where T : ParameterManager, new()
             {
                 //从Json加载实例
-                var result = JsonManager.ReadJsonString<T>(path, name);
-                //如果为空建立新实例
-                if (result == null)
-                {
-                    result = new T
-                    {
-                        FilePath = path,
-                        FileName = name
-                    };
-                    JsonManager.Save(path, name, result);
-                }
-                //更新存储路径
+                var result = JsonManager.Load<T>(path, name);
+                //路径更新
                 result.FilePath = path;
                 result.FileName = name;
                 //初始化

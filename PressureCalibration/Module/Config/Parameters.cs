@@ -98,6 +98,10 @@ namespace Module
                 nameof(FusePDiff) => "烧录压差(Pa)",
                 nameof(FuseTDiff) => "烧录温差(℃)",
                 nameof(IsFuse) => "是否烧录",
+
+                nameof(CheckTemperatureDiff) => "检测温度差",
+                nameof(CheckPressure) => "检测压力",
+                nameof(CheckPressureDiff) => "检测压力差",
                 nameof(IsTestVer) => "测试版本",
                 nameof(Method) => "计算方法",
                 nameof(IsSave) => "数据保存",

@@ -1,4 +1,5 @@
 ﻿using CSharpKit.FileManagement;
+using Services;
 
 namespace Module
 {
@@ -29,6 +30,7 @@ namespace Module
         public string ACQCardName { get; private set; } = "[Device]ACQCard.json";
         public string PressureName { get; private set; } = "[Device]Pressure.json";
         public string TECName { get; private set; } = "[Device]Temperature.json";
+        public string ZmotionName { get; private set; } = "[Device]Zmotion.json";
         #endregion
 
         #region 加载的实例
@@ -37,6 +39,7 @@ namespace Module
         public PressController PACE { get; private set; }
         public TECController TEC { get; private set; }
         public Acquisition ACQ { get; private set; }
+        public ZmotionMotionControl Zmotion { get; private set; }
         #endregion
 
         public Config()
@@ -47,6 +50,7 @@ namespace Module
             PACE = ParameterManager.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
             TEC = ParameterManager.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
             ACQ = ParameterManager.Load<Acquisition>(ConfigPath, ACQCardName, nameof(Acquisition));//加载参数
+            Zmotion = ParameterManager.Load<ZmotionMotionControl>(ConfigPath, ZmotionName, nameof(ZmotionMotionControl));
         }
     }
 }
