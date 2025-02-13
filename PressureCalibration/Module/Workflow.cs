@@ -1,7 +1,5 @@
-﻿using Calibration.Data;
-using CSharpKit.Communication;
+﻿using CSharpKit.Communication;
 using CSharpKit.FileManagement;
-using ScottPlot.Colormaps;
 using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 

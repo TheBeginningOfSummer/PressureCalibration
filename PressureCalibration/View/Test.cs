@@ -1,4 +1,5 @@
-﻿using CSharpKit.DataManagement;
+﻿using CompreDemo.Forms;
+using CSharpKit.DataManagement;
 using Module;
 using System.ComponentModel;
 using WinformKit;
@@ -12,6 +13,8 @@ namespace PressureCalibration.View
         public Point IniPoint = new(30, 212);
         public Point Interval = new(120, 132);
         public int RowCount = 2;
+
+        readonly Config config = Config.Instance;
 
         #region 控件绑定值
         private decimal deviceCount = 16;
@@ -80,6 +83,7 @@ namespace PressureCalibration.View
             InitialzeTempPicture();
             Bindings();
             DataMonitor.UpdataData += UpdateTempPicture;
+            
         }
 
         private void Bindings()
@@ -94,6 +98,8 @@ namespace PressureCalibration.View
             TTB目标压力.DataBindings.Add(new Binding("Text", this, nameof(Pressure)));
             TTB温度测试名称.DataBindings.Add(new Binding("Text", this, nameof(TempTestName)));
             TTB压力测试名称.DataBindings.Add(new Binding("Text", this, nameof(PressTestName)));
+
+            CMB轴列表.DataSource = config.Zmotion.AxesName;
         }
 
         public void InitialzeTempPicture(int cardCount = 16)
@@ -151,6 +157,35 @@ namespace PressureCalibration.View
                 });
             }
         }
+
+        #region 运动测试
+        private void TMI连接控制卡_Click(object sender, EventArgs e)
+        {
+            if (config.Zmotion.Connect())
+            {
+                //轴参数重新初始化
+                config.Zmotion.Initialize();
+                FormKit.ShowInfoBox("连接成功。");
+            }
+        }
+
+        private void TMI断开控制卡_Click(object sender, EventArgs e)
+        {
+            config.Zmotion.Disconnect();
+            FormKit.ShowInfoBox("断开连接。");
+        }
+
+        private void BTN轴测试_Click(object sender, EventArgs e)
+        {
+            if(config.Zmotion.Axes.TryGetValue(CMB轴列表.Text,out var result))
+            {
+                if (result == null) return;
+                new AxisTest(result).Show();
+            }
+        }
+        #endregion
+
+
 
     }
 }

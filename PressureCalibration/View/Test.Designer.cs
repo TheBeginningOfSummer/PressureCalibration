@@ -34,7 +34,7 @@
             PN温度分布 = new Panel();
             richTextBox1 = new RichTextBox();
             MS温度测试 = new MenuStrip();
-            设备ToolStripMenuItem = new ToolStripMenuItem();
+            TMI温控 = new ToolStripMenuItem();
             TMI连接采集卡 = new ToolStripMenuItem();
             TMI断开采集卡 = new ToolStripMenuItem();
             TMI连接温控 = new ToolStripMenuItem();
@@ -61,7 +61,7 @@
             温度测试名称 = new ToolStripMenuItem();
             TP压力测试 = new TabPage();
             MS压力测试 = new MenuStrip();
-            设备ToolStripMenuItem1 = new ToolStripMenuItem();
+            TMI压控 = new ToolStripMenuItem();
             采集间隔ToolStripMenuItem1 = new ToolStripMenuItem();
             TTB压力采集间隔 = new ToolStripTextBox();
             sToolStripMenuItem1 = new ToolStripMenuItem();
@@ -72,12 +72,22 @@
             TMI压力采集 = new ToolStripMenuItem();
             TTB压力测试名称 = new ToolStripTextBox();
             测试名称ToolStripMenuItem = new ToolStripMenuItem();
+            TP控制卡 = new TabPage();
+            BTN轴测试 = new Button();
+            CMB轴列表 = new ComboBox();
+            MS控制卡 = new MenuStrip();
+            TMI控制卡 = new ToolStripMenuItem();
+            TMI连接控制卡 = new ToolStripMenuItem();
+            TMI断开控制卡 = new ToolStripMenuItem();
+            TMI平面轨迹测试 = new ToolStripMenuItem();
             HTP测试.SuspendLayout();
             TP温度测试.SuspendLayout();
             GPB温度分布.SuspendLayout();
             MS温度测试.SuspendLayout();
             TP压力测试.SuspendLayout();
             MS压力测试.SuspendLayout();
+            TP控制卡.SuspendLayout();
+            MS控制卡.SuspendLayout();
             SuspendLayout();
             // 
             // HTP测试
@@ -85,6 +95,7 @@
             HTP测试.BaseColor = Color.White;
             HTP测试.Controls.Add(TP温度测试);
             HTP测试.Controls.Add(TP压力测试);
+            HTP测试.Controls.Add(TP控制卡);
             HTP测试.Dock = DockStyle.Fill;
             HTP测试.Font = new Font("Segoe UI", 12F);
             HTP测试.ForeColorA = Color.Silver;
@@ -150,19 +161,19 @@
             // 
             // MS温度测试
             // 
-            MS温度测试.Items.AddRange(new ToolStripItem[] { 设备ToolStripMenuItem, 采集间隔ToolStripMenuItem, TTB温度采集间隔, sToolStripMenuItem, 偏差温度ToolStripMenuItem, TTB偏差温度, toolStripMenuItem1, 目标温度ToolStripMenuItem, TTB目标温度, 设置温度ToolStripMenuItem, TTB设置温度, TMI温度设置, TMI温度采集, TTB温度测试名称, 温度测试名称 });
+            MS温度测试.Items.AddRange(new ToolStripItem[] { TMI温控, 采集间隔ToolStripMenuItem, TTB温度采集间隔, sToolStripMenuItem, 偏差温度ToolStripMenuItem, TTB偏差温度, toolStripMenuItem1, 目标温度ToolStripMenuItem, TTB目标温度, 设置温度ToolStripMenuItem, TTB设置温度, TMI温度设置, TMI温度采集, TTB温度测试名称, 温度测试名称 });
             MS温度测试.Location = new Point(3, 3);
             MS温度测试.Name = "MS温度测试";
             MS温度测试.Size = new Size(978, 27);
             MS温度测试.TabIndex = 0;
             MS温度测试.Text = "menuStrip1";
             // 
-            // 设备ToolStripMenuItem
+            // TMI温控
             // 
-            设备ToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { TMI连接采集卡, TMI断开采集卡, TMI连接温控, TMI断开温控 });
-            设备ToolStripMenuItem.Name = "设备ToolStripMenuItem";
-            设备ToolStripMenuItem.Size = new Size(44, 23);
-            设备ToolStripMenuItem.Text = "设备";
+            TMI温控.DropDownItems.AddRange(new ToolStripItem[] { TMI连接采集卡, TMI断开采集卡, TMI连接温控, TMI断开温控 });
+            TMI温控.Name = "TMI温控";
+            TMI温控.Size = new Size(44, 23);
+            TMI温控.Text = "设备";
             // 
             // TMI连接采集卡
             // 
@@ -324,18 +335,18 @@
             // 
             // MS压力测试
             // 
-            MS压力测试.Items.AddRange(new ToolStripItem[] { 设备ToolStripMenuItem1, 采集间隔ToolStripMenuItem1, TTB压力采集间隔, sToolStripMenuItem1, 目标压力ToolStripMenuItem, TTB目标压力, paToolStripMenuItem, TMI压力设置, TMI压力采集, TTB压力测试名称, 测试名称ToolStripMenuItem });
+            MS压力测试.Items.AddRange(new ToolStripItem[] { TMI压控, 采集间隔ToolStripMenuItem1, TTB压力采集间隔, sToolStripMenuItem1, 目标压力ToolStripMenuItem, TTB目标压力, paToolStripMenuItem, TMI压力设置, TMI压力采集, TTB压力测试名称, 测试名称ToolStripMenuItem });
             MS压力测试.Location = new Point(3, 3);
             MS压力测试.Name = "MS压力测试";
             MS压力测试.Size = new Size(978, 27);
             MS压力测试.TabIndex = 0;
             MS压力测试.Text = "menuStrip2";
             // 
-            // 设备ToolStripMenuItem1
+            // TMI压控
             // 
-            设备ToolStripMenuItem1.Name = "设备ToolStripMenuItem1";
-            设备ToolStripMenuItem1.Size = new Size(44, 23);
-            设备ToolStripMenuItem1.Text = "设备";
+            TMI压控.Name = "TMI压控";
+            TMI压控.Size = new Size(44, 23);
+            TMI压控.Text = "设备";
             // 
             // 采集间隔ToolStripMenuItem1
             // 
@@ -399,6 +410,74 @@
             测试名称ToolStripMenuItem.Size = new Size(68, 23);
             测试名称ToolStripMenuItem.Text = "测试名称";
             // 
+            // TP控制卡
+            // 
+            TP控制卡.Controls.Add(BTN轴测试);
+            TP控制卡.Controls.Add(CMB轴列表);
+            TP控制卡.Controls.Add(MS控制卡);
+            TP控制卡.Font = new Font("Segoe UI", 9F);
+            TP控制卡.Location = new Point(0, 40);
+            TP控制卡.Name = "TP控制卡";
+            TP控制卡.Padding = new Padding(3);
+            TP控制卡.Size = new Size(984, 601);
+            TP控制卡.TabIndex = 2;
+            TP控制卡.Text = "控制卡";
+            TP控制卡.UseVisualStyleBackColor = true;
+            // 
+            // BTN轴测试
+            // 
+            BTN轴测试.Location = new Point(156, 50);
+            BTN轴测试.Name = "BTN轴测试";
+            BTN轴测试.Size = new Size(75, 23);
+            BTN轴测试.TabIndex = 2;
+            BTN轴测试.Text = "轴测试";
+            BTN轴测试.UseVisualStyleBackColor = true;
+            BTN轴测试.Click += BTN轴测试_Click;
+            // 
+            // CMB轴列表
+            // 
+            CMB轴列表.FormattingEnabled = true;
+            CMB轴列表.Location = new Point(29, 50);
+            CMB轴列表.Name = "CMB轴列表";
+            CMB轴列表.Size = new Size(121, 23);
+            CMB轴列表.TabIndex = 1;
+            // 
+            // MS控制卡
+            // 
+            MS控制卡.Items.AddRange(new ToolStripItem[] { TMI控制卡, TMI平面轨迹测试 });
+            MS控制卡.Location = new Point(3, 3);
+            MS控制卡.Name = "MS控制卡";
+            MS控制卡.Size = new Size(978, 25);
+            MS控制卡.TabIndex = 0;
+            MS控制卡.Text = "menuStrip1";
+            // 
+            // TMI控制卡
+            // 
+            TMI控制卡.DropDownItems.AddRange(new ToolStripItem[] { TMI连接控制卡, TMI断开控制卡 });
+            TMI控制卡.Name = "TMI控制卡";
+            TMI控制卡.Size = new Size(44, 21);
+            TMI控制卡.Text = "设备";
+            // 
+            // TMI连接控制卡
+            // 
+            TMI连接控制卡.Name = "TMI连接控制卡";
+            TMI连接控制卡.Size = new Size(100, 22);
+            TMI连接控制卡.Text = "连接";
+            TMI连接控制卡.Click += TMI连接控制卡_Click;
+            // 
+            // TMI断开控制卡
+            // 
+            TMI断开控制卡.Name = "TMI断开控制卡";
+            TMI断开控制卡.Size = new Size(100, 22);
+            TMI断开控制卡.Text = "断开";
+            TMI断开控制卡.Click += TMI断开控制卡_Click;
+            // 
+            // TMI平面轨迹测试
+            // 
+            TMI平面轨迹测试.Name = "TMI平面轨迹测试";
+            TMI平面轨迹测试.Size = new Size(92, 21);
+            TMI平面轨迹测试.Text = "平面轨迹测试";
+            // 
             // Test
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -408,7 +487,7 @@
             MainMenuStrip = MS温度测试;
             Name = "Test";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Test";
+            Text = "测试";
             HTP测试.ResumeLayout(false);
             TP温度测试.ResumeLayout(false);
             TP温度测试.PerformLayout();
@@ -419,6 +498,10 @@
             TP压力测试.PerformLayout();
             MS压力测试.ResumeLayout(false);
             MS压力测试.PerformLayout();
+            TP控制卡.ResumeLayout(false);
+            TP控制卡.PerformLayout();
+            MS控制卡.ResumeLayout(false);
+            MS控制卡.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -429,8 +512,8 @@
         private TabPage TP压力测试;
         private MenuStrip MS温度测试;
         private MenuStrip MS压力测试;
-        private ToolStripMenuItem 设备ToolStripMenuItem;
-        private ToolStripMenuItem 设备ToolStripMenuItem1;
+        private ToolStripMenuItem TMI温控;
+        private ToolStripMenuItem TMI压控;
         private ToolStripMenuItem TMI连接采集卡;
         private ToolStripMenuItem TMI断开采集卡;
         private ToolStripMenuItem TMI连接温控;
@@ -468,5 +551,13 @@
         private RichTextBox richTextBox1;
         private GroupBox GPB温度分布;
         private Panel PN温度分布;
+        private TabPage TP控制卡;
+        private MenuStrip MS控制卡;
+        private ToolStripMenuItem TMI控制卡;
+        private ToolStripMenuItem TMI连接控制卡;
+        private ToolStripMenuItem TMI断开控制卡;
+        private ToolStripMenuItem TMI平面轨迹测试;
+        private Button BTN轴测试;
+        private ComboBox CMB轴列表;
     }
 }

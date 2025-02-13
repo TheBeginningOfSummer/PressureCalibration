@@ -157,15 +157,15 @@ namespace WinformKit
         public static T AddSettingBox<T>(Control parent, Point position, string name, string tip, string value, object? data = null, int width = 50, int xOffset = 80, int yOffset = -4) where T : Control, new()
         {
             Point settingLocation = new(position.X + xOffset, position.Y + yOffset);
-            Label label = ControlFactory<Label>(position, $"[LB{name}]", tip);
-            T setting = ControlFactory<T>(settingLocation, $"[XB]{name}", value, new Size(width, 25));
+            Label label = ControlFactory<Label>(position, name, tip);
+            T setting = ControlFactory<T>(settingLocation, name, value, new Size(width, 25));
             if (setting is TextBox)
             {
-                setting.Name = $"[TB]{name}";
+                setting.Name = name;
             }
             if (setting is ComboBox comboBox)
             {
-                comboBox.Name = $"[CB]{name}";
+                comboBox.Name = name;
                 comboBox.DataSource = data;
             }
             return AddSettingBox(parent, label, setting, xOffset, yOffset);

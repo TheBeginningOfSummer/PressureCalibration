@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Runtime.InteropServices;
 
 /********************************** ZMC系列控制器  ************************************************
@@ -31,7 +33,7 @@ using System.Runtime.InteropServices;
 ** 描　述: 对所有BASIC指令进行封装，整合ZMC库到AUX库
 
 
-  ** 修改人: wy
+** 修改人: wy
 ** 版  本: 2.1
 ** 日　期: 2018.8.24
 ** 描  述：添加PCI链接函数
@@ -181,6 +183,19 @@ namespace cszmcaux
         /// <returns>错误码</returns>
         [DllImport("zauxdll.dll", EntryPoint = "ZAux_BasDown", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 ZAux_BasDown(IntPtr handle, string Filename, UInt32 run_mode);
+
+        /// <summary>
+        /// ZPJ文件下载
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="ZpjName">ZpjName ZPJ文件路径</param>
+        /// <param name="ZarName">ZarName Zar文件路径</param>
+        /// <param name="pPass">pPass 软件密码, 绑定APP_PASS  没有密码时pPass = NULL 或 ""</param>
+        /// <param name="uid">uid 绑定控制器唯一ID， 0-不绑定</param>
+        /// <param name="run_mode">下载到RAM-ROM  0-RAM  1-ROM</param>
+        /// <returns></returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_ZpjDown", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_ZpjDown(IntPtr handle, string ZpjName, string ZarName, string pPass, UInt32 uid, UInt32 run_mode);
 
         /// <summary>
         /// 读取输入信号
@@ -1649,6 +1664,16 @@ namespace cszmcaux
         /// <returns>错误码</returns>
         [DllImport("zauxdll.dll", EntryPoint = "ZAux_Direct_MoveModify", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 ZAux_Direct_MoveModify(IntPtr handle, int iaxis, float pfDisance);
+
+        /// <summary>
+        /// 运动中修改结束位置，单轴指令
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="iaxis">轴号</param>
+        /// <param name="pfDisance">运动位置</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_Direct_MoveModify2", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_Direct_MoveModify2(IntPtr handle, int imaxaxises, int[] iaxis, float[] pfDisance);
 
         /// <summary>
         /// 相对圆心定圆弧插补运动
@@ -3272,8 +3297,8 @@ namespace cszmcaux
         /// <param name="handle">连接句柄</param>
         /// <param name="itypecode">上传类型码</param>
         /// <param name="idatalength">数据长度</param>
-        /// <param name="pdata">上报数据指针</param>
-        public delegate void ZAuxCallBack(IntPtr handle, Int32 itypecode, Int32 idatalength, [MarshalAs(UnmanagedType.LPArray, SizeConst = 2048)]byte[] pdata);
+        /// <param name="pdata">上报数据指针</param> [MarshalAs(UnmanagedType.LPArray, SizeConst = 2048)]byte[] pdata
+        public delegate void ZAuxCallBack(IntPtr handle, Int32 itypecode, Int32 idatalength,  StringBuilder pdata);
         [DllImport("zauxdll.dll", EntryPoint = "ZAux_SetAutoUpCallBack", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 ZAux_SetAutoUpCallBack(IntPtr handle, ZAuxCallBack pcallback);
 
@@ -3550,7 +3575,172 @@ namespace cszmcaux
         /// <param name="ivalue">返回的数据值</param>
         /// <returns></returns>
         [DllImport("zauxdll.dll", EntryPoint = "ZAux_BusCmd_NodePdoRead", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern Int32 ZAux_BusCmd_NodePdoRead(IntPtr handle, UInt32 inode, UInt32 index, UInt32 subindex, UInt32 type, ref Int32 ivalue);	
+        public static extern Int32 ZAux_BusCmd_NodePdoRead(IntPtr handle, UInt32 inode, UInt32 index, UInt32 subindex, UInt32 type, ref Int32 ivalue);
 
+        /// <summary>
+        /// 使能周期上报
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="cycleindex">上报通道号</param>
+        /// <param name="fintervalms">上报间隔时间</param>
+        /// <param name="psetesname">上报参数选择，</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_CycleUpEnable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_CycleUpEnable(IntPtr handle, UInt32 cycleindex, float fintervalms, string psetesname);
+
+        /// <summary>
+        /// 关闭使能周期上报
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="cycleindex">上报通道号</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_CycleUpDisable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_CycleUpDisable(IntPtr handle, UInt32 cycleindex);
+
+        /// <summary>
+        /// 周期上报收到的包次数, 超过溢出. 调试使用.
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="cycleindex">上报通道号</param>
+        /// <returns>上报次数</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_CycleUpGetRecvTimes", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_CycleUpGetRecvTimes(IntPtr handle, UInt32 cycleindex);
+
+        /// <summary>
+        /// 强制上报一次, 在运动指令后idle可能不准确的情况下调用.
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="cycleindex">上报通道号</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_CycleUpForceOnce", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_CycleUpForceOnce(IntPtr handle, UInt32 cycleindex);
+
+        /// <summary>
+        /// 从周期上报里面读取内容double格式
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="cycleindex">上报通道号</param>
+        /// <param name="psetname">参数名称</param>
+        /// <param name="isetindex">参数编号</param>
+        /// <param name="pvalue">返回值</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_CycleUpReadBuff", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_CycleUpReadBuff(IntPtr handle, UInt32 cycleindex, string psetesname, UInt32 isetindex,ref double pvalue);
+
+        /// <summary>
+        /// 从周期上报里面读取内容Int32格式
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="cycleindex">上报通道号</param>
+        /// <param name="psetname">参数名称</param>
+        /// <param name="isetindex">参数编号</param>
+        /// <param name="pvalue">返回值</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_CycleUpReadBuffInt", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_CycleUpReadBuffInt(IntPtr handle, UInt32 cycleindex, string psetesname, UInt32 isetindex, ref Int32 pvalue);
+
+        /// <summary>
+        /// 通过轴号进行 SDO 读取
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="iaxis">轴号</param> 
+        /// <param name="index">对象字典编号（注意函数为10进制数据）</param>
+        /// <param name="subindex">子编号	（注意函数为10进制数据）</param>
+        /// <param name="type">数据类型  1-bool 2-int8 3-int16 4-int32 5-uint8 6-uint16 7-uint32</param>
+        /// <param name="value">参数反馈值</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_BusCmd_SDOReadAxis", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_BusCmd_SDOReadAxis(IntPtr handle, UInt32 iaxis, UInt32 index, UInt32 subindex, UInt32 type, ref Int32 value);
+
+        /// <summary>
+        /// 通过轴号进行 SDO 写节
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="iaxis">轴号</param> 
+        /// <param name="index">对象字典编号（注意函数为10进制数据）</param>
+        /// <param name="subindex">子编号	（注意函数为10进制数据）</param>
+        /// <param name="type">数据类型  1-bool 2-int8 3-int16 4-int32 5-uint8 6-uint16 7-uint32</param>
+        /// <param name="value">设定值</param>
+        /// <returns>错误码</returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_BusCmd_SDOWriteAxis", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_BusCmd_SDOWriteAxis(IntPtr handle, UInt32 iaxis, UInt32 index, UInt32 subindex, UInt32 type, Int32 value);
+
+        [DllImport("zmotion.dll", EntryPoint = "ZMC_GetState", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZMC_GetState(IntPtr handle, byte[] pstate);
+
+         /// <summary>
+        /// 读取脚本输出的信息
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="pbuff">脚本空间</param>
+        /// <param name="uimax">最大等待时间</param>
+        /// <param name="puiread">返回的字符长度</param>
+        /// <returns>错误码</returns>
+        [DllImport("zmotion.dll", EntryPoint = "ZMC_ReadMessage", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZMC_ReadMessage(IntPtr handle, byte[] pbuff, UInt32 uimax, ref UInt32 puiread);
+
+
+        /// <summary>
+        /// 读取在线命令的应答， 对没有接收应答的命令有用
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="pbuff">脚本空间</param>
+        /// <param name="uimax">最大等待时间</param>
+        /// <param name="puiread">返回的字符长度</param>
+        /// <param name="pbifExcuteDown">是否已经执行结束</param>
+        /// <returns>错误码</returns>
+        [DllImport("zmotion.dll", EntryPoint = "ZMC_ExecuteGetReceive", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZMC_ExecuteGetReceive(IntPtr handle, byte[] pbuff, UInt32 uimax, ref UInt32 puiread, ref byte pbifExcuteDown);
+
+        /// <summary>
+        /// 动态下载3次文件, 一次下载的内容必须是完整的单行或多行,没有下载完成时, 后面用\n结尾, 全部下载完成时, 加\0结尾,\0会导致任务结束, 需要再启动可以再次调用ZAux_Run3FileRam
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="ifile3num">3次文件编号</param>
+        /// <param name="premainbyte">剩余空间字节数</param>
+        /// <param name="File3Name">设置3次文件名.3次文件不会自动运行, 需调用ZAux_Run3FileRam启动</param>
+        /// <returns></returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_3FileRamDownBegin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_3FileRamDownBegin(IntPtr handle, int ifile3num, ref UInt32 premainbyte, string File3Name);
+
+        /// <summary>
+        /// 读取3次文件可写的空间.
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="ifile3num">3次文件编号</param>
+        /// <param name="premainbyte">剩余空间字节数</param>
+        /// <returns></returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_3FileRamGetRemainSpace", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_3FileRamGetRemainSpace(IntPtr handle, int ifile3num, ref UInt32 premainbyte);
+
+        /// <summary>
+        /// 动态下载3次文件, 一次下载的内容必须是完整的单行或多行,没有下载完成时, 后面用\n结尾, 全部下载完成时, 加\0结尾
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="ifile3num">3次文件编号</param>
+        /// <param name="pbuffer">下载的字符串</param>
+        /// <param name="buffsize">字符串长度</param>
+        /// <param name="premainbyte">剩余空间字节数</param>
+        /// <returns></returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_3FileRamDownPart", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_3FileRamDownPart(IntPtr handle, int ifile3num, StringBuilder pbuffer, UInt32 buffsize, ref UInt32 premainbyte);
+        /// <summary>
+        /// 运行控制器内3次文件
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="ifile3num">3次文件编号</param>
+        /// <param name="itasknum">运动任务号</param>
+        /// <returns></returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_Run3FileRam", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_Run3FileRam(IntPtr handle, int ifile3num, int itasknum);
+
+        /// <summary>
+        /// 动态下载3次文件, 下载结束, 自动加\0, 并且调用后再次调用 ZMC_3FileRamDownPart 会返回错误
+        /// </summary>
+        /// <param name="handle">连接句柄</param>
+        /// <param name="ifile3num">3次文件编号</param>
+        /// <returns></returns>
+        [DllImport("zauxdll.dll", EntryPoint = "ZAux_3FileRamDownEnd", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        public static extern Int32 ZAux_3FileRamDownEnd(IntPtr handle, int ifile3num);
         }
 }

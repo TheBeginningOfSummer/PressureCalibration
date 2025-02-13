@@ -1,4 +1,5 @@
 ﻿using CSharpKit.FileManagement;
+using System.ComponentModel;
 
 namespace Module
 {
@@ -19,19 +20,19 @@ namespace Module
         /// <summary>
         /// 采集的温度点
         /// </summary>
-        public List<decimal> TempaturePoints { get; set; } = [15, 30, 50];
+        public BindingList<decimal> TempaturePoints { get; set; } = [15, 30, 50];
         /// <summary>
         /// 采集温度设置点
         /// </summary>
-        public List<decimal> SetTPoints { get; set; } = [15, 30, 50];
+        public BindingList<decimal> SetTPoints { get; set; } = [15, 30, 50];
         /// <summary>
         /// 采集的压力点
         /// </summary>
-        public List<decimal> PressurePoints { get; set; } = [55000, 65000, 80000, 90000, 105000];
+        public BindingList<decimal> PressurePoints { get; set; } = [55000, 65000, 80000, 90000, 105000];
         /// <summary>
         /// 验证的压力点
         /// </summary>
-        public List<decimal> VerifyPressures { get; set; } = [50000, 100000, 110000];
+        public BindingList<decimal> VerifyPressures { get; set; } = [50000, 100000, 110000];
         /// <summary>
         /// 采集数据时稳定的温差
         /// </summary>

@@ -1,9 +1,9 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.DataManagement;
+using CSharpKit.FileManagement;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Ports;
 using System.Net;
 using System.Net.Sockets;
@@ -13,7 +13,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
-using System.Windows.Forms;
 
 namespace CSharpKit
 {
@@ -52,22 +51,13 @@ namespace CSharpKit
             }
         }
 
-        public class SocketParameter
+        public class SocketParameter : ParameterManager
         {
             public string Ip { get; set; } = "192.168.1.20";
             public int Port { get; set; } = 5025;
 
             public SocketParameter() { }
 
-            public string Translate(string name)
-            {
-                return name switch
-                {
-                    "Ip" => "IP",
-                    "Port" => "端口",
-                    _ => "",
-                };
-            }
         }
 
         public class SocketTool(int byteLength = 4096)
@@ -1013,7 +1003,7 @@ namespace CSharpKit
             }
         }
 
-        public class SerialParameter
+        public class SerialParameter : ParameterManager
         {
             public string PortName { get; set; } = "COM1";
             public int BaudRate { get; set; } = 9600;
@@ -1026,16 +1016,6 @@ namespace CSharpKit
 
             public SerialParameter() { }
 
-            public string Translate(string name)
-            {
-                return name switch
-                {
-                    "PortName" => "串口",
-                    "BaudRate" => "波特率",
-                    "Timeout" => "超时时间(S)",
-                    _ => "",
-                };
-            }
         }
 
         public class SerialPortTool
@@ -2343,6 +2323,11 @@ namespace CSharpKit
                 {
                     "FilePath" => "保存路径",
                     "FileName" => "文件名称",
+                    "PortName" => "串口",
+                    "BaudRate" => "波特率",
+                    "Timeout" => "超时时间(S)",
+                    "Ip" => "IP",
+                    "Port" => "端口",
                     _ => name,
                 };
             }

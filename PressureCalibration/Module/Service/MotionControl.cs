@@ -1,17 +1,18 @@
 ﻿using CSharpKit.FileManagement;
 using cszmcaux;
+using System.ComponentModel;
+using System.Text;
 using System.Text.Json.Serialization;
-//using TrioMotion.TrioPC_NET;
 
 namespace Services
 {
-    #region 轴
-    public abstract class BaseAxis
+    #region 基础类
+    public abstract class BaseAxis : ParameterManager
     {
         #region 参数
-        public string ControllerName = "Controller";
-        public string Name = "DefaultAxis";
-        public int Number;
+        public string ControllerName { get; set; } = "Controller";
+        public string Name { get; set; } = "DefaultAxis";
+        public int Number { get; set; }
 
         public virtual double Type { get; set; }
         public virtual double Units { get; set; }
@@ -36,43 +37,49 @@ namespace Services
         #endregion
 
         #region 状态
-        public string State = "";
-        [JsonIgnore]
+        public virtual string State { get; set; } = "";
         public virtual bool IsMoving { get; set; }
-        [JsonIgnore]
         public virtual double TargetPosition { get; set; }
-        [JsonIgnore]
         public virtual double CurrentPosition { get; set; }
-        [JsonIgnore]
         public virtual double CurrentSpeed { get; set; }
         #endregion
 
         public BaseAxis() { }
 
         #region 方法
-        public virtual T Load<T>() where T : new()
+        public override string Translate(string name)
         {
-            //从Json加载实例
-            var result = JsonManager.ReadJsonString<T>($"Config\\{ControllerName}", $"Axis[{Number}].json");
-            //如果为空建立新实例
-            if (result == null)
+            return name switch
             {
-                result = new T();
-                JsonManager.Save($"Config\\{ControllerName}", $"Axis[{Number}].json", result);
-            }
-            return result;
-        }
-
-        public virtual bool Save()
-        {
-            return JsonManager.Save($"Config\\{ControllerName}", $"Axis[{Number}].json", this);
+                "ControllerName" => "控制器",
+                "Name" => "轴名称",
+                "Number" => "轴号",
+                "Type" => "轴类型",
+                "Units" => "脉冲当量",
+                "Sramp" => "S曲线",
+                "Speed" => "速度",
+                "Creep" => "爬行速度",
+                "JogSpeed" => "Jog速度",
+                "Accele" => "加速度",
+                "Decele" => "减速度",
+                "FastDecele" => "快速减速度",
+                "FsLimit" => "正软限位",
+                "RsLimit" => "负软限位",
+                "DatumIn" => "原点信号",
+                "ForwardIn" => "正限位信号",
+                "ReverseIn" => "负限位信号",
+                "ForwardJogIn" => "Jog正向信号",
+                "ReverseJogIn" => "Jog负向信号",
+                "FastJogIn" => "快速Jog信号",
+                _ => name,
+            };
         }
 
         public abstract void Initialize();
 
         public abstract void DefPos(double position = 0);
 
-        public abstract void UpdateState();
+        public abstract string GetAxisState();
 
         public abstract bool Enable();
 
@@ -94,6 +101,28 @@ namespace Services
         #endregion
     }
 
+    public abstract class MotionControl : ParameterManager
+    {
+        [JsonPropertyOrder(0)]
+        public string Ip { get; set; } = "127.0.0.1";
+        [JsonPropertyOrder(1)]
+        public string Name { get; set; } = "Controller";
+
+        public abstract void Initialize();
+        public abstract bool Connect();
+        public abstract void Disconnect();
+        public abstract bool IsConnected();
+        public abstract void Scram();
+        //信号
+        public abstract double[] GetInputs(int number);
+        public abstract void SetInput(int num, int invert);
+        public abstract void SetOutput(int num, int value);
+
+        public MotionControl() { }
+    }
+    #endregion
+
+    #region Trio
     //public class TrioAxis : BaseAxis
     //{
     //    #region 状态
@@ -347,201 +376,7 @@ namespace Services
     //    #endregion
     //}
 
-    public class ZmotionAxis : BaseAxis
-    {
-        #region 状态
-        private bool isMoving = false;
-        public override bool IsMoving
-        {
-            get
-            {
-                int movingStatus = -1;
-                Zmcaux.ZAux_Direct_GetIfIdle(Handle, Number, ref movingStatus);
-                if (movingStatus == 0)
-                    isMoving = true;
-                else if (movingStatus == -1)
-                    isMoving = false;
-                return isMoving;
-            }
-            set
-            {
-                isMoving = value;
-            }
-        }
-        private float targetPosition;
-        public override double TargetPosition
-        {
-            get
-            {
-                Zmcaux.ZAux_Direct_GetDpos(Handle, Number, ref targetPosition);
-                targetPosition = (float)Math.Round(targetPosition / (float)Units, 2); // 保留两位小数
-                return targetPosition;
-            }
-            set { targetPosition = (float)value; }
-        }
-        private double currentPosition;
-        public override double CurrentPosition
-        {
-            get
-            {
-                float position = 0;
-                Zmcaux.ZAux_Direct_GetMpos(Handle, Number, ref position);
-                currentPosition = Math.Round(position / Units, 2); // 保留两位小数
-                return currentPosition;
-            }
-            set { currentPosition = value; }
-        }
-        private double currentSpeed;
-        public override double CurrentSpeed
-        {
-            get
-            {
-                float speed = 0;
-                Zmcaux.ZAux_Direct_GetMspeed(Handle, Number, ref speed);
-                currentSpeed = Math.Round(speed / Units, 2); // 保留两位小数
-                return currentSpeed;
-            }
-            set { currentSpeed = value; }
-        }
-        #endregion
-
-        public IntPtr Handle;
-
-        public ZmotionAxis(IntPtr handle, string controllerName, string axisName, int axisNumber)
-        {
-            Handle = handle;
-            ControllerName = controllerName;
-            Name = axisName;
-            Number = axisNumber;
-        }
-
-        public ZmotionAxis()
-        {
-
-        }
-
-        #region 设置
-        public override void Initialize()
-        {
-            //Zmcaux.ZAux_Direct_SetInvertStep(Handle, Number, 256 * 100 + 0);
-            Zmcaux.ZAux_Direct_SetAtype(Handle, Number, (int)Type);
-            Zmcaux.ZAux_Direct_SetUnits(Handle, Number, (float)Units);
-            Zmcaux.ZAux_Direct_SetSramp(Handle, Number, (float)Sramp * (float)Units);
-            Zmcaux.ZAux_Direct_SetSpeed(Handle, Number, (float)Speed * (float)Units);
-            Zmcaux.ZAux_Direct_SetCreep(Handle, Number, (float)Creep * (float)Units);
-            Zmcaux.ZAux_Direct_SetJogSpeed(Handle, Number, (float)JogSpeed * (float)Units);
-            Zmcaux.ZAux_Direct_SetAccel(Handle, Number, (float)Accele * (float)Units);
-            Zmcaux.ZAux_Direct_SetDecel(Handle, Number, (float)Decele * (float)Units);
-            Zmcaux.ZAux_Direct_SetFastDec(Handle, Number, (float)FastDecele * (float)Units);
-            Zmcaux.ZAux_Direct_SetFsLimit(Handle, Number, (float)FsLimit * (float)Units);
-            Zmcaux.ZAux_Direct_SetRsLimit(Handle, Number, (float)RsLimit * (float)Units);
-
-            Zmcaux.ZAux_Direct_SetDatumIn(Handle, Number, (int)DatumIn);
-            Zmcaux.ZAux_Direct_SetFwdIn(Handle, Number, (int)ForwardIn);
-            Zmcaux.ZAux_Direct_SetRevIn(Handle, Number, (int)ReverseIn);
-            Zmcaux.ZAux_Direct_SetFwdJog(Handle, Number, (int)ForwardJogIn);
-            Zmcaux.ZAux_Direct_SetRevJog(Handle, Number, (int)ReverseJogIn);
-            Zmcaux.ZAux_Direct_SetFastJog(Handle, Number, (int)FastJogIn);
-
-            //Zmcaux.ZAux_Direct_SetLspeed(Handle, Number, Convert.ToSingle(arg[6]) * Units);
-        }
-
-        public override void DefPos(double position = 0)
-        {
-            Zmcaux.ZAux_Direct_Defpos(Handle, Number, (float)position);
-        }
-
-        public override void UpdateState()
-        {
-            
-        }
-        #endregion
-
-        #region 运动控制
-        /// <summary>
-        /// 使能
-        /// </summary>
-        /// <returns>1为成功-1为失败</returns>
-        public override bool Enable()
-        {
-            int result = Zmcaux.ZAux_Direct_SetAxisEnable(Handle, Number, 1);
-            if (result == 0) return true;
-            else return false;
-        }
-        /// <summary>
-        /// 关闭使能
-        /// </summary>
-        public override void Disenable()
-        {
-            int result = Zmcaux.ZAux_Direct_SetAxisEnable(Handle, Number, 0);
-        }
-
-        public override void Stop(int mode)
-        {
-            Zmcaux.ZAux_Direct_Single_Cancel(Handle, Number, mode);
-        }
-
-        public override void Wait()
-        {
-            Thread.Sleep(100);
-            do
-            {
-                Thread.Sleep(50);
-            } while (IsMoving);
-        }
-
-        public override void Datum(int mode = 3)
-        {
-            Zmcaux.ZAux_Direct_Single_Datum(Handle, Number, mode);
-        }
-
-        public override void Forward()
-        {
-            Zmcaux.ZAux_Direct_Single_Vmove(Handle, Number, 1);
-        }
-
-        public override void Reverse()
-        {
-            Zmcaux.ZAux_Direct_Single_Vmove(Handle, Number, -1);
-        }
-
-        public override void SingleRelativeMove(double distance)
-        {
-            Zmcaux.ZAux_Direct_Single_Move(Handle, Number, (float)distance * (float)Units);
-        }
-
-        public override void SingleAbsoluteMove(double coord)
-        {
-            Zmcaux.ZAux_Direct_Single_MoveAbs(Handle, Number, (float)coord * (float)Units);
-        }
-
-        #endregion
-    }
-    #endregion
-
-    #region 控制器
     //[JsonDerivedType(typeof(TrioMotionControl), typeDiscriminator: "Trio")]
-    [JsonDerivedType(typeof(ZmotionMotionControl), typeDiscriminator: "Zmotion")]
-
-    public abstract class MotionControl : ParameterManager
-    {
-        public string IP { get; set; } = "127.0.0.1";
-        public string Name { get; set; } = "Controller";
-        public Dictionary<string, BaseAxis> Axes { get; set; } = [];
-
-        public abstract void Initialize();
-        public abstract bool Connect();
-        public abstract void Disconnect();
-        public abstract bool IsConnected();
-        public abstract void Scram();
-        //信号
-        public abstract double[] GetInputs(int number);
-        public abstract void SetInput(int num, int invert);
-        public abstract void SetOutput(int num, int value);
-        
-        public MotionControl() { }
-    }
-
     //public class TrioMotionControl : MotionControl
     //{
     //    public readonly TrioPC Trio = new TrioPC();
@@ -687,60 +522,325 @@ namespace Services
     //    }
     //    #endregion
     //}
+    #endregion
 
+    #region Zmotion
+    public class ZmotionAxis : BaseAxis
+    {
+        #region 状态
+        private string state = "";
+        [JsonIgnore]
+        public override string State
+        {
+            get
+            {
+                int stateNumber = 0;
+                Zmcaux.ZAux_Direct_GetAxisStatus(Handle, Number, ref stateNumber);
+                state = stateNumber switch
+                {
+                    2 => "随动误差超限告警",
+                    4 => "与远程轴通讯出错",
+                    8 => "远程驱动器报错",
+                    16 => "正向硬限位",
+                    32 => "反向硬限位",
+                    64 => "找原点中",
+                    128 => "HOLD 速度保持信号输入",
+                    256 => "随动误差超限出错",
+                    512 => "超过正向软限位",
+                    1024 => "超过负向软限位",
+                    2048 => "CANCEL 执行中",
+                    4096 => "脉冲频率超过 MAX_SPEED 限制需要修改降速或修改MAX_SPEED",
+                    16384 => "机械手指令坐标错误",
+                    262144 => "电源异常",
+                    1048576 => "轴速度保护",
+                    2097152 => "运动中触发特殊运动指令失败",
+                    4194304 => "告警信号输入",
+                    8388608 => "轴进入了暂停状态",
+                    _ => "",
+                };
+                return state;
+            }
+            set { state = value; }
+        }
+        private bool isMoving = false;
+        [JsonIgnore]
+        public override bool IsMoving
+        {
+            get
+            {
+                int movingStatus = -1;
+                Zmcaux.ZAux_Direct_GetIfIdle(Handle, Number, ref movingStatus);
+                if (movingStatus == 0)
+                    isMoving = true;
+                else if (movingStatus == -1)
+                    isMoving = false;
+                return isMoving;
+            }
+            set
+            {
+                isMoving = value;
+            }
+        }
+        private float targetPosition;
+        [JsonIgnore]
+        public override double TargetPosition
+        {
+            get
+            {
+                Zmcaux.ZAux_Direct_GetDpos(Handle, Number, ref targetPosition);
+                targetPosition = (float)Math.Round(targetPosition / (float)Units, 2); // 保留两位小数
+                return targetPosition;
+            }
+            set { targetPosition = (float)value; }
+        }
+        private double currentPosition;
+        [JsonIgnore]
+        public override double CurrentPosition
+        {
+            get
+            {
+                float position = 0;
+                Zmcaux.ZAux_Direct_GetMpos(Handle, Number, ref position);
+                currentPosition = Math.Round(position / Units, 2); // 保留两位小数
+                return currentPosition;
+            }
+            set { currentPosition = value; }
+        }
+        private double currentSpeed;
+        [JsonIgnore]
+        public override double CurrentSpeed
+        {
+            get
+            {
+                float speed = 0;
+                Zmcaux.ZAux_Direct_GetMspeed(Handle, Number, ref speed);
+                currentSpeed = Math.Round(speed / Units, 2); // 保留两位小数
+                return currentSpeed;
+            }
+            set { currentSpeed = value; }
+        }
+        #endregion
+
+        public IntPtr Handle;
+
+        public ZmotionAxis(IntPtr handle, string controllerName, string axisName, int axisNumber)
+        {
+            Handle = handle;
+            ControllerName = controllerName;
+            Name = axisName;
+            Number = axisNumber;
+        }
+
+        public ZmotionAxis()
+        {
+
+        }
+
+        #region 设置
+        public override void Initialize()
+        {
+            //Zmcaux.ZAux_Direct_SetInvertStep(Handle, Number, 256 * 100 + 0);
+            Zmcaux.ZAux_Direct_SetAtype(Handle, Number, (int)Type);
+            Zmcaux.ZAux_Direct_SetUnits(Handle, Number, (float)Units);
+            Zmcaux.ZAux_Direct_SetSramp(Handle, Number, (float)Sramp * (float)Units);
+            Zmcaux.ZAux_Direct_SetSpeed(Handle, Number, (float)Speed * (float)Units);
+            Zmcaux.ZAux_Direct_SetCreep(Handle, Number, (float)Creep * (float)Units);
+            Zmcaux.ZAux_Direct_SetJogSpeed(Handle, Number, (float)JogSpeed * (float)Units);
+            Zmcaux.ZAux_Direct_SetAccel(Handle, Number, (float)Accele * (float)Units);
+            Zmcaux.ZAux_Direct_SetDecel(Handle, Number, (float)Decele * (float)Units);
+            Zmcaux.ZAux_Direct_SetFastDec(Handle, Number, (float)FastDecele * (float)Units);
+            Zmcaux.ZAux_Direct_SetFsLimit(Handle, Number, (float)FsLimit * (float)Units);
+            Zmcaux.ZAux_Direct_SetRsLimit(Handle, Number, (float)RsLimit * (float)Units);
+
+            Zmcaux.ZAux_Direct_SetDatumIn(Handle, Number, (int)DatumIn);
+            Zmcaux.ZAux_Direct_SetFwdIn(Handle, Number, (int)ForwardIn);
+            Zmcaux.ZAux_Direct_SetRevIn(Handle, Number, (int)ReverseIn);
+            Zmcaux.ZAux_Direct_SetFwdJog(Handle, Number, (int)ForwardJogIn);
+            Zmcaux.ZAux_Direct_SetRevJog(Handle, Number, (int)ReverseJogIn);
+            Zmcaux.ZAux_Direct_SetFastJog(Handle, Number, (int)FastJogIn);
+
+            //Zmcaux.ZAux_Direct_SetLspeed(Handle, Number, Convert.ToSingle(arg[6]) * Units);
+        }
+
+        public override void DefPos(double position = 0)
+        {
+            Zmcaux.ZAux_Direct_Defpos(Handle, Number, (float)position);
+        }
+
+        public override string GetAxisState()
+        {
+            string message = "";
+            message += $"{State}{Environment.NewLine}";
+            message += $"当前位置：{CurrentPosition}{Environment.NewLine}";
+            message += $"当前速度：{CurrentSpeed}{Environment.NewLine}";
+            return message;
+        }
+        #endregion
+
+        #region 运动控制
+        /// <summary>
+        /// 使能
+        /// </summary>
+        /// <returns>1为成功-1为失败</returns>
+        public override bool Enable()
+        {
+            int result = Zmcaux.ZAux_Direct_SetAxisEnable(Handle, Number, 1);
+            if (result == 0) return true;
+            else return false;
+        }
+        /// <summary>
+        /// 关闭使能
+        /// </summary>
+        public override void Disenable()
+        {
+            int result = Zmcaux.ZAux_Direct_SetAxisEnable(Handle, Number, 0);
+        }
+
+        public override void Stop(int mode)
+        {
+            Zmcaux.ZAux_Direct_Single_Cancel(Handle, Number, mode);
+        }
+
+        public override void Wait()
+        {
+            Thread.Sleep(100);
+            do
+            {
+                Thread.Sleep(50);
+            } while (IsMoving);
+        }
+
+        public override void Datum(int mode = 3)
+        {
+            Zmcaux.ZAux_Direct_Single_Datum(Handle, Number, mode);
+        }
+
+        public override void Forward()
+        {
+            Zmcaux.ZAux_Direct_Single_Vmove(Handle, Number, 1);
+        }
+
+        public override void Reverse()
+        {
+            Zmcaux.ZAux_Direct_Single_Vmove(Handle, Number, -1);
+        }
+
+        public override void SingleRelativeMove(double distance)
+        {
+            Zmcaux.ZAux_Direct_Single_Move(Handle, Number, (float)distance * (float)Units);
+        }
+
+        public override void SingleAbsoluteMove(double coord)
+        {
+            Zmcaux.ZAux_Direct_Single_MoveAbs(Handle, Number, (float)coord * (float)Units);
+        }
+        #endregion
+
+        #region 总线指令
+        public void CMDDatum(uint mode = 17)
+        {
+            Zmcaux.ZAux_BusCmd_Datum(Handle, (uint)Number, mode);
+        }
+
+        public bool SetTorque(float targetTorque, int maxRotateSpeed, int maxTorque = 1000)
+        {
+            int ret = 0;
+            ret += Zmcaux.ZAux_BusCmd_SDOWriteAxis(Handle, (uint)Number, 0x6080, 0, 7, maxRotateSpeed);
+            ret += Zmcaux.ZAux_BusCmd_SDOWriteAxis(Handle, (uint)Number, 0x6072, 0, 7, maxTorque);
+            ret += Zmcaux.ZAux_Direct_SetDAC(Handle, (uint)Number, targetTorque);
+            if (ret == 0) return true;
+            else return false;
+        }
+
+        public int GetTorque()
+        {
+            int currentTorque = -1;
+            Zmcaux.ZAux_BusCmd_GetDriveTorque(Handle, (uint)Number, ref currentTorque);
+            return currentTorque;
+        }
+
+        public bool DriveClear()
+        {
+            int result = Zmcaux.ZAux_BusCmd_DriveClear(Handle, (uint)Number, 0);
+            if (result == 0) return true;
+            else return false;
+        }
+        #endregion
+    }
+
+    [JsonDerivedType(typeof(ZmotionMotionControl), typeDiscriminator: "Zmotion")]
     public class ZmotionMotionControl : MotionControl
     {
+        [JsonPropertyOrder(2)]
+        public Dictionary<string, ZmotionAxis> Axes { get; set; } = [];
+
+        private BindingList<string> axesName = [];
+        [JsonPropertyOrder(3)]
+        public BindingList<string> AxesName
+        {
+            get { return axesName; }
+            set
+            {
+                axesName = value;
+                for (int i = 0; i < axesName.Count; i++)
+                    AddAxis(new ZmotionAxis(Zmotion, Name, axesName[i], i), false);//加载轴（在Axes加载后，如缺失则补充轴实例）
+            }
+        }
+
         public IntPtr Zmotion;
         public int ErrorCode;
 
         public ZmotionMotionControl(string ip, string controllerName, params string[] axisName)
         {
-            IP = ip;
+            Ip = ip;
             Name = controllerName;
 
             for (int i = 0; i < axisName.Length; i++)
                 AddAxis(new ZmotionAxis(Zmotion, Name, axisName[i], i));
-
         }
 
         public ZmotionMotionControl()
         {
-            
+
+        }
+
+        private void UpdateAxisHandle(IntPtr zmotion)
+        {
+            foreach (var axis in Axes.Values)
+            {
+                axis.Handle = zmotion;
+            }
         }
 
         #region 设置
-        public virtual ZmotionMotionControl Load(string ip, string controllerName)
-        {
-            //从Json加载实例
-            var result = JsonManager.ReadJsonString<ZmotionMotionControl>($"Config", $"{Name}.json");
-            //如果为空建立新实例
-            if (result == null)
-            {
-                result = new ZmotionMotionControl(ip, controllerName);
-                JsonManager.Save($"Config", $"{Name}.json", result);
-            }
-            return result;
-        }
-
-        public virtual bool Save()
-        {
-            return JsonManager.Save($"Config", $"{Name}.json", this);
-        }
-
         public override void Initialize()
         {
-            
+            //连接成功后所有轴参数重新初始化
+            foreach (var axis in Axes.Values)
+                axis.Initialize();
+        }
+
+        public void UploadBasFile(string filename, uint mode = 1)
+        {
+            ErrorCode += Zmcaux.ZAux_BasDown(Zmotion, filename, mode);
         }
 
         public void ECInitialize()
         {
-            ErrorCode = Zmcaux.ZAux_BusCmd_InitBus(Zmotion);
+            ErrorCode += Zmcaux.ZAux_BusCmd_InitBus(Zmotion);
+        }
+
+        public void ReECInitialize()
+        {
+            StringBuilder buffer = new(10240);
+            ErrorCode += Zmcaux.ZAux_Execute(Zmotion, "RUNTASK 1,Ecat_Init", buffer, 0);
         }
 
         public override bool Connect()
         {
             //链接控制器 
-            ErrorCode = Zmcaux.ZAux_OpenEth(IP, out Zmotion);
+            ErrorCode = Zmcaux.ZAux_OpenEth(Ip, out Zmotion);
+            UpdateAxisHandle(Zmotion);
             if (Zmotion != (IntPtr)0)
                 return true;
             else
@@ -751,6 +851,7 @@ namespace Services
         {
             ErrorCode = Zmcaux.ZAux_Close(Zmotion);
             Zmotion = (IntPtr)0;
+            UpdateAxisHandle(Zmotion);
         }
 
         public override bool IsConnected()
@@ -758,15 +859,44 @@ namespace Services
             if (Zmotion == (IntPtr)0) return false;
             return true;
         }
-
-        public bool AddAxis(ZmotionAxis axis)
+        /// <summary>
+        /// 添加轴
+        /// </summary>
+        /// <param name="axis">轴实例</param>
+        /// <param name="isAddName">是否添加轴名称到绑定列表</param>
+        /// <returns></returns>
+        public bool AddAxis(ZmotionAxis axis, bool isAddName = true)
         {
             if (Axes.TryAdd(axis.Name, axis))
+            {
+                if (isAddName)
+                    AxesName.Add(axis.Name);
                 return true;
-            else
-                return false;
+            }
+            else return false;
+        }
+        /// <summary>
+        /// 移除轴
+        /// </summary>
+        /// <param name="axisName">移除的轴名称</param>
+        /// <param name="isRemoveName">是否从绑定列表移除轴名称</param>
+        /// <returns></returns>
+        public bool RemoveAxis(string axisName, bool isRemoveName = true)
+        {
+            if (Axes.Remove(axisName))
+            {
+                if (isRemoveName)
+                    AxesName.Remove(axisName);
+                return true;
+            }
+            else return false;
         }
 
+        public bool AddAxis(string axisName, int number)
+        {
+            var axis = new ZmotionAxis(Zmotion, Name, axisName, number);
+            return AddAxis(axis);
+        }
         #endregion
 
         #region 控制
@@ -811,7 +941,7 @@ namespace Services
         {
             uint value = 2;
             ErrorCode = Zmcaux.ZAux_Direct_GetOp(Zmotion, num, ref value);
-            return value; 
+            return value;
         }
         #endregion
 
