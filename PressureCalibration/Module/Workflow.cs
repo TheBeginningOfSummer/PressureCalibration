@@ -1,5 +1,6 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.FileManagement;
+using Services;
 using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 
@@ -30,6 +31,14 @@ namespace Module
             CurrentState = state;
             string message = state.GetType().Name.Split('.').Last();
             WorkProcess?.Invoke($"当前状态: {message}");
+            NotifyRecord.Record(message, NotifyRecord.LogType.Modification);
+        }
+
+        public void Warning(string message, IAcqState? state = null)
+        {
+            WorkProcess?.Invoke($"Warning: {message}");
+            NotifyRecord.Record(message, NotifyRecord.LogType.Warning);
+            if (state != null) SetState(state);
         }
 
         public void Run()
@@ -42,6 +51,7 @@ namespace Module
         public CalibrationParameter CalPara = Get<CalibrationParameter>();
         public PressController Pace = Get<PressController>();
         public TECController Tec = Get<TECController>();
+        public ZmotionMotionControl Motion = Get<ZmotionMotionControl>();
         /// <summary>
         /// 数据采集组数量，用来初始化采集卡的地址
         /// </summary>
@@ -245,7 +255,7 @@ namespace Module
                     if (maxT < tempData.Value) maxT = tempData.Value;
                     if (tempData.Value == -256)
                     {
-                        WorkProcess?.Invoke($"Warning:得到温度传感器数据失败。采集卡{tempData.Key}");
+                        Warning($"得到温度传感器数据失败。采集卡{tempData.Key}");
                         continue;
                     }
                     if (Math.Abs((decimal)tempData.Value - targetT) > 1)
@@ -300,7 +310,7 @@ namespace Module
                     return false;
                 }
             }
-            WorkProcess?.Invoke($"Warning:采集温度时间已超时。请检查温度后重新启动。");
+            Warning($"采集温度时间已超时。请检查温度后重新启动。");
             return false;
         }
         //等待所有压力值达标，采集数据
@@ -334,7 +344,7 @@ namespace Module
                     //超时处理
                     if (count >= CalPara.PTimeout)
                     {
-                        WorkProcess?.Invoke($"Warning:采集压力时间已超时。");
+                        Warning($"采集压力时间超时。");
                         Pace.Vent(CalPara.IsTestVer);
                         return false;
                     }
@@ -371,7 +381,7 @@ namespace Module
                     //超时处理
                     if (count >= CalPara.PTimeout)
                     {
-                        WorkProcess?.Invoke($"Warning:采集验证压力时间已超时。");
+                        Warning($"采集验证压力时间已超时。");
                         Pace.Vent();
                         return false;
                     }
@@ -402,7 +412,7 @@ namespace Module
                 //超时处理
                 if (count >= CalPara.PTimeout)
                 {
-                    WorkProcess?.Invoke($"Warning:采集验证压力时间已超时。");
+                    Warning($"采集验证压力时间已超时。");
                     Pace.Vent();
                     return false;
                 }
@@ -445,20 +455,6 @@ namespace Module
         public void Process(Acquisition context)
         {
             context.SetState(new Initialize());
-            context.Run();
-        }
-    }
-
-    public class Warning : IAcqState
-    {
-        public IAcqState? PreSatae { get; set; }
-
-        public void Process(Acquisition context)
-        {
-            if (PreSatae == null)
-                context.SetState(new Idle());
-            else
-                context.SetState(PreSatae);
             context.Run();
         }
     }
@@ -507,17 +503,24 @@ namespace Module
             var targetTemp = actualTData[context.CurrentTempIndex];
             context.WorkProcess?.Invoke($"等待温度{targetTemp}");
 
-            if (!context.CalPara.IsTestVer)
+            try
             {
-                //设置温度
-                context.Tec.TECOnOff(true);
-                context.Tec.SetTemp((short)(targetTemp * 100));
+                if (!context.CalPara.IsTestVer)
+                {
+                    //设置温度
+                    context.Tec.TECOnOff(true);
+                    context.Tec.SetTemp((short)(targetTemp * 100));
+                }
+                if (context.WaitTemperature(targetTemp))
+                {
+                    context.WorkProcess?.Invoke($"温度OK。");
+                    context.SetState(new WaitP());
+                    context.Run();
+                }
             }
-            if (context.WaitTemperature(targetTemp))
+            catch (Exception e)
             {
-                context.WorkProcess?.Invoke($"温度OK。");
-                context.SetState(new WaitP());
-                context.Run();
+                context.Warning(e.Message);
             }
         }
     }
@@ -534,8 +537,15 @@ namespace Module
             {
                 for (int i = 1; i <= context.GroupDic.Count; i++)
                 {
-                    if (!context.GroupDic[i].CheckData(actualTData[context.CurrentTempIndex]))
-                        context.WorkProcess?.Invoke($"Warning:地址{i}采集卡有芯片数据采集失败");
+                    if (!context.GroupDic[i].CheckData(actualTData[context.CurrentTempIndex], out List<int> index))
+                    {
+                        string message = "";
+                        foreach (var item in index)
+                        {
+                            message += $"[{item}]";
+                        }
+                        context.Warning($"采集卡{i}芯片{message}数据采集失败");
+                    }
                 }
 
                 if (context.CurrentTempIndex >= (setTData.Length - 1))
@@ -569,7 +579,7 @@ namespace Module
             }
             catch (Exception e)
             {
-                context.WorkProcess?.Invoke($"Warning:计算出错.{e.Message}");
+                context.Warning($"计算出错。{e.Message}");
             }
         }
     }
@@ -590,7 +600,7 @@ namespace Module
             }
             catch (Exception e)
             {
-                context.WorkProcess?.Invoke($"Warning:验证出错.{e.Message}");
+                context.Warning($"验证出错。{e.Message}");
             }
         }
     }
@@ -618,7 +628,7 @@ namespace Module
                 //总良率判断
                 if (context.OverallYield < context.MinYield)
                 {
-                    context.WorkProcess?.Invoke($"Warning:良率超过限制{context.OverallYield * 100:N2}%");
+                    context.Warning($"良率超过{context.OverallYield * 100:N2}%");
                     return;
                 }
                 //写入烧录数据
@@ -629,7 +639,7 @@ namespace Module
                     if (!item.IsEffective)
                     {
                         sensorGroup.SensorDataGroup[item.SensorIndex].Result = "NG";
-                        context.WorkProcess?.Invoke($"Warning:采集卡{item.DeviceAddress}芯片{item.SensorIndex}写入失败");
+                        context.Warning($"采集卡{item.DeviceAddress}芯片{item.SensorIndex}写入失败");
                     }
                 }
                 //选择烧录芯片
@@ -661,12 +671,12 @@ namespace Module
                         else
                         {
                             sensorGroup.SensorDataGroup[item.SensorIndex].IsFused = false;
-                            context.WorkProcess?.Invoke($"Warning:采集卡{item.DeviceAddress}芯片{item.SensorIndex}烧录失败");
+                            context.Warning($"采集卡{item.DeviceAddress}芯片{item.SensorIndex}烧录失败");
                         }
                     }
                     else
                     {
-                        context.WorkProcess?.Invoke($"Warning:采集卡{item.DeviceAddress}非烧录消息");
+                        context.Warning($"采集卡{item.DeviceAddress}非烧录消息");
                     }
                 }
             }

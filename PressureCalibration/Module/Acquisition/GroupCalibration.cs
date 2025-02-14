@@ -403,19 +403,20 @@ namespace Module
         /// </summary>
         /// <param name="setT">检查的设置温度</param>
         /// <returns></returns>
-        public bool CheckData(decimal setT)
+        public bool CheckData(decimal setT, out List<int> sensorIndex)
         {
+            sensorIndex = [];
             IsAcqOK = true;
             for (int i = 0; i < SensorCount; i++)
             {
                 var sensorOriData = SensorDataGroup[i].CurrentRawData.Where((t) => t.SetT == setT).First();
                 if (sensorOriData.UNCALTempCodes == 0 || sensorOriData.RAW_C == 0)
                 {
+                    sensorIndex.Add(i);
                     IsAcqOK = false;
-                    return false;
                 }
             }
-            return true;
+            return IsAcqOK;
         }
         #endregion
 

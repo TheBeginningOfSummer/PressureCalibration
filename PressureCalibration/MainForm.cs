@@ -65,7 +65,6 @@ namespace PressureCalibration
 
         private void UpdateMessage(string message)
         {
-            NotifyRecord.Record(message, NotifyRecord.LogType.Modification);
             FormKit.UpdateMessage(HRTB–≈œ¢, message);
         }
 
