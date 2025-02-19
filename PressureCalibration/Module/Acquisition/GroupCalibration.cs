@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace Module
 {
-    public class GroupCalibration : ParameterManager
+    public class GroupCalibration : Loader
     {
         #region 参数
         /// <summary>
@@ -37,16 +37,17 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, SensorCalibration> SensorDataGroup = [];
 
-        public GroupCalibration(byte deviceAddress, int sensorCount = 16)
+        public GroupCalibration(byte deviceAddress, SerialPortTool serialPort, int sensorCount = 16)
         {
             DeviceAddress = deviceAddress;
+            Connection = serialPort;
             SensorCount = sensorCount;
 
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorCalibration sensor = new(deviceAddress, i);
-                sensor.Initialize(Get<CalibrationParameter>());
+                sensor.ClearData(Get<CalibrationParameter>());
                 SensorDataGroup.TryAdd(i, sensor);
                 SelectedSensor[i] = false;
             }
@@ -315,7 +316,7 @@ namespace Module
         /// </summary>
         /// <param name="tempArray">温度值</param>
         /// <param name="pressArray">压力值</param>
-        public void GetSensorsValue(out decimal[] tempArray, out decimal[] pressArray)
+        public void GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray)
         {
             tempArray = new decimal[SensorCount];
             pressArray = new decimal[SensorCount];
@@ -331,8 +332,10 @@ namespace Module
                 {
                     tempResult[i].Data.CopyTo(tempBytes, 0);
                     tempArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
+                    SensorDataGroup[i].OutputT = tempArray[i];
                     pressResult[i].Data.CopyTo(tempBytes, 0);
                     pressArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
+                    SensorDataGroup[i].OutputP = pressArray[i];
                 }
             }
         }
@@ -345,58 +348,61 @@ namespace Module
         /// <param name="setT">设置温度</param>
         public decimal[] GetData(int acquisitionTimes, decimal setP, decimal setT, out decimal press, bool isTest = false)
         {
-            if (isTest)
+            lock (Connection)
             {
-                //采集温度压力实时数据
-                press = (decimal)random.NextDouble() * 1000000;
-                return ReadTemperature(isTest);
-            }
-            //UID读取
-            int[] uidArray = GetSensorsUID();
-            for (int i = 0; i < SensorCount; i++)
-            {
-                var ori = SensorDataGroup[i].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
-                SensorDataGroup[i].Uid = uidArray[i];
-                ori.uid = uidArray[i];
-            }
-            //采集温度压力实时数据
-            press = Get<PressController>().GetPress();
-            decimal[] currentTemp = ReadTemperature(isTest);
-            //平均数存储列表
-            List<RawData[]> averageList = [];
-            //采集平均数据
-            for (int j = 0; j < acquisitionTimes; j++)
-            {
-                RawData[] averageArray = new RawData[SensorCount];
-                GetSensorsData(out int[] tempArray, out int[] pressArray);
+                if (isTest)
+                {
+                    //采集温度压力实时数据
+                    press = (decimal)random.NextDouble() * 1000000;
+                    return ReadTemperature(isTest);
+                }
+                //UID读取
+                int[] uidArray = GetSensorsUID();
                 for (int i = 0; i < SensorCount; i++)
                 {
-                    averageArray[i] = new()
-                    {
-                        RAW_C = pressArray[i],
-                        UNCALTempCodes = tempArray[i]
-                    };
+                    var ori = SensorDataGroup[i].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
+                    SensorDataGroup[i].Uid = uidArray[i];
+                    ori.uid = uidArray[i];
                 }
-                averageList.Add(averageArray);
-            }
-            //计算平均数
-            for (int j = 0; j < SensorCount; j++)
-            {
-                int praw = 0;
-                int traw = 0;
-                for (int i = 0; i < acquisitionTimes; i++)
+                //采集温度压力实时数据
+                press = Get<PressController>().GetPress();
+                decimal[] currentTemp = ReadTemperature(isTest);
+                //平均数存储列表
+                List<RawData[]> averageList = [];
+                //采集平均数据
+                for (int j = 0; j < acquisitionTimes; j++)
                 {
-                    praw += averageList[i][j].RAW_C;
-                    traw += averageList[i][j].UNCALTempCodes;
+                    RawData[] averageArray = new RawData[SensorCount];
+                    GetSensorsData(out int[] tempArray, out int[] pressArray);
+                    for (int i = 0; i < SensorCount; i++)
+                    {
+                        averageArray[i] = new()
+                        {
+                            RAW_C = pressArray[i],
+                            UNCALTempCodes = tempArray[i]
+                        };
+                    }
+                    averageList.Add(averageArray);
                 }
-                var ori = SensorDataGroup[j].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
-                ori.Date = DateTime.Now.ToString("G");
-                ori.RAW_C = praw / acquisitionTimes;
-                ori.UNCALTempCodes = traw / acquisitionTimes;
-                ori.PACERef = press;
-                ori.TProbe = currentTemp[GetTempIndex(j)];
+                //计算平均数
+                for (int j = 0; j < SensorCount; j++)
+                {
+                    int praw = 0;
+                    int traw = 0;
+                    for (int i = 0; i < acquisitionTimes; i++)
+                    {
+                        praw += averageList[i][j].RAW_C;
+                        traw += averageList[i][j].UNCALTempCodes;
+                    }
+                    var ori = SensorDataGroup[j].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
+                    ori.Date = DateTime.Now.ToString("G");
+                    ori.RAW_C = praw / acquisitionTimes;
+                    ori.UNCALTempCodes = traw / acquisitionTimes;
+                    ori.PACERef = press;
+                    ori.TProbe = currentTemp[GetTempIndex(j)];
+                }
+                return currentTemp;
             }
-            return currentTemp;
         }
         /// <summary>
         /// 检查是否采集到数据
@@ -423,13 +429,11 @@ namespace Module
         /// <summary>
         /// 初始化测试数据容器，清除数据并添加新的测试数据容器
         /// </summary>
-        public void Initialize()
+        public void ClearData()
         {
             //初始化每个传感器数据
             for (int i = 0; i < SensorCount; i++)
-            {
-                SensorDataGroup[i].Initialize(Get<CalibrationParameter>());
-            }
+                SensorDataGroup[i].ClearData(Get<CalibrationParameter>());
         }
 
         public void CalGroup(bool method = true)

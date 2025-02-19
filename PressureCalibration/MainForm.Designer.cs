@@ -57,7 +57,7 @@
             // 
             // MS菜单
             // 
-            MS菜单.BackColor = Color.DimGray;
+            MS菜单.BackColor = Color.WhiteSmoke;
             MS菜单.Font = new Font("Microsoft YaHei UI", 11F);
             MS菜单.Items.AddRange(new ToolStripItem[] { TMI设置, TMI窗口, TMI导出, TMI清除 });
             MS菜单.Location = new Point(0, 0);
@@ -78,7 +78,7 @@
             // 
             // TMI窗口
             // 
-            TMI窗口.BackColor = Color.DimGray;
+            TMI窗口.BackColor = Color.Transparent;
             TMI窗口.DropDownItems.AddRange(new ToolStripItem[] { TMI数据监视, TMI测试 });
             TMI窗口.ForeColor = Color.Black;
             TMI窗口.Image = Properties.Resources.application_16x;

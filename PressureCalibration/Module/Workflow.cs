@@ -2,6 +2,7 @@
 using CSharpKit.FileManagement;
 using Services;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Module
@@ -13,7 +14,7 @@ namespace Module
     /// <summary>
     /// 采集主体
     /// </summary>
-    public class Acquisition : ParameterManager
+    public class Acquisition : Loader
     {
         public Action<string>? WorkProcess;
 
@@ -47,15 +48,19 @@ namespace Module
         }
         #endregion
 
-        #region 参数与设备
+        #region 设备
         public CalibrationParameter CalPara = Get<CalibrationParameter>();
         public PressController Pace = Get<PressController>();
         public TECController Tec = Get<TECController>();
         public ZmotionMotionControl Motion = Get<ZmotionMotionControl>();
+        public InputMonitor InMonitor;
+        #endregion
+
+        #region 参数
         /// <summary>
         /// 数据采集组数量，用来初始化采集卡的地址
         /// </summary>
-        public int CardAmount { get; set; } = 9;//采集卡数量
+        public int CardAmount { get; set; } = 8;//采集卡数量
         /// <summary>
         /// 整体良率
         /// </summary>
@@ -67,13 +72,17 @@ namespace Module
         #endregion
 
         /// <summary>
-        /// 采集卡连接
+        /// 采集卡连接（保存）
         /// </summary>
-        public SerialPortTool Connection = new();
+        public BindingList<SerialPortTool> Connection { get; set; } = [];
         /// <summary>
         /// 采集的数据，地址-采集卡
         /// </summary>
         public readonly ConcurrentDictionary<int, GroupCalibration> GroupDic = [];
+        /// <summary>
+        /// 与GroupDic关联的采集数据组，按通讯端口分组
+        /// </summary>
+        public readonly ConcurrentDictionary<string, List<GroupCalibration>> GroupByCom = [];
         /// <summary>
         /// 数据监控键值
         /// </summary>
@@ -96,25 +105,7 @@ namespace Module
 
         public Acquisition()
         {
-            //初始化通信参数
-            SerialPara = new();
-            //初始化需监视数据的键值
-            for (int i = 1; i <= CardAmount; i++)
-            {
-                //通信连接
-                var group = new GroupCalibration((byte)i)
-                {
-                    Connection = Connection
-                };
-                //分配给板卡1-9的设备地址
-                GroupDic.TryAdd(i, group);
-                //初始化采集温度数据
-                for (int j = 1; j <= 4; j++)
-                    DisplayedKeys.Add($"D{i}T{j}");
-            }
-            DisplayedKeys.Add("P1");
-            DisplayedKeys.Add("P2");
-            DataMonitor.Initialize([.. DisplayedKeys]);
+            InMonitor = new InputMonitor(Motion);
         }
 
         public override string Translate(string name)
@@ -124,15 +115,82 @@ namespace Module
                 nameof(CardAmount) => "采集卡数",
                 nameof(OverallYield) => "总良率",
                 nameof(MinYield) => "最小良率",
+                nameof(Connection) => "连接",
                 nameof(IsShowData) => "数据显示",
                 _ => name,
             };
         }
 
+        public override void LoaderInitialize()
+        {
+            //初始化通信端口
+            int connectionAmount = (CardAmount + 1) / 2;
+            for (int i = 0; i < connectionAmount; i++)
+            {
+                if (Connection.Count < connectionAmount)
+                {
+                    if (i < Connection.Count)
+                        continue;
+                    else
+                        Connection.Add(new SerialPortTool() { Name = $"端口{i + 1}" });
+                }
+            }
+            //初始化采集组
+            int connectionIndex = 0;
+            for (int i = 1; i <= CardAmount; i++)
+            {
+                //通信连接
+                var group = new GroupCalibration((byte)i, Connection[connectionIndex]);
+                //分配给板卡1-9的设备地址
+                GroupDic.TryAdd(i, group);
+                //初始化采集温度数据
+                for (int j = 1; j <= 4; j++)
+                    DisplayedKeys.Add($"D{i}T{j}");
+                if (i % 2 == 0) connectionIndex++;
+            }
+            //按通信串口分组
+            foreach (var acq in GroupDic.Values)
+            {
+                if (!GroupByCom.TryAdd(acq.Connection.PortName, [acq]))
+                    GroupByCom[acq.Connection.PortName].Add(acq);
+            }
+
+            DisplayedKeys.Add("P1");
+            //DisplayedKeys.Add("P2");
+            DataMonitor.Initialize([.. DisplayedKeys]);
+        }
+
         public void Initialize()
         {
+            #region 设备连接
+            Open();
+            if (Pace.Connect())
+                WorkProcess?.Invoke("连接压力控制器成功！");
+            else
+                WorkProcess?.Invoke("连接压力控制器失败！");
+            if (Tec.Open())
+                WorkProcess?.Invoke("连接温度控制器成功！");
+            else
+                WorkProcess?.Invoke("连接温度控制器失败！");
+            if (Motion.Connect())
+            {
+                //轴参数重新初始化
+                Motion.Initialize();
+                InMonitor = new InputMonitor(Motion);
+                Task.Run(InMonitor.UpdateInput);
+                WorkProcess?.Invoke("连接控制卡成功！");
+            }
+            else
+                WorkProcess?.Invoke("连接控制卡失败！");
+            #endregion
+
+
+        }
+
+        public void ClearData()
+        {
             foreach (var group in GroupDic.Values)
-                group.Initialize();
+                group.ClearData();
         }
 
         public ReceivedData[] PowerOn()
@@ -155,58 +213,117 @@ namespace Module
             return receivedData;
         }
 
-        public bool Open()
+        public void Open()
         {
-            return Connection.OpenMySerialPort(SerialPara!);
-        }
-
-        public bool Close()
-        {
-            return Connection.CloseMySerialPort();
-        }
-
-        public void UpdateMonitorData(Dictionary<string, double> monitorData, int cardIndex, decimal[]? temp, decimal? press)
-        {
-            if (cardIndex < 1 || cardIndex > CardAmount) return;
-            if (cardIndex == 1)
+            for (int i = 0; i < Connection.Count; i++)
             {
+                if (Connection[i].Open())
+                    WorkProcess?.Invoke($"连接采集卡端口{i + 1}成功！");
+                else
+                    WorkProcess?.Invoke($"连接采集卡端口{i + 1}失败！");
+            }
+        }
+
+        public void Close()
+        {
+            for (int i = 0; i < Connection.Count; i++)
+            {
+                if (Connection[i].Close())
+                    WorkProcess?.Invoke($"断开采集卡端口{i}成功！");
+            }
+        }
+
+        /// <summary>
+        /// 得到监视数据
+        /// </summary>
+        /// <param name="monitorData">数据容器</param>
+        /// <param name="group">采集组</param>
+        /// <param name="temp">温度数据</param>
+        /// <param name="press">压力数据</param>
+        public void MonitoringData(ConcurrentDictionary<string, double> monitorData, GroupCalibration group, decimal[]? temp, decimal? press)
+        {
+            //取某次采集的时间和温度数据
+            if (group.DeviceAddress == 1)
+            {
+                //采集时间
                 monitorData["Time"] = DateTime.Now.ToOADate();
+                //采集压力
                 if (press == null)
                     monitorData["P1"] = (double)Pace.GetPress(isTest: CalPara.IsTestVer);
                 else
                     monitorData["P1"] = (double)press;
             }
-            temp ??= GroupDic[cardIndex].ReadTemperature(isTest: CalPara.IsTestVer);
+            //采集温度
+            temp ??= group.ReadTemperature(isTest: CalPara.IsTestVer);
             for (int j = 0; j < temp.Length; j++)
             {
-                if (monitorData.ContainsKey($"D{cardIndex}T{j + 1}"))
-                    monitorData[$"D{cardIndex}T{j + 1}"] = (double)temp[j];
+                if (monitorData.ContainsKey($"D{group.DeviceAddress}T{j + 1}"))
+                    monitorData[$"D{group.DeviceAddress}T{j + 1}"] = (double)temp[j];
             }
         }
-
         /// <summary>
-        /// 采集所有采集卡的标定数据
+        /// 采集所有采集卡的标定数据（单温度单压力）
         /// </summary>
         /// <param name="setP">设置压力，用于寻找目标数据</param>
         /// <param name="setT">设置温度，用于寻找目标数据</param>
-        public bool GetData(decimal setP, decimal setT)
+        public ConcurrentDictionary<string, double> GetData(decimal setP, decimal setT)
         {
-            Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
-            for (int i = 1; i <= CardAmount; i++)
+            ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1, [.. DisplayedKeys]);
+            foreach (var group in GroupDic.Values)
             {
                 //采集数据
-                var temp = GroupDic[i].GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, CalPara.IsTestVer);
+                var temp = group.GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, CalPara.IsTestVer);
                 //采集监视数据
-                UpdateMonitorData(monitorData, i, temp, pressure);
+                MonitoringData(monitorData, group, temp, pressure);
                 //暂停
-                if (IsSuspend)
-                {
-                    WorkProcess?.Invoke($"暂停");
-                    return false;
-                }
+                if (IsSuspend) WorkProcess?.Invoke($"暂停");
             }
-            DataMonitor.Cache.Writer.TryWrite(monitorData);
-            return true;
+            //检测数据是否完成，并加入缓存
+            if (DataMonitor.IsFilled(monitorData) && IsShowData)
+                DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());
+            return monitorData;
+        }
+        /// <summary>
+        /// 采集所有采集卡的标定数据（单温度单压力）
+        /// </summary>
+        /// <param name="setP">设置压力，用于寻找目标数据</param>
+        /// <param name="setT">设置温度，用于寻找目标数据</param>
+        /// <returns>监视数据</returns>
+        public ConcurrentDictionary<string, double> GetDataByTask(double setP, double setT)
+        {
+            //数据容器，采集监视数据
+            ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1, [.. DisplayedKeys]);
+            //采集线程列表
+            List<Task> taskList = [];
+            //按分组采集
+            foreach (var groupList in GroupByCom.Values)
+            {
+                var t = Task.Run(() =>
+                {
+                    foreach (var acq in groupList)
+                    {
+                        if (double.IsNaN(setP) || double.IsNaN(setT))
+                        {
+                            //采集监视数据
+                            MonitoringData(monitorData, acq, null, null);
+                        }
+                        else
+                        {
+                            //采集数据
+                            var temp = acq.GetData(CalPara.AcquisitionCount, (decimal)setP, (decimal)setT, out decimal pressure, CalPara.IsTestVer);
+                            //采集监视数据
+                            MonitoringData(monitorData, acq, temp, pressure);
+                        }
+                    }
+                });
+                taskList.Add(t);
+            }
+            //等待所有采集完成
+            Task.WaitAll([.. taskList]);
+            //检测数据是否完成，并加入缓存
+            if (DataMonitor.IsFilled(monitorData) && IsShowData)
+                DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());
+            return monitorData;
         }
 
         public void Verify()
@@ -223,34 +340,32 @@ namespace Module
             }
         }
         /// <summary>
-        /// 等待所有采集卡温度达标
+        /// 等待所有采集卡采集温度达到目标温度
         /// </summary>
         /// <param name="targetT">目标温度</param>
         /// <returns></returns>
         public bool WaitTemperature(decimal targetT)
         {
-            Dictionary<string, double> temp1 = [];
-            Dictionary<string, double> temp2 = [];
+            if (!CalPara.IsTestVer)
+            {
+                //设置温度
+                Tec.TECOnOff(true);
+                Tec.SetTemp((short)(targetT * 100));
+            }
+            //ConcurrentDictionary<string, double> temp1 = [];
+            //ConcurrentDictionary<string, double> temp2 = [];
             for (int i = 0; i <= CalPara.TTimeout; i++)
             {
-                bool isTempOK = true;
-                double minT = 99;
-                double maxT = 0;
-                //采集温度数据
-                Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
-                for (int m = 1; m <= CardAmount; m++)
-                {
-                    //采集监视数据
-                    UpdateMonitorData(monitorData, m, null, null);
-                }
-                DataMonitor.Cache.Writer.TryWrite(monitorData);
-                //温度数据检测
+                bool isOK = true;
+                double minT = 90;
+                double maxT = -20;
+                //采集监视数据
+                var monitorData = GetDataByTask(double.NaN, double.NaN);
+                //温度数据检测，找到最小最大温度
                 foreach (var tempData in monitorData)
                 {
                     if (CalPara.IsTestVer) break;//跳过检测
-                    if (tempData.Key == "Time") continue;
-                    if (tempData.Key == "P1") continue;
-                    if (tempData.Key == "P2") continue;
+                    if (tempData.Key == "Time" || tempData.Key == "P1" || tempData.Key == "P2") continue;
                     if (minT > tempData.Value) minT = tempData.Value;
                     if (maxT < tempData.Value) maxT = tempData.Value;
                     if (tempData.Value == -256)
@@ -258,180 +373,166 @@ namespace Module
                         Warning($"得到温度传感器数据失败。采集卡{tempData.Key}");
                         continue;
                     }
-                    if (Math.Abs((decimal)tempData.Value - targetT) > 1)
+                    if (Math.Abs((decimal)tempData.Value - targetT) > CalPara.MaxTemperatureDiff)
                     {
-                        //WorkProcess?.Invoke($"采集卡{GroupDic[i].DeviceAddress},温度{j + 1}[{temp[j]}]与目标温度差超过规定值");
-                        isTempOK = false;
+                        if (i % 10 == 0)
+                            WorkProcess?.Invoke($"设备[{tempData.Key}]与目标温度差超过{CalPara.MaxTemperatureDiff}");
+                        isOK = false;
                     }
                 }
-                //参考温度最大最小差值
-                if (maxT < minT)
+                //其他温度检测计算
+                if (isOK)
                 {
-                    //WorkProcess?.Invoke($"最大最小温度记录错误");
-                    isTempOK = false;
-                }
-                if ((maxT - minT) > 1)
-                {
-                    //WorkProcess?.Invoke($"最大最小温度差超过规定值");
-                    isTempOK = false;
+                    if (maxT < minT)
+                    {
+                        if (i % 10 == 0)
+                            Warning($"最大最小温度错误Max[{maxT}] Min[{minT}]");
+                        isOK = false;
+                    }
+                    if ((maxT - minT) > 1)
+                    {
+                        if (i % 10 == 0)
+                            Warning($"最大温度与最小温度差值大于1，Max[{maxT}] Min[{minT}]");
+                        isOK = false;
+                    }
                 }
 
-                if (i == 0) temp1 = monitorData;
-                //温度在范围内时检测
-                if (isTempOK)
-                {
-                    //每10S检测
-                    if (i % 10 == 0)
-                    {
-                        bool isOK = true;
-                        temp2 = monitorData;
-                        foreach (var item in temp1)
-                        {
-                            if (item.Key == "Time") continue;
-                            if (item.Key == "P1") continue;
-                            if (item.Key == "P2") continue;
-                            var diff = temp2[item.Key] - temp1[item.Key];
-                            if (diff > 0.1) isOK = false;
-                        }
-                        temp1 = monitorData;
-                        //温度达标转换下一阶段
-                        if (isOK)
-                        {
-                            WorkProcess?.Invoke($"温度OK。");
-                            return true;
-                        }
-                    }
-                }
-                Thread.Sleep(800);
+                #region 温度波动检测
+                //if (i == 0) temp1 = monitorData;
+                ////温度在范围内时检测
+                //if (isTempOK)
+                //{
+                //    //每10S检测
+                //    if (i % 10 == 0)
+                //    {
+                //        bool isOK = true;
+                //        temp2 = monitorData;
+                //        foreach (var item in temp1)
+                //        {
+                //            if (item.Key == "Time") continue;
+                //            if (item.Key == "P1") continue;
+                //            if (item.Key == "P2") continue;
+                //            var diff = temp2[item.Key] - temp1[item.Key];
+                //            if (diff > 0.1) isOK = false;
+                //        }
+                //        temp1 = monitorData;
+                //        //温度达标转换下一阶段
+                //        if (isOK)
+                //        {
+                //            WorkProcess?.Invoke($"温度OK。");
+                //            return true;
+                //        }
+                //    }
+                //}
+                #endregion
 
                 if (IsSuspend)
                 {
                     WorkProcess?.Invoke($"暂停");
                     return false;
                 }
+
+                if (isOK) return true;
+                Thread.Sleep(800);
             }
-            Warning($"采集温度时间已超时。请检查温度后重新启动。");
+            Warning($"采集温度时间已超时。请检查后重新启动。");
             return false;
         }
-        //等待所有压力值达标，采集数据
-        public bool WaitPressure(decimal targetT)
+        /// <summary>
+        /// 等待压力值达到目标压力
+        /// </summary>
+        /// <param name="targetP">目标压力</param>
+        /// <returns></returns>
+        public bool WaitPressure(decimal targetP)
+        {
+            //设置压力
+            Pace.SetPress(targetP, CalPara.IsTestVer);
+            //等待压力(5S)
+            for (int j = 0; j < CalPara.PTimeout; j++)
+            {
+                bool isOK = true;
+                //采集监视数据
+                GetDataByTask(double.NaN, double.NaN);
+                //得到压力
+                decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
+                //检测压力差值
+                if (Math.Abs(result - targetP) > CalPara.MaxPressureDiff)
+                {
+                    if (j % 5 == 0)
+                        WorkProcess?.Invoke($"与目标压度差超过{CalPara.MaxPressureDiff}");
+                    isOK = false;
+                }
+
+                if (j >= CalPara.PressDelay)
+                    if (isOK) return true;
+                Thread.Sleep(900);
+            }
+            Warning($"采集压力时间超时。请检查后重新启动。");
+            Pace.Vent(CalPara.IsTestVer);
+            return false;
+        }
+        /// <summary>
+        /// 采集目标温度下的所有压力数据（单温度）
+        /// </summary>
+        /// <param name="targetT">目标温度</param>
+        /// <returns></returns>
+        public bool ACQCaliData(decimal targetT)
         {
             decimal[] setPPara = [.. CalPara.PressurePoints];
-           
+
             for (int i = 0; i < setPPara.Length; i++)
             {
                 WorkProcess?.Invoke($"开始采集压力{setPPara[i]}");
-                //计时
-                int count = 0;
-                //设置压力
-                Pace.SetPress(setPPara[i], CalPara.IsTestVer);
-                //等待压力(5S)
-                for (int j = 0; j < CalPara.PressDelay; j++)
-                {
-                    count++; 
-                    //得到压力
-                    decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
-                    //数据容器，采集监视数据
-                    Dictionary<string, double> monitorData = DataMonitor.GetDataContainer([.. DisplayedKeys]);
-                    for (int k = 1; k <= CardAmount; k++)
-                    {
-                        //采集监视数据
-                        UpdateMonitorData(monitorData, k, null, result);
-                    }
-                    DataMonitor.Cache.Writer.TryWrite(monitorData);
-                    //检测压力差值
-                    if (Math.Abs(result - setPPara[i]) > CalPara.MaxPressureDiff) j--;
-                    //超时处理
-                    if (count >= CalPara.PTimeout)
-                    {
-                        Warning($"采集压力时间超时。");
-                        Pace.Vent(CalPara.IsTestVer);
-                        return false;
-                    }
-                    Thread.Sleep(1000);
-                }
-                //采集数据
-                if (GetData(setPPara[i], targetT)) return false;
+                if (WaitPressure(setPPara[i]))
+                    GetDataByTask((double)setPPara[i], (double)targetT);
+                else
+                    return false;
                 WorkProcess?.Invoke($"完成采集压力{setPPara[i]}");
             }
-            Pace.Vent(CalPara.IsTestVer);
             return true;
         }
-        //等待所有压力值达标，采集验证数据
-        public bool WaitVerifyPressure()
+        /// <summary>
+        /// 等待目标压力，采集验证数据
+        /// </summary>
+        /// <returns></returns>
+        public bool ACQVerifyData()
         {
             decimal[] setPData = [.. CalPara.VerifyPressures];
 
             foreach (decimal setPress in setPData)
             {
-                WorkProcess?.Invoke($"开始采集压力{setPress}");
-                //计时
-                int count = 0;
-                //设置压力
-                Pace.SetPress(setPress);
-                //等待压力(5S)
-                for (int j = 0; j < CalPara.PressDelay; j++)
-                {
-                    count++;
-                    //得到压力
-                    decimal result = Pace.GetPress();
-                    //检测压力差值
-                    if (Math.Abs(result - setPress) > CalPara.MaxPressureDiff) j--;
-                    Thread.Sleep(1000);
-                    //超时处理
-                    if (count >= CalPara.PTimeout)
-                    {
-                        Warning($"采集验证压力时间已超时。");
-                        Pace.Vent();
-                        return false;
-                    }
-                }
-                //验证数据
-                Verify();
+                WorkProcess?.Invoke($"开始采集验证压力{setPress}");
+                if (WaitPressure(setPress))
+                    //验证数据
+                    Verify();
+                else
+                    return false;
                 WorkProcess?.Invoke($"完成采集压力{setPress}");
             }
-            Pace.Vent();
             return true;
         }
 
-        public bool Check()
+        public bool CheckSensorOutput()
         {
-            //计时
-            int count = 0; decimal result = 0; //decimal temp = 0;
-            //设置检测压力
-            Pace.SetPress(CalPara.CheckPressure, CalPara.IsTestVer);
-            //等待压力(5S)
-            for (int j = 0; j < CalPara.PressDelay; j++)
+            if (WaitPressure(CalPara.CheckPressure))
             {
-                count++;
                 //得到压力
-                result = Pace.GetPress();
-                //检测压力差值
-                if (Math.Abs(result - CalPara.CheckPressure) > CalPara.MaxPressureDiff) j--;
-                Thread.Sleep(1000);
-                //超时处理
-                if (count >= CalPara.PTimeout)
+                decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
+                foreach (var group in GroupDic.Values)
                 {
-                    Warning($"采集验证压力时间已超时。");
-                    Pace.Vent();
-                    return false;
-                }
-            }
-            //检测并保存标定数据
-            for (int i = 1; i <= GroupDic.Count; i++)
-            {
-                GroupDic[i].GetSensorsValue(out decimal[] tempArray, out decimal[] pressArray);
-                for (int j = 0; j < GroupDic[i].SensorCount; j++)
-                {
-                    if ((pressArray[j] - result) > CalPara.CheckPressureDiff)
+                    group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
+                    for (int i = 0; i < tempArray.Length; i++)
                     {
-                        GroupDic[i].SensorDataGroup[j].Result = "Check";
+                        if ((pressArray[i] - result) > CalPara.CheckPressureDiff)
+                            group.SensorDataGroup[i].Result = "Check";
                     }
+                    if (CalPara.IsSave)
+                        group.SaveDatabase().Wait();
                 }
-                if (CalPara.IsSave)
-                    GroupDic[i].SaveDatabase().Wait();
+                return true;
             }
-            return true;
+            else
+                return false;
         }
 
         public bool OutputExcel(string path = $"Data\\Excel\\")
@@ -450,6 +551,7 @@ namespace Module
 
     }
 
+    #region 状态
     public class Idle : IAcqState
     {
         public void Process(Acquisition context)
@@ -469,7 +571,7 @@ namespace Module
                 context.Run();
                 return;
             }
-            context.Initialize();//初始化采集数据
+            context.ClearData();//初始化采集数据
             context.CurrentTempIndex = 0;//温度索引
             var result = context.PowerOn();
             foreach (var item in result)
@@ -505,12 +607,6 @@ namespace Module
 
             try
             {
-                if (!context.CalPara.IsTestVer)
-                {
-                    //设置温度
-                    context.Tec.TECOnOff(true);
-                    context.Tec.SetTemp((short)(targetTemp * 100));
-                }
                 if (context.WaitTemperature(targetTemp))
                 {
                     context.WorkProcess?.Invoke($"温度OK。");
@@ -533,20 +629,20 @@ namespace Module
             var targetTemp = actualTData[context.CurrentTempIndex];
             decimal[] setTData = [.. context.CalPara.SetTPoints];
 
-            if (context.WaitPressure(targetTemp))
+            if (context.ACQCaliData(targetTemp))
             {
-                for (int i = 1; i <= context.GroupDic.Count; i++)
-                {
-                    if (!context.GroupDic[i].CheckData(actualTData[context.CurrentTempIndex], out List<int> index))
-                    {
-                        string message = "";
-                        foreach (var item in index)
-                        {
-                            message += $"[{item}]";
-                        }
-                        context.Warning($"采集卡{i}芯片{message}数据采集失败");
-                    }
-                }
+                //for (int i = 1; i <= context.GroupDic.Count; i++)
+                //{
+                //    if (!context.GroupDic[i].CheckData(actualTData[context.CurrentTempIndex], out List<int> index))
+                //    {
+                //        string message = "";
+                //        foreach (var item in index)
+                //        {
+                //            message += $"[{item}]";
+                //        }
+                //        context.Warning($"采集卡{i}芯片{message}数据采集失败");
+                //    }
+                //}
 
                 if (context.CurrentTempIndex >= (setTData.Length - 1))
                 {
@@ -591,8 +687,8 @@ namespace Module
             context.WorkProcess?.Invoke("完成系数计算，开始验证计算");
             try
             {
-                Thread.Sleep(3000);
-                if (context.WaitVerifyPressure())
+                Thread.Sleep(2000);
+                if (context.ACQVerifyData())
                 {
                     context.SetState(new WriteFuseData());
                     context.Run();
@@ -613,24 +709,24 @@ namespace Module
             //遍历所有采集开
             foreach (var sensorGroup in context.GroupDic.Values)
             {
-                //计算良率
-                foreach (var item in sensorGroup.SensorDataGroup.Values)
-                {
-                    if (item.Result == "NG")
-                    {
-                        context.OverallYield = context.OverallYield * 100 / 101;
-                    }
-                    if (item.Result == "GOOD")
-                    {
-                        context.OverallYield = (context.OverallYield * 100 + 1) / 101;
-                    }
-                }
-                //总良率判断
-                if (context.OverallYield < context.MinYield)
-                {
-                    context.Warning($"良率超过{context.OverallYield * 100:N2}%");
-                    return;
-                }
+                ////计算良率
+                //foreach (var item in sensorGroup.SensorDataGroup.Values)
+                //{
+                //    if (item.Result == "NG")
+                //    {
+                //        context.OverallYield = context.OverallYield * 100 / 101;
+                //    }
+                //    if (item.Result == "GOOD")
+                //    {
+                //        context.OverallYield = (context.OverallYield * 100 + 1) / 101;
+                //    }
+                //}
+                ////总良率判断
+                //if (context.OverallYield < context.MinYield)
+                //{
+                //    context.Warning($"良率超过{context.OverallYield * 100:N2}%");
+                //    return;
+                //}
                 //写入烧录数据
                 var result = ReceivedData.ParseData(sensorGroup.WriteAllFuseData());
                 //解析烧录结果
@@ -698,7 +794,7 @@ namespace Module
             context.PowerOff();
             context.SetState(new Idle());
         }
-
     }
+    #endregion
 
 }

@@ -4,7 +4,7 @@ using System.Collections;
 
 namespace Module
 {
-    public class Database : ParameterManager
+    public class Database : Loader
     {
         public string DatabasePath { get; set; } = "Data";
         public string DatabaseName { get; set; } = "Data.db";
@@ -18,7 +18,7 @@ namespace Module
             Connection ??= new SQLiteAsyncConnection(path);
         }
 
-        public override void InitializeParameter()
+        public override void LoaderInitialize()
         {
             if (!Directory.Exists($"{Environment.CurrentDirectory}\\{DatabasePath}"))
                 Directory.CreateDirectory($"{Environment.CurrentDirectory}\\{DatabasePath}");

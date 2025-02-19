@@ -1,7 +1,6 @@
 using PressureCalibration.View;
 using Module;
 using System.ComponentModel;
-using CSharpKit.FileManagement;
 using WinformKit;
 using ReaLTaiizor.Controls;
 
@@ -20,7 +19,7 @@ namespace PressureCalibration
             BGWRun.RunWorkerCompleted += BGWRun_RunWorkerCompleted;
 
             config.ACQ.WorkProcess += UpdateMessage;
-            Initialize();
+            config.ACQ.Initialize();
         }
 
         #region 私有方法
@@ -75,21 +74,6 @@ namespace PressureCalibration
             return true;
         }
 
-        private void Initialize()
-        {
-            if (config.ACQ.Open())
-                UpdateMessage("连接采集卡成功！");
-            else
-                UpdateMessage("连接采集卡失败！");
-            if (config.PACE.Connect())
-                UpdateMessage("连接压力控制器成功！");
-            else
-                UpdateMessage("连接压力控制器失败！");
-            if (config.TEC.Open())
-                UpdateMessage("连接温度控制器成功！");
-            else
-                UpdateMessage("连接温度控制器失败！");
-        }
         #endregion
 
         #region 主界面按钮

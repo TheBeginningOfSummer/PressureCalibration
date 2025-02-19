@@ -1,6 +1,6 @@
 ﻿namespace PressureCalibration.View
 {
-    partial class AxisSetting
+    partial class ChildItemSetting
     {
         /// <summary>
         /// Required designer variable.
@@ -30,14 +30,14 @@
         {
             SuspendLayout();
             // 
-            // AxisSetting
+            // ChildItemSetting
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
-            Name = "AxisSetting";
+            Name = "ChildItemSetting";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "AxisSetting";
+            Text = "Setting";
             ResumeLayout(false);
         }
 

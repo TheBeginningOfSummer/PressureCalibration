@@ -1,4 +1,5 @@
-﻿using CSharpKit.FileManagement;
+﻿using CSharpKit;
+using CSharpKit.FileManagement;
 using cszmcaux;
 using System.ComponentModel;
 using System.Text;
@@ -7,7 +8,7 @@ using System.Text.Json.Serialization;
 namespace Services
 {
     #region 基础类
-    public abstract class BaseAxis : ParameterManager
+    public abstract class BaseAxis : ISetting
     {
         #region 参数
         public string ControllerName { get; set; } = "Controller";
@@ -47,7 +48,7 @@ namespace Services
         public BaseAxis() { }
 
         #region 方法
-        public override string Translate(string name)
+        public string Translate(string name)
         {
             return name switch
             {
@@ -101,7 +102,7 @@ namespace Services
         #endregion
     }
 
-    public abstract class MotionControl : ParameterManager
+    public abstract class MotionControl : Loader
     {
         [JsonPropertyOrder(0)]
         public string Ip { get; set; } = "127.0.0.1";

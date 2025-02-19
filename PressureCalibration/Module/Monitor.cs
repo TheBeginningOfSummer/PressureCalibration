@@ -25,15 +25,18 @@ namespace Module
             Task.Run(RefreshData);
         }
 
-        public static Dictionary<string, double> GetDataContainer(params string[] keys)
+        public static ConcurrentDictionary<string, double> GetDataContainer(double defaultData = double.NaN, params string[] keys)
         {
-            Dictionary<string, double> data = [];
-            data.Add("Time", -1);
+            ConcurrentDictionary<string, double> data = [];
+            data.TryAdd("Time", defaultData);
             for (int i = 0; i < keys.Length; i++)
-                data.Add(keys[i], -1);
+                data.TryAdd(keys[i], defaultData);
             return data;
         }
-        
+        /// <summary>
+        /// 更新字典数据
+        /// </summary>
+        /// <param name="data">数据</param>
         public static void AddData(Dictionary<string, double> data)
         {
             foreach (var item in data)
@@ -43,6 +46,19 @@ namespace Module
             }
         }
 
+        public static bool IsFilled(ConcurrentDictionary<string, double> data)
+        {
+            bool isFilled = true;
+            foreach (var value in data.Values)
+            {
+                if (double.IsNaN(value)) isFilled = false;
+            }
+            return isFilled;
+        }
+        /// <summary>
+        /// 从缓存中更新数据到字典
+        /// </summary>
+        /// <returns></returns>
         public static async Task RefreshData()
         {
             while (await Cache.Reader.WaitToReadAsync())
@@ -57,7 +73,9 @@ namespace Module
                 }
             }
         }
-
+        /// <summary>
+        /// 清除字典中的数据
+        /// </summary>
         public static void ClearDisplayedData()
         {
             foreach (var item in DisplayedData)
@@ -68,7 +86,7 @@ namespace Module
 
     }
 
-    public class IOMonitor
+    public class InputMonitor
     {
         private int run = 0;
         public int Run
@@ -113,7 +131,7 @@ namespace Module
 
         public ZmotionMotionControl Motion;
 
-        public IOMonitor(ZmotionMotionControl motion)
+        public InputMonitor(ZmotionMotionControl motion)
         {
             Motion = motion;
             Task.Run(UpdateInput);

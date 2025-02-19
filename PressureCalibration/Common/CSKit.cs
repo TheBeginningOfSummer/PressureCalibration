@@ -1,6 +1,5 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.DataManagement;
-using CSharpKit.FileManagement;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -50,30 +49,51 @@ namespace CSharpKit
                 return null;
             }
         }
-
-        public class SocketParameter : ParameterManager
+        /// <summary>
+        /// 套接字端口
+        /// </summary>
+        public class SocketTool : ISetting
         {
             public string Ip { get; set; } = "192.168.1.20";
             public int Port { get; set; } = 5025;
 
-            public SocketParameter() { }
-
-        }
-
-        public class SocketTool(int byteLength = 4096)
-        {
             //基本参数
-            public Socket? SocketItem { get; set; }
-            public byte[] DataCache { get; set; } = new byte[byteLength];
+            public Socket SocketItem = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            //接收缓存
+            public byte[] DataCache = new byte[1024 * 1024];
             //所需参数
-            public Dictionary<string, Socket> ClientDic { get; set; } = [];
-            public IPAddress? IP { get; set; }
-            public int Port { get; set; }
-            public IPEndPoint? IPEndPoint { get; set; }
+            public Dictionary<string, Socket> ClientDic = [];
+            //监听端口
+            public IPEndPoint? IPEndPoint;
             //数据收发更新委托
             public Action? ClientListUpdate;
             public Action<Socket, byte[]>? ReceiveFromClient;
             public Action<byte[]>? ReceiveFromServer;
+
+            public SocketTool(string ip, int port, int byteLength = 4096)
+            {
+                Ip = ip;
+                Port = port;
+                DataCache = new byte[byteLength];
+            }
+
+            public SocketTool()
+            {
+
+            }
+
+            public string Translate(string name)
+            {
+                return name switch
+                {
+                    "PortName" => "串口",
+                    "BaudRate" => "波特率",
+                    "Timeout" => "超时时间(S)",
+                    "Ip" => "IP",
+                    "Port" => "端口",
+                    _ => name,
+                };
+            }
 
             /// <summary>
             /// 截取特定长度的字节数组
@@ -96,20 +116,20 @@ namespace CSharpKit
             }
 
             #region 客户端
-            public bool Connection(string IP, int Port, out string error)
+            public bool Connect(out string error)
             {
                 try
                 {
-                    SocketItem = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    if (!IPAddress.TryParse(IP, out IPAddress? iPAddress))
+                    error = "OK";
+                    if (!IPAddress.TryParse(Ip, out IPAddress? iPAddress))
                     {
                         error = "ip地址不正确";
                         return false;
                     }
+                    SocketItem = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     IAsyncResult result = SocketItem.BeginConnect(iPAddress, Port, null, null);
-                    var isConnect = result.AsyncWaitHandle.WaitOne(5000, true);
                     //SocketItem.Connect(iPAddress, Port);
-                    if (!isConnect)
+                    if (!result.AsyncWaitHandle.WaitOne(5000, true))
                     {
                         error = "PLC连接超时。";
                         SocketItem.Close();
@@ -117,17 +137,16 @@ namespace CSharpKit
                     }
                     SocketItem.EndConnect(result);
                     Task.Run(ReceiveData);
+                    return true;
                 }
                 catch (Exception e)
                 {
                     error = e.Message;
                     return false;
                 }
-                error = "OK";
-                return true;
             }
 
-            public bool Disconnection()
+            public bool Disconnect()
             {
                 try
                 {
@@ -172,27 +191,28 @@ namespace CSharpKit
                         SocketItem.Close();
                         return;
                     }
-                    System.Threading.Thread.Sleep(10);
+                    Thread.Sleep(10);
                 }
             }
             #endregion
 
             #region 服务端
-            public bool StartListening(IPAddress ip, int port)
+            public bool StartListening()
             {
                 try
                 {
+                    if (!IPAddress.TryParse(Ip, out IPAddress? ipAddress)) return false;
                     SocketItem = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    IPEndPoint = new IPEndPoint(ip, port);
+                    IPEndPoint = new IPEndPoint(ipAddress, Port);
                     SocketItem.Bind(IPEndPoint);
                     SocketItem.Listen(200);
                     ThreadPool.QueueUserWorkItem(new WaitCallback(StartAcceptClient), SocketItem);
+                    return true;
                 }
                 catch (Exception)
                 {
                     return false;
                 }
-                return true;
             }
 
             public bool StopListening()
@@ -274,7 +294,9 @@ namespace CSharpKit
                 SocketItem!.Send(Encoding.UTF8.GetBytes(data));//覆盖plc写入区的数据
             }
         }
-
+        /// <summary>
+        /// Modbus工具
+        /// </summary>
         public class ModbusTCP
         {
             /// <summary>
@@ -648,7 +670,6 @@ namespace CSharpKit
             #endregion
             #endregion
         }
-
         /// <summary>
         /// 静态Fins工具类
         /// </summary>
@@ -905,7 +926,6 @@ namespace CSharpKit
             }
 
         }
-
         /// <summary>
         /// 字节工具接收类
         /// </summary>
@@ -1002,53 +1022,67 @@ namespace CSharpKit
                 PackageLength = 0;
             }
         }
-
-        public class SerialParameter : ParameterManager
+        /// <summary>
+        /// 串口工具
+        /// </summary>
+        public class SerialPortTool : ISetting
         {
+            public string Name { get; set; } = "Default";
             public string PortName { get; set; } = "COM1";
             public int BaudRate { get; set; } = 9600;
+            public int DataBits { get; set; } = 8;
             [JsonConverter(typeof(JsonStringEnumConverter))]
             public Parity Parity { get; set; } = Parity.None;
-            public int DataBits { get; set; } = 8;
             [JsonConverter(typeof(JsonStringEnumConverter))]
             public StopBits StopBits { get; set; } = StopBits.One;
             public int Timeout { get; set; } = 5;
 
-            public SerialParameter() { }
-
-        }
-
-        public class SerialPortTool
-        {
-            public readonly SerialPort MySerialPort;//串口对象
+            public readonly SerialPort MySerialPort = new();//串口对象
             public Action<string>? ReceivedString;
             public Action<byte[]>? ReceivedByte;
 
-            readonly TimerKit timerKit = new TimerKit();
-            public int TimeOut = 5;
-
             readonly List<byte> bytesCache = [];
-            readonly static BoundedChannelOptions boundedOptions = new(99) { FullMode = BoundedChannelFullMode.DropOldest };
+            readonly static BoundedChannelOptions boundedOptions = new(100) { FullMode = BoundedChannelFullMode.DropOldest };
             public Channel<byte[]> Data = Channel.CreateBounded<byte[]>(boundedOptions);
+
+            public SerialPortTool(int iBaudRate, string portName, int dataBits, Parity iParity, StopBits iStopBits)
+            {
+                BaudRate = iBaudRate;
+                PortName = portName;
+                DataBits = dataBits;
+                Parity = iParity;
+                StopBits = iStopBits;
+            }
 
             public SerialPortTool()
             {
-                MySerialPort = new SerialPort();
+
             }
 
-            public bool OpenMySerialPort(int iBaudRate, string portName, int dataBits, Parity iParity, StopBits iStopBits)
+            public string Translate(string name)
+            {
+                return name switch
+                {
+                    "Name" => "名称",
+                    "PortName" => "串口",
+                    "BaudRate" => "波特率",
+                    "Timeout" => "超时时间(S)",
+                    "Ip" => "IP",
+                    "Port" => "端口",
+                    _ => name,
+                };
+            }
+
+            public bool OpenMySerialPort()
             {
                 try
                 {
-                    if (MySerialPort.IsOpen)
-                    {
-                        MySerialPort.Close();
-                    }
-                    MySerialPort.BaudRate = iBaudRate;
-                    MySerialPort.PortName = portName;
-                    MySerialPort.DataBits = dataBits;
-                    MySerialPort.Parity = iParity;
-                    MySerialPort.StopBits = iStopBits;
+                    Close();
+                    MySerialPort.BaudRate = BaudRate;
+                    MySerialPort.PortName = PortName;
+                    MySerialPort.DataBits = DataBits;
+                    MySerialPort.Parity = Parity;
+                    MySerialPort.StopBits = StopBits;
                     //MySerialPort.ReadTimeout = TimeOut;
                     MySerialPort.ReceivedBytesThreshold = 1;
                     MySerialPort.DataReceived += MySerialPortDataReceived;//绑定接收事件
@@ -1062,51 +1096,23 @@ namespace CSharpKit
                 }
             }
 
-            public bool OpenMySerialPort(int iBaudRate, string portName)
-            {
-                try
-                {
-                    if (MySerialPort.IsOpen)
-                    {
-                        MySerialPort.Close();
-                    }
-                    MySerialPort.BaudRate = iBaudRate;
-                    MySerialPort.PortName = portName;
-                    MySerialPort.DataBits = 8;
-                    MySerialPort.Parity = Parity.None;
-                    MySerialPort.StopBits = StopBits.One;
-
-                    MySerialPort.ReceivedBytesThreshold = 1;//缓存中数据多少个时才触发DataReceived事件，默认为1
-                    MySerialPort.DataReceived += MySerialPortDataReceived;//绑定接收事件
-
-                    MySerialPort.Open();
-                    return true;
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
-            }
             /// <summary>
-            /// 同步收发方式
+            /// 同步收发方式打开串口
             /// </summary>
-            /// <param name="serialParameter"></param>
             /// <returns></returns>
-            public bool OpenMySerialPort(SerialParameter serialParameter)
+            public bool Open()
             {
                 try
                 {
-                    if (MySerialPort.IsOpen) MySerialPort.Close();
-                    MySerialPort.BaudRate = serialParameter.BaudRate;
-                    MySerialPort.PortName = serialParameter.PortName;
-                    MySerialPort.DataBits = serialParameter.DataBits;
-                    MySerialPort.Parity = serialParameter.Parity;
-                    MySerialPort.StopBits = serialParameter.StopBits;
-                    TimeOut = serialParameter.Timeout;
+                    Close();
+                    MySerialPort.BaudRate = BaudRate;
+                    MySerialPort.PortName = PortName;
+                    MySerialPort.DataBits = DataBits;
+                    MySerialPort.Parity = Parity;
+                    MySerialPort.StopBits = StopBits;
                     //MySerialPort.ReceivedBytesThreshold = 1;//缓存中数据多少个时才触发DataReceived事件，默认为1
                     //MySerialPort.DataReceived += MySerialPortDataReceived;//绑定接收事件
                     //timerKit.TimesUp += ReceiveTimeout;
-
                     MySerialPort.Open();
                     return true;
                 }
@@ -1116,12 +1122,9 @@ namespace CSharpKit
                 }
             }
 
-            public bool CloseMySerialPort()
+            public bool Close()
             {
-                if (MySerialPort.IsOpen)
-                {
-                    MySerialPort.Close();
-                }
+                if (MySerialPort.IsOpen) MySerialPort.Close();
                 return true;
             }
 
@@ -1166,70 +1169,6 @@ namespace CSharpKit
                 MySerialPort.Write(data, 0, data.Length);
             }
 
-            #region 需改进
-            public void ReceiveTimeout()
-            {
-                Data.Writer.TryWrite(Encoding.ASCII.GetBytes("Timeout"));
-            }
-            /// <summary>
-            /// 超时等待数据返回的数据发送
-            /// </summary>
-            /// <param name="data">发送的数据</param>
-            /// <param name="receiveDataLen">返回数据的最小长度</param>
-            /// <returns>返回的数据，超时返回0x00</returns>
-            public async Task<byte[]> SendAndReadAsync(byte[] data, int receiveDataLen = 2)
-            {
-                timerKit.Time(TimeOut);
-                MySerialPort.Write(data, 0, data.Length);
-                byte[] bytes = [];
-                while (await Data.Reader.WaitToReadAsync())
-                {
-                    if (Data.Reader.TryRead(out byte[]? received))
-                        if (Encoding.ASCII.GetString(received) == "Timeout")
-                        {
-                            return received;
-                        }
-                        else
-                        {
-                            timerKit.ClearCount(false);
-                            bytes = BytesTool.SpliceBytes(bytes, received);
-                            if (bytes.Length >= receiveDataLen)
-                            {
-                                timerKit.ClearCount();
-                                return bytes;
-                            }
-                        }
-                }
-                return [0x00];
-            }
-            //需要单独线程调用？在主线程调用会很慢，导致超时
-            public async Task<byte[]> SendAndReadAsync(SendData sendData)
-            {
-                timerKit.Time(TimeOut);
-                MySerialPort.Write(sendData.Data, 0, sendData.Data.Length);
-                byte[] bytes = [];
-                while (await Data.Reader.WaitToReadAsync())
-                {
-                    if (Data.Reader.TryRead(out byte[]? received))
-                        if (Encoding.ASCII.GetString(received) == "Timeout")
-                        {
-                            return received;
-                        }
-                        else
-                        {
-                            timerKit.ClearCount(false);
-                            bytes = BytesTool.SpliceBytes(bytes, received);
-                            if (bytes.Length >= sendData.ReceiveLength)
-                            {
-                                timerKit.ClearCount();
-                                return bytes;
-                            }
-                        }
-                }
-                return [0x00];
-            }
-            #endregion
-
             public static void ReadPort(SerialPort port, List<byte> receiveList)
             {
                 byte[] bytes = new byte[port.BytesToRead];
@@ -1245,7 +1184,7 @@ namespace CSharpKit
                 while (MySerialPort.BytesToRead < 2)
                 {
                     Thread.Sleep(10);
-                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > TimeOut * 1000)
+                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > Timeout * 1000)
                         throw new Exception("超时，串口无响应。");
                 }
                 List<byte> receiveList = [];
@@ -1256,7 +1195,7 @@ namespace CSharpKit
                     if (MySerialPort.BytesToRead > 0)
                         ReadPort(MySerialPort, receiveList);
                     Thread.Sleep(10);
-                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > TimeOut * 1000)
+                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > Timeout * 1000)
                         break;
                 }
                 return [.. receiveList];
@@ -1270,7 +1209,7 @@ namespace CSharpKit
                 while (MySerialPort.BytesToRead < 2)
                 {
                     Thread.Sleep(10);
-                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > TimeOut * 1000)
+                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > Timeout * 1000)
                         throw new Exception("超时，串口无响应。");
                 }
                 List<byte> receiveList = [];
@@ -1281,7 +1220,7 @@ namespace CSharpKit
                     if (MySerialPort.BytesToRead > 0)
                         ReadPort(MySerialPort, receiveList);
                     Thread.Sleep(10);
-                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > TimeOut * 1000)
+                    if (DateTime.Now.Subtract(dt).TotalMilliseconds > Timeout * 1000)
                         break;
                 }
                 return [.. receiveList];
@@ -2292,30 +2231,35 @@ namespace CSharpKit
             }
         }
 
-        public class ParameterManager
+        public class Loader
         {
             /// <summary>
             /// 存放子类实例的集合，可以通过继承来访问这个全局变量
             /// </summary>
-            public static ConcurrentDictionary<string, ParameterManager> Loader = [];
-            [JsonIgnore]
-            public string FilePath { get; set; } = "Config";
-            [JsonIgnore]
-            public string FileName { get; set; } = "[Device].json";
+            public static ConcurrentDictionary<string, Loader> Container = [];
             /// <summary>
             /// 串口参数，反序列化数据时，属性加载在构造函数之后，故构造函数中的初始化属性可被覆盖，
             /// 在构造函数中新建实例序列化后，构造函数中的实例不会影响属性的加载
             /// </summary>
             [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-            public SerialParameter? SerialPara { get; set; }
+            public SerialPortTool? SerialPort { get; set; }
             /// <summary>
             /// 网口参数，反序列化数据时，属性加载在构造函数之后，故构造函数中的初始化属性可被覆盖，
             /// 在构造函数中新建实例序列化后，构造函数中的实例不会影响属性的加载
             /// </summary>
             [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-            public SocketParameter? SocketPara { get; set; }
+            public SocketTool? SocketPort { get; set; }
 
-            public ParameterManager() { }
+            /// <summary>
+            /// 存储路径
+            /// </summary>
+            public string FilePath = "Config";
+            /// <summary>
+            /// 存储文件名
+            /// </summary>
+            public string FileName = "[Device].json";
+
+            public Loader() { }
 
             public virtual string Translate(string name)
             {
@@ -2331,8 +2275,10 @@ namespace CSharpKit
                     _ => name,
                 };
             }
-
-            public virtual void InitializeParameter()
+            /// <summary>
+            /// 初始化
+            /// </summary>
+            public virtual void LoaderInitialize()
             {
 
             }
@@ -2343,7 +2289,7 @@ namespace CSharpKit
             /// <returns></returns>
             public static T Get<T>()
             {
-                var value = Loader.Values.ToList().Where(t => t is T).First();
+                var value = Container.Values.ToList().Where(t => t is T).First();
                 return (T)Convert.ChangeType(value, typeof(T));
             }
             /// <summary>
@@ -2352,9 +2298,9 @@ namespace CSharpKit
             /// <typeparam name="T">类型</typeparam>
             /// <param name="key">键值</param>
             /// <returns></returns>
-            public static T Get<T>(string key) where T : ParameterManager, new()
+            public static T Get<T>(string key) where T : Loader, new()
             {
-                if (Loader.TryGetValue(key, out ParameterManager? value))
+                if (Container.TryGetValue(key, out Loader? value))
                     return (T)Convert.ChangeType(value, typeof(T));
                 else
                     return new T();
@@ -2380,23 +2326,13 @@ namespace CSharpKit
                     }
                 }
             }
-
+            /// <summary>
+            /// 保存
+            /// </summary>
+            /// <returns></returns>
             public bool Save()
             {
                 return JsonManager.Save(FilePath, FileName, this);
-            }
-
-            public bool Save(Dictionary<string, object> propertyInfo)
-            {
-                Set(this, propertyInfo);
-                Set(SerialPara, propertyInfo);
-                Set(SocketPara, propertyInfo);
-                return JsonManager.Save(FilePath, FileName, this);
-            }
-
-            public static T Load<T>(ParameterManager item) where T : new()
-            {
-                return JsonManager.Load<T>(item.FilePath, item.FileName);
             }
             /// <summary>
             /// 加载文件数据
@@ -2406,17 +2342,17 @@ namespace CSharpKit
             /// <param name="name">加载文件名</param>
             /// <param name="key">键值</param>
             /// <returns></returns>
-            public static T Load<T>(string path, string name, string key) where T : ParameterManager, new()
+            public static T Load<T>(string path, string name, string key) where T : Loader, new()
             {
                 //从Json加载实例
                 var result = JsonManager.Load<T>(path, name);
-                //路径更新
+                //保存路径更新
                 result.FilePath = path;
                 result.FileName = name;
                 //初始化
-                result.InitializeParameter();
+                result.LoaderInitialize();
                 //加入存储列表
-                Loader.TryAdd(key, result);
+                Container.TryAdd(key, result);
                 return result;
             }
         }
@@ -2454,289 +2390,298 @@ namespace CSharpKit
                 }
             }
         }
+
     }
 
-    /// <summary>
-    /// 计时工具类
-    /// </summary>
-    public class TimerKit
+    namespace Others
     {
-        #region 组件
-        public AutoResetEvent CheckTime = new AutoResetEvent(false);
-        //时间组件
-        public System.Threading.Timer ThreadTimer;
-        //计数锁
-        private readonly object countLock = new object();
-        #endregion
-
-        #region 属性
-        //计时模式， =1计时时间到后自动清除
-        public int Mode { get; set; }
-        //计时是否暂停
-        public bool IsSuspend { get; set; } = false;
-        //用于指示是否正在计时，无法外部赋值
-        public bool IsTiming { get; private set; }
-        //计时时间
-        public int Timeout { get; set; }
-        //当前时间
-        private int currentCount;
-        public int CurrentCount
+        /// <summary>
+        /// 计时工具类
+        /// </summary>
+        public class TimerKit
         {
-            get { return currentCount; }
-            set
+            #region 组件
+            public AutoResetEvent CheckTime = new AutoResetEvent(false);
+            //时间组件
+            public System.Threading.Timer ThreadTimer;
+            //计数锁
+            private readonly object countLock = new object();
+            #endregion
+
+            #region 属性
+            //计时模式， =1计时时间到后自动清除
+            public int Mode { get; set; }
+            //计时是否暂停
+            public bool IsSuspend { get; set; } = false;
+            //用于指示是否正在计时，无法外部赋值
+            public bool IsTiming { get; private set; }
+            //计时时间
+            public int Timeout { get; set; }
+            //当前时间
+            private int currentCount;
+            public int CurrentCount
             {
-                currentCount = value;
-                if (Mode == 1)
-                    TimeRunsOut();
-            }
-        }
-        #endregion
-
-        //计时
-        public Action<int>? Count;
-        //计时时间到
-        public Action? TimesUp;
-
-        public TimerKit()
-        {
-            ThreadTimer = new System.Threading.Timer(new TimerCallback(TimerUp), null, System.Threading.Timeout.Infinite, 1000);
-            CurrentCount = 0;
-            IsTiming = false;
-        }
-
-        #region 基础功能
-        private void TimerUp(object? value)
-        {
-            lock (countLock)
-            {
-                if (!IsSuspend)
+                get { return currentCount; }
+                set
                 {
-                    CurrentCount += 1;
+                    currentCount = value;
+                    if (Mode == 1)
+                        TimeRunsOut();
+                }
+            }
+            #endregion
+
+            //计时
+            public Action<int>? Count;
+            //计时时间到
+            public Action? TimesUp;
+
+            public TimerKit()
+            {
+                ThreadTimer = new System.Threading.Timer(new TimerCallback(TimerUp), null, System.Threading.Timeout.Infinite, 1000);
+                CurrentCount = 0;
+                IsTiming = false;
+            }
+
+            #region 基础功能
+            private void TimerUp(object? value)
+            {
+                lock (countLock)
+                {
+                    if (!IsSuspend)
+                    {
+                        CurrentCount += 1;
+                        Count?.Invoke(CurrentCount);
+                    }
+                }
+            }
+
+            public void Start()
+            {
+                ThreadTimer.Change(0, 1000);
+                IsTiming = true;
+            }
+
+            public void Stop()
+            {
+                ThreadTimer.Change(System.Threading.Timeout.Infinite, 1000);
+                IsTiming = false;
+            }
+            /// <summary>
+            /// 计时清零
+            /// </summary>
+            /// <param name="isStop">清零时是否停止计时</param>
+            public void ClearCount(bool isStop = true)
+            {
+                if (isStop) Stop();
+                lock (countLock)
+                {
+                    CurrentCount = 0;
                     Count?.Invoke(CurrentCount);
                 }
             }
-        }
+            #endregion
 
-        public void Start()
-        {
-            ThreadTimer.Change(0, 1000);
-            IsTiming = true;
-        }
-
-        public void Stop()
-        {
-            ThreadTimer.Change(System.Threading.Timeout.Infinite, 1000);
-            IsTiming = false;
-        }
-        /// <summary>
-        /// 计时清零
-        /// </summary>
-        /// <param name="isStop">清零时是否停止计时</param>
-        public void ClearCount(bool isStop = true)
-        {
-            if (isStop) Stop();
-            lock (countLock)
+            /// <summary>
+            /// 开始计时一段时长，时间到后触发一个委托，mode应设置为1
+            /// </summary>
+            /// <param name="timeout">计时时间，单位为秒</param>
+            public void Time(int timeout)
             {
-                CurrentCount = 0;
-                Count?.Invoke(CurrentCount);
-            }
-        }
-        #endregion
-
-        /// <summary>
-        /// 开始计时一段时长，时间到后触发一个委托，mode应设置为1
-        /// </summary>
-        /// <param name="timeout">计时时间，单位为秒</param>
-        public void Time(int timeout)
-        {
-            Mode = 1;
-            Timeout = timeout;
-            ClearCount();
-            Start();
-        }
-        /// <summary>
-        /// 在线程中调用，用于暂停当前线程，经过指定的时间后继续此线程
-        /// </summary>
-        /// <param name="timeout">线程暂停时间，单位为秒</param>
-        public void PauseThread(int timeout)
-        {
-            Time(timeout);
-            CheckTime.WaitOne();
-            ClearCount();
-        }
-        /// <summary>
-        /// 时间耗尽
-        /// </summary>
-        private void TimeRunsOut()
-        {
-            if (CurrentCount > Timeout)
-            {
-                Mode = 0;
+                Mode = 1;
+                Timeout = timeout;
                 ClearCount();
-                TimesUp?.Invoke();
-                CheckTime.Set();
+                Start();
             }
-        }
-        
-    }
-    /// <summary>
-    /// 监视工具
-    /// </summary>
-    public class Monitor
-    {
-        /// <summary>
-        /// 监视开关
-        /// </summary>
-        public AutoResetEvent MonitorSwitch { get; private set; }
-        /// <summary>
-        /// 监视标记，为true时暂停监视
-        /// </summary>
-        private bool condition = false;
-        public bool Condition
-        {
-            get { return condition; }
-            set { condition = value; if (condition) ConditionAction?.Invoke(); }
-        }
-        /// <summary>
-        /// 标记触发事件
-        /// </summary>
-        public Action? ConditionAction { get; set; }
-
-        public Monitor()
-        {
-            MonitorSwitch = new AutoResetEvent(false);
-        }
-
-        /// <summary>
-        /// 监视某个指定函数对标记值的改变，如果条件改变则暂停监视，直到放开开关
-        /// </summary>
-        /// <param name="method">监视的方法</param>
-        /// <param name="interval">监测时间间隔</param>
-        /// <param name="strParams">监测方法参数</param>
-        public void ConditionMonitor(Func<string[], bool> method, int interval = 500, params string[] strParams)
-        {
-            Task.Run(() =>
+            /// <summary>
+            /// 在线程中调用，用于暂停当前线程，经过指定的时间后继续此线程
+            /// </summary>
+            /// <param name="timeout">线程暂停时间，单位为秒</param>
+            public void PauseThread(int timeout)
             {
-                while (true)
+                Time(timeout);
+                CheckTime.WaitOne();
+                ClearCount();
+            }
+            /// <summary>
+            /// 时间耗尽
+            /// </summary>
+            private void TimeRunsOut()
+            {
+                if (CurrentCount > Timeout)
                 {
-                    try
-                    {
-                        if (!method(strParams)) break;
-                        Thread.Sleep(interval);
-                        if (Condition) MonitorSwitch.WaitOne();
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e.Message);
-                        break;
-                    }
+                    Mode = 0;
+                    ClearCount();
+                    TimesUp?.Invoke();
+                    CheckTime.Set();
                 }
-            });
+            }
+
+        }
+        /// <summary>
+        /// 监视工具
+        /// </summary>
+        public class Monitor
+        {
+            /// <summary>
+            /// 监视开关
+            /// </summary>
+            public AutoResetEvent MonitorSwitch { get; private set; }
+            /// <summary>
+            /// 监视标记，为true时暂停监视
+            /// </summary>
+            private bool condition = false;
+            public bool Condition
+            {
+                get { return condition; }
+                set { condition = value; if (condition) ConditionAction?.Invoke(); }
+            }
+            /// <summary>
+            /// 标记触发事件
+            /// </summary>
+            public Action? ConditionAction { get; set; }
+
+            public Monitor()
+            {
+                MonitorSwitch = new AutoResetEvent(false);
+            }
+
+            /// <summary>
+            /// 监视某个指定函数对标记值的改变，如果条件改变则暂停监视，直到放开开关
+            /// </summary>
+            /// <param name="method">监视的方法</param>
+            /// <param name="interval">监测时间间隔</param>
+            /// <param name="strParams">监测方法参数</param>
+            public void ConditionMonitor(Func<string[], bool> method, int interval = 500, params string[] strParams)
+            {
+                Task.Run(() =>
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            if (!method(strParams)) break;
+                            Thread.Sleep(interval);
+                            if (Condition) MonitorSwitch.WaitOne();
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e.Message);
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+        /// <summary>
+        /// 进程管理工具
+        /// </summary>
+        public class Processkit
+        {
+            public Process TargetProcess { get; set; }
+            public string Output { get; set; }
+
+            public Processkit(string processPath)
+            {
+                TargetProcess = new Process();
+                Output = "Default";
+                TargetProcess.StartInfo.FileName = processPath;
+                TargetProcess.StartInfo.UseShellExecute = false;
+                TargetProcess.StartInfo.CreateNoWindow = true;
+                //p.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
+                TargetProcess.StartInfo.RedirectStandardInput = true;
+                TargetProcess.StartInfo.RedirectStandardOutput = true;
+                TargetProcess.StartInfo.RedirectStandardError = true;
+                //TargetProcess.OutputDataReceived += TargetProcess_OutputDataReceived;
+                //TargetProcess.ErrorDataReceived += TargetProcess_ErrorDataReceived;
+            }
+
+            /// <summary>
+            /// 开启一个进程
+            /// </summary>
+            /// <param name="processArguments">初始参数</param>
+            public void StartProcessAsync(string processArguments = "start")
+            {
+                TargetProcess.StartInfo.Arguments = processArguments;
+                TargetProcess.Start();
+                TargetProcess.BeginOutputReadLine();
+            }
+            /// <summary>
+            /// 异步向标准输入流输入
+            /// </summary>
+            /// <param name="input">输入的信息</param>
+            public async void ProcessInputAsync(string input)
+            {
+                await TargetProcess.StandardInput.WriteLineAsync(input);
+            }
+            /// <summary>
+            /// 输出接收委托
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e">传输的数据</param>
+            private void TargetProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                    Output = e.Data;
+            }
+            /// <summary>
+            /// 错误接收委托
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e">传输的数据</param>
+            /// <exception cref="NotImplementedException"></exception>
+            private void TargetProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+            {
+                throw new NotImplementedException();
+            }
+
+            public string StartProcess(string processArguments)
+            {
+                TargetProcess.StartInfo.Arguments = processArguments;
+                TargetProcess.Start();
+                Output = TargetProcess.StandardOutput.ReadToEnd();
+                TargetProcess.WaitForExit();
+                TargetProcess.Close();
+                return Output;
+            }
+            /// <summary>
+            /// 向标准输入流输入
+            /// </summary>
+            /// <param name="input">输入的信息</param>
+            public void ProcessInput(string input)
+            {
+                TargetProcess.StandardInput.WriteLine(input);
+                //TargetProcess.StandardInput.Close();
+            }
+            /// <summary>
+            /// 进程退出
+            /// </summary>
+            public void ProcessClose()
+            {
+                //TargetProcess.CancelOutputRead();
+                TargetProcess.WaitForExit();
+                TargetProcess.Close();
+            }
+
+            public static void StartTask(ref Task? task, Action action)
+            {
+                if (task == null)
+                {
+                    task = new Task(action);
+                }
+                else
+                {
+                    task.Wait();
+                    task = new Task(action);
+                }
+                task.Start();
+            }
         }
     }
-    /// <summary>
-    /// 进程管理工具
-    /// </summary>
-    public class Processkit
+
+    public interface ISetting
     {
-        public Process TargetProcess { get; set; }
-        public string Output { get; set; }
-
-        public Processkit(string processPath)
-        {
-            TargetProcess = new Process();
-            Output = "Default";
-            TargetProcess.StartInfo.FileName = processPath;
-            TargetProcess.StartInfo.UseShellExecute = false;
-            TargetProcess.StartInfo.CreateNoWindow = true;
-            //p.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
-            TargetProcess.StartInfo.RedirectStandardInput = true;
-            TargetProcess.StartInfo.RedirectStandardOutput = true;
-            TargetProcess.StartInfo.RedirectStandardError = true;
-            //TargetProcess.OutputDataReceived += TargetProcess_OutputDataReceived;
-            //TargetProcess.ErrorDataReceived += TargetProcess_ErrorDataReceived;
-        }
-
-        /// <summary>
-        /// 开启一个进程
-        /// </summary>
-        /// <param name="processArguments">初始参数</param>
-        public void StartProcessAsync(string processArguments = "start")
-        {
-            TargetProcess.StartInfo.Arguments = processArguments;
-            TargetProcess.Start();
-            TargetProcess.BeginOutputReadLine();
-        }
-        /// <summary>
-        /// 异步向标准输入流输入
-        /// </summary>
-        /// <param name="input">输入的信息</param>
-        public async void ProcessInputAsync(string input)
-        {
-            await TargetProcess.StandardInput.WriteLineAsync(input);
-        }
-        /// <summary>
-        /// 输出接收委托
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">传输的数据</param>
-        private void TargetProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-                Output = e.Data;
-        }
-        /// <summary>
-        /// 错误接收委托
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">传输的数据</param>
-        /// <exception cref="NotImplementedException"></exception>
-        private void TargetProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
-        public string StartProcess(string processArguments)
-        {
-            TargetProcess.StartInfo.Arguments = processArguments;
-            TargetProcess.Start();
-            Output = TargetProcess.StandardOutput.ReadToEnd();
-            TargetProcess.WaitForExit();
-            TargetProcess.Close();
-            return Output;
-        }
-        /// <summary>
-        /// 向标准输入流输入
-        /// </summary>
-        /// <param name="input">输入的信息</param>
-        public void ProcessInput(string input)
-        {
-            TargetProcess.StandardInput.WriteLine(input);
-            //TargetProcess.StandardInput.Close();
-        }
-        /// <summary>
-        /// 进程退出
-        /// </summary>
-        public void ProcessClose()
-        {
-            //TargetProcess.CancelOutputRead();
-            TargetProcess.WaitForExit();
-            TargetProcess.Close();
-        }
-
-        public static void StartTask(ref Task? task, Action action)
-        {
-            if (task == null)
-            {
-                task = new Task(action);
-            }
-            else
-            {
-                task.Wait();
-                task = new Task(action);
-            }
-            task.Start();
-        }
+        string Translate(string name);
     }
 
 }

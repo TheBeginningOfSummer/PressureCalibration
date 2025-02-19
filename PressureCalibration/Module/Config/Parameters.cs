@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace Module
 {
-    public class CalibrationParameter : ParameterManager
+    public class CalibrationParameter : Loader
     {
         /// <summary>
         /// 每个数据采集时的重复次数

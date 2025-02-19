@@ -45,12 +45,14 @@ namespace Module
         public Config()
         {
             //注意加载顺序
-            DB = ParameterManager.Load<Database>(ConfigPath, DatabaseName, nameof(Database));//加载数据库
-            CP = ParameterManager.Load<CalibrationParameter>(ConfigPath, CalibName, nameof(CalibrationParameter));//加载参数
-            PACE = ParameterManager.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
-            TEC = ParameterManager.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
-            ACQ = ParameterManager.Load<Acquisition>(ConfigPath, ACQCardName, nameof(Acquisition));//加载参数
-            Zmotion = ParameterManager.Load<ZmotionMotionControl>(ConfigPath, ZmotionName, nameof(ZmotionMotionControl));
+            DB = Loader.Load<Database>(ConfigPath, DatabaseName, nameof(Database));//加载数据库
+            CP = Loader.Load<CalibrationParameter>(ConfigPath, CalibName, nameof(CalibrationParameter));//加载参数
+            PACE = Loader.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
+            TEC = Loader.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
+            Zmotion = Loader.Load<ZmotionMotionControl>(ConfigPath, ZmotionName, nameof(ZmotionMotionControl));
+
+            ACQ = Loader.Load<Acquisition>(ConfigPath, ACQCardName, nameof(Acquisition));//采集总实例，需最后加载
+            
         }
     }
 }

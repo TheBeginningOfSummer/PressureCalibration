@@ -5,7 +5,7 @@ using CSKit;
 
 namespace Module
 {
-    public class PressController : ParameterManager
+    public class PressController : Loader
     {
         Random random = new();
         //网口
@@ -13,7 +13,7 @@ namespace Module
 
         public PressController()
         {
-            SocketPara = new();
+            SocketPort = new();
         }
 
         public string SendCommand(string command)
@@ -28,7 +28,7 @@ namespace Module
 
         public bool Connect()
         {
-            bool rt = Connection.ConnectServer(SocketPara!.Ip, SocketPara.Port);
+            bool rt = Connection.ConnectServer(SocketPort!.Ip, SocketPort.Port);
             if (rt)
             {
                 Connection.SendMsg(":REM", out string recvStr);
@@ -132,16 +132,13 @@ namespace Module
         }
     }
 
-    public class TECController : ParameterManager
+    public class TECController : Loader
     {
         public byte DeviceAddress { get; set; }
 
-        //串口连接
-        public SerialPortTool Connection = new();
-
         public TECController()
         {
-            SerialPara = new();
+            SerialPort = new();
         }
 
         public override string Translate(string name)
@@ -155,12 +152,12 @@ namespace Module
 
         public bool Open()
         {
-            return Connection.OpenMySerialPort(SerialPara!);
+            return SerialPort!.Open();
         }
 
         public bool Close()
         {
-            return Connection.CloseMySerialPort();
+            return SerialPort!.Close();
         }
 
         #region 寄存器操作
@@ -170,7 +167,7 @@ namespace Module
             byte[] length = DataConverter.ValueToBytes(registerLength);
             byte[] sendData = [deviceAddress, code, address[0], address[1], length[0], length[1]];
             byte[] crcBytes = CRC16.CRC16_1(sendData);
-            return Connection.SendWithRead(crcBytes, 5 + registerLength * 2);
+            return SerialPort!.SendWithRead(crcBytes, 5 + registerLength * 2);
         }
 
         public bool SetRegister(byte deviceAddress, ushort registerAddress, byte[] data)
@@ -179,7 +176,7 @@ namespace Module
             byte[] head = [deviceAddress, 0x06, address[0], address[1]];
             byte[] sendData = BytesTool.SpliceBytes(head, data);
             byte[] crcBytes = CRC16.CRC16_1(sendData);
-            byte[] received = Connection.SendWithRead(crcBytes, crcBytes.Length);
+            byte[] received = SerialPort!.SendWithRead(crcBytes, crcBytes.Length);
             if (received.Length == 0) return false;
             return true;
         }
@@ -192,7 +189,7 @@ namespace Module
             byte[] head = [deviceAddress, 0x10, address[0], address[1], length[0], length[1], dataLength[3]];
             byte[] sendData = BytesTool.SpliceBytes(head, data);
             byte[] crcBytes = CRC16.CRC16_1(sendData);
-            byte[] received = Connection.SendWithRead(crcBytes, 8);
+            byte[] received = SerialPort!.SendWithRead(crcBytes, 8);
             if (received.Length == 0) return false;
             return true;
         }
@@ -220,7 +217,7 @@ namespace Module
         public string GetInfo()
         {
             byte[]? info = null;
-            if (Connection.MySerialPort.IsOpen)
+            if (SerialPort!.MySerialPort.IsOpen)
                 info = GetRegisters(DeviceAddress, 0x04, 30000, 12);
             info ??= new byte[27];
             float ntc1 = BitConverter.ToInt16([info[4], info[3]]) / 100f;

@@ -16,9 +16,6 @@ namespace Module
         #region 标定参数
         public byte DeviceAddress { get; set; }//所在采集卡的地址
         public int SensorIndex { get; set; }//采集卡中的哪一路
-        public double SingleYield { get; set; } = 1.0;//良率
-        public double MinYield { get; set; } = 0.8;//最小良率
-        public bool ContinuousNG { get; set; } = false;//连续NG
 
         private string result = "Default";
         public string Result
@@ -42,6 +39,12 @@ namespace Module
             }
         }//测试结果
         public bool IsFused { get; set; } = false;//是否烧录过
+        public decimal OutputP { get; set; } = 0;
+        public decimal OutputT { get; set; } = 0;
+
+        public double SingleYield { get; set; } = 1.0;//良率
+        public double MinYield { get; set; } = 0.8;//最小良率
+        public bool ContinuousNG { get; set; } = false;//连续NG
         #endregion
 
         public SensorCalibration(byte deviceAddress, int sensorIndex)
@@ -272,7 +275,7 @@ namespace Module
         #endregion
 
         #region 数据处理
-        public void Initialize(CalibrationParameter parameter)
+        public void ClearData(CalibrationParameter parameter)
         {
             Result = "Default";
             IsFused = false;

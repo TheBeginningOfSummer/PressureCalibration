@@ -12,8 +12,8 @@ namespace PressureCalibration.View
         public int RowCount = 12;
 
         readonly ScottPlot.IYAxis[] yAxes = [];//Y轴
-        readonly ConcurrentDictionary<string, MinDisPoint> pDisPoints = [];//压力数据
-        readonly ConcurrentDictionary<string, MinDisPoint> tDisPoints = [];//温度数据
+        readonly ConcurrentDictionary<string, AxisData> pDisPoints = [];//压力数据
+        readonly ConcurrentDictionary<string, AxisData> tDisPoints = [];//温度数据
         bool isUpdate = true;
 
         public MonitorForm()
@@ -25,16 +25,16 @@ namespace PressureCalibration.View
 
             #region 数据初始化
             //压力数据初始化
-            MinDisPoint p1DisPoint = new(this, $"P1", FP图表.Plot, Color.LightSkyBlue, CKBP1, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P1"]);
-            MinDisPoint p2DisPoint = new(this, $"P2", FP图表.Plot, Color.Black, CKBP2, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P2"]);
+            AxisData p1AxisData = new(this, $"P1", FP图表.Plot, Color.LightSkyBlue, CKBP1, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P1"]);
+            AxisData p2AxisData = new(this, $"P2", FP图表.Plot, Color.Black, CKBP2, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P2"]);
             //压力加入数据集
-            pDisPoints.TryAdd(p1DisPoint.Name, p1DisPoint);
-            pDisPoints.TryAdd(p2DisPoint.Name, p2DisPoint);
+            pDisPoints.TryAdd(p1AxisData.Name, p1AxisData);
+            pDisPoints.TryAdd(p2AxisData.Name, p2AxisData);
             //温度数据初始化
             int x = 870;
             int y = 80;
             Color color = Color.White;
-            for (int i = 1; i <= 9; i++)
+            for (int i = 1; i <= Config.Instance.ACQ.CardAmount; i++)
             {
                 for (int j = 1; j <= 4; j++)
                 {
@@ -55,9 +55,9 @@ namespace PressureCalibration.View
                         case 4: color = Color.YellowGreen; break;
                     };
                     //温度数据
-                    MinDisPoint disPoint = new(this, $"D{i}T{j}", FP图表.Plot, color, checkBox, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"D{i}T{j}"]);
+                    AxisData tAxisData = new(this, $"D{i}T{j}", FP图表.Plot, color, checkBox, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"D{i}T{j}"]);
                     //温度数据集加入数据集
-                    tDisPoints.TryAdd(disPoint.Name!, disPoint);
+                    tDisPoints.TryAdd(tAxisData.Name!, tAxisData);
                 }
                 y += 20;
             }
@@ -143,7 +143,6 @@ namespace PressureCalibration.View
         #region 按钮
         private void TMI清除_Click(object sender, EventArgs e)
         {
-            //T1.Stop();
             DataMonitor.ClearDisplayedData();
             FP图表.Plot.Clear();
             FP图表.Refresh();
@@ -176,7 +175,7 @@ namespace PressureCalibration.View
 
     }
 
-    public class MinDisPoint
+    public class AxisData
     {
         public string Name { get; set; }
         public int TimeIndex { get; set; }
@@ -188,7 +187,7 @@ namespace PressureCalibration.View
         public List<double> Time { get; set; } = [];
         public List<double> Data { get; set; } = [];
 
-        public MinDisPoint(Control control, string name, ScottPlot.Plot plot, Color color, CheckBox selectBox, List<double> time, List<double> data)
+        public AxisData(Control control, string name, ScottPlot.Plot plot, Color color, CheckBox selectBox, List<double> time, List<double> data)
         {
             Name = name;
             Plot = plot;
@@ -237,7 +236,6 @@ namespace PressureCalibration.View
             Distance = 999.9;
             for (int i = 0; i < Time.Count; i++)
             {
-
                 var valuePoint = Plot.GetPixel(new ScottPlot.Coordinates(Time[i], Data[i]), Plot.Axes.Bottom, yAxis);
                 double dis = Math.Sqrt(Math.Pow(valuePoint.X - mouseLocation.X, 2) + Math.Pow(valuePoint.Y - mouseLocation.Y, 2));
                 if (dis <= Distance)

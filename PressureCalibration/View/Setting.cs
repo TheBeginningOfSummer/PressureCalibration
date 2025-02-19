@@ -1,4 +1,5 @@
-﻿using CSharpKit.FileManagement;
+﻿using CSharpKit.Communication;
+using CSharpKit.FileManagement;
 using Module;
 using Services;
 using UIKit;
@@ -13,24 +14,27 @@ namespace PressureCalibration.View
         {
             InitializeComponent();
 
-            settingInfos.Add(new SettingInfo(ParameterManager.Get<CalibrationParameter>()));
-            settingInfos.Add(new SettingInfo(ParameterManager.Get<Acquisition>()));
-            settingInfos.Add(new SettingInfo(ParameterManager.Get<PressController>()));
-            settingInfos.Add(new SettingInfo(ParameterManager.Get<TECController>()));
-            settingInfos.Add(new SettingInfo(ParameterManager.Get<ZmotionMotionControl>()));
+            settingInfos.Add(new SettingInfo(Loader.Get<CalibrationParameter>()));
+            settingInfos.Add(new SettingInfo(Loader.Get<Acquisition>()));
+            settingInfos.Add(new SettingInfo(Loader.Get<PressController>()));
+            settingInfos.Add(new SettingInfo(Loader.Get<TECController>()));
+            settingInfos.Add(new SettingInfo(Loader.Get<ZmotionMotionControl>()));
             for (int i = 0; i < settingInfos.Count; i++)
             {
                 settingInfos[i].Initialize(HTP设置.TabPages[i]);
-                settingInfos[i].CommandAction += SetAxis;
+                settingInfos[i].CommandAction += SetChildItem;
             }
         }
 
-        private void SetAxis(object? argument)
+        private void SetChildItem(object? argument)
         {
             if (argument is ZmotionAxis axis)
             {
-                AxisSetting axisSetting = new(axis);
-                axisSetting.Show();
+                new ChildItemSetting(axis).Show();
+            }
+            if (argument is SerialPortTool sp)
+            {
+                new ChildItemSetting(sp).Show();
             }
         }
 
