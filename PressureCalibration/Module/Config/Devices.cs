@@ -167,7 +167,7 @@ namespace Module
             byte[] length = DataConverter.ValueToBytes(registerLength);
             byte[] sendData = [deviceAddress, code, address[0], address[1], length[0], length[1]];
             byte[] crcBytes = CRC16.CRC16_1(sendData);
-            return SerialPort!.SendWithRead(crcBytes, 5 + registerLength * 2);
+            return SerialPort!.WriteRead(crcBytes, 5 + registerLength * 2);
         }
 
         public bool SetRegister(byte deviceAddress, ushort registerAddress, byte[] data)
@@ -176,7 +176,7 @@ namespace Module
             byte[] head = [deviceAddress, 0x06, address[0], address[1]];
             byte[] sendData = BytesTool.SpliceBytes(head, data);
             byte[] crcBytes = CRC16.CRC16_1(sendData);
-            byte[] received = SerialPort!.SendWithRead(crcBytes, crcBytes.Length);
+            byte[] received = SerialPort!.WriteRead(crcBytes, crcBytes.Length);
             if (received.Length == 0) return false;
             return true;
         }
@@ -189,7 +189,7 @@ namespace Module
             byte[] head = [deviceAddress, 0x10, address[0], address[1], length[0], length[1], dataLength[3]];
             byte[] sendData = BytesTool.SpliceBytes(head, data);
             byte[] crcBytes = CRC16.CRC16_1(sendData);
-            byte[] received = SerialPort!.SendWithRead(crcBytes, 8);
+            byte[] received = SerialPort!.WriteRead(crcBytes, 8);
             if (received.Length == 0) return false;
             return true;
         }

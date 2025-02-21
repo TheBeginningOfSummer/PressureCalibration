@@ -1,5 +1,7 @@
-﻿using CompreDemo.Forms;
+﻿using Calibration.Data;
+using CompreDemo.Forms;
 using CSharpKit.DataManagement;
+using CSharpKit.FileManagement;
 using Module;
 using System.ComponentModel;
 using WinformKit;
@@ -16,9 +18,16 @@ namespace PressureCalibration.View
 
         readonly Config config = Config.Instance;
 
+        #region 需存导出的数据
+        //获取到的tmp117的温度数据
+        readonly List<TempTest> temperatureList = [];
+        //压力测试数据
+        readonly List<PressureTest> pressureList = [];
+        #endregion
+
         #region 控件绑定值
-        private decimal deviceCount = 16;
-        public decimal DeviceCount
+        private int deviceCount = 16;
+        public int DeviceCount
         {
             get { return deviceCount; }
             set
@@ -29,9 +38,9 @@ namespace PressureCalibration.View
             }
         }
 
-
-        private decimal temperature;
-        public decimal Temperature
+        //温度
+        private double temperature = 15;
+        public double Temperature
         {
             get => temperature;
             set
@@ -41,15 +50,11 @@ namespace PressureCalibration.View
             }
         }
 
-        private decimal pressure = 30000;//压力设置
-        public decimal Pressure
+        private int tInterval = 2;
+        public int TInterval
         {
-            get { return pressure; }
-            set
-            {
-                pressure = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Pressure)));
-            }
+            get { return tInterval; }
+            set { tInterval = value; }
         }
 
         private string tempTestName = "";
@@ -61,6 +66,25 @@ namespace PressureCalibration.View
                 tempTestName = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TempTestName)));
             }
+        }
+
+        //压力
+        private double pressure = 30000;//压力设置
+        public double Pressure
+        {
+            get { return pressure; }
+            set
+            {
+                pressure = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Pressure)));
+            }
+        }
+
+        private int pInterval = 2;
+        public int PInterval
+        {
+            get { return pInterval; }
+            set { pInterval = value; }
         }
 
         private string pressTestName = "";
@@ -77,32 +101,76 @@ namespace PressureCalibration.View
 
         readonly Dictionary<string, Label> labelsDic = [];
 
+        readonly BackgroundWorker BGW温度 = new();
+        readonly BackgroundWorker BGW压力 = new();
+        readonly BackgroundWorker BGW运动 = new();
+
         public Test()
         {
             InitializeComponent();
-            InitialzeTempPicture();
+            DeviceCount = config.ACQ.CardAmount;
+            InitialzeTempPicture(DeviceCount);
             Bindings();
+            BGW温度.WorkerSupportsCancellation = true;
+            BGW压力.WorkerSupportsCancellation = true;
+            BGW运动.WorkerSupportsCancellation = true;
             DataMonitor.UpdataData += UpdateTempPicture;
-            
+
         }
 
         private void Bindings()
         {
-            //BGW温度测试.DoWork += BGW温度测试_DoWork;
-            //BGW温度测试.RunWorkerCompleted += BGW温度测试_RunWorkerCompleted;
-
-            //BGW压力测试.DoWork += BGW压力测试_DoWork;
-            //BGW压力测试.RunWorkerCompleted += BGW压力测试_RunWorkerCompleted;
-
+            BGW温度.DoWork += BGW温度测试_DoWork;
+            BGW温度.RunWorkerCompleted += BGW温度测试_RunWorkerCompleted;
+            BGW压力.DoWork += BGW压力测试_DoWork;
+            BGW压力.RunWorkerCompleted += BGW压力测试_RunWorkerCompleted;
+            BGW运动.DoWork += BGW运动_DoWork;
+            BGW运动.RunWorkerCompleted += BGW运动_RunWorkerCompleted;
+            //温度
             TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature)));
-            TTB目标压力.DataBindings.Add(new Binding("Text", this, nameof(Pressure)));
+            TTB温度采集间隔.DataBindings.Add(new Binding("Text", this, nameof(TInterval)));
             TTB温度测试名称.DataBindings.Add(new Binding("Text", this, nameof(TempTestName)));
+            //压力
+            TTB目标压力.DataBindings.Add(new Binding("Text", this, nameof(Pressure)));
+            TTB压力采集间隔.DataBindings.Add(new Binding("Text", this, nameof(PInterval)));
             TTB压力测试名称.DataBindings.Add(new Binding("Text", this, nameof(PressTestName)));
 
             CMB轴列表.DataSource = config.Zmotion.AxesName;
         }
 
-        public void InitialzeTempPicture(int cardCount = 16)
+        #region 温度测试
+        private void BGW温度测试_DoWork(object? sender, DoWorkEventArgs e)
+        {
+            try
+            {
+                if (sender is BackgroundWorker worker)
+                {
+                    do
+                    {
+                        AcquisitionT();
+                        Thread.Sleep(1000 * TInterval);
+                        if (e.Argument is "a1") break;
+                        if (worker.CancellationPending)
+                        {
+                            e.Cancel = true;
+                            break;
+                        }
+                    }
+                    while (true);
+                }
+            }
+            catch (Exception ex)
+            {
+                FormKit.UpdateMessage(RTB温度信息, ex.Message);
+            }
+        }
+
+        private void BGW温度测试_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        {
+
+        }
+
+        public void InitialzeTempPicture(int cardCount = 8, int tempCount = 4)
         {
             PN温度分布.Controls.Clear();
             //控件属性
@@ -114,7 +182,7 @@ namespace PressureCalibration.View
             bool isSwitch = false;
             for (int i = 0; i < cardCount; i++)
             {
-                for (int j = 0; j < 4; j++)
+                for (int j = 0; j < tempCount; j++)
                 {
                     Color color = Color.LightGray;
 
@@ -145,20 +213,164 @@ namespace PressureCalibration.View
                 FormKit.OnThread(this, () =>
                 {
                     Color color;
-                    if (item.Value > double.Parse(TTB目标温度.Text) + double.Parse(TTB偏差温度.Text))
+                    if (item.Value > Temperature + double.Parse(TTB偏差温度.Text))
                         color = Color.Red;
-                    else if (item.Value < double.Parse(TTB目标温度.Text) - double.Parse(TTB偏差温度.Text))
+                    else if (item.Value < Temperature - double.Parse(TTB偏差温度.Text))
                         color = Color.LightSkyBlue;
                     else
                         color = Color.Orange;
 
-                    labelsDic[item.Key].Text = $"[{item.Key}]{Environment.NewLine}{item.Value:N2}";
-                    labelsDic[item.Key].BackColor = color;
+                    if (labelsDic.TryGetValue(item.Key, out var label))
+                    {
+                        label.Text = $"[{item.Key}]{Environment.NewLine}{item.Value:N2}";
+                        label.BackColor = color;
+                    }
                 });
             }
         }
 
+        public void UpdateTempPicture(TempTest testData)
+        {
+            //FormKit.UpdateMessage(GB温度分布, $"温度分布（℃）{testData.Date}", false, true);
+            for (int i = 0; i < testData.TempList.Count; i++)
+            {
+                for (int j = 0; j < testData.TempList[i].Length; j++)
+                {
+                    FormKit.OnThread(this, () =>
+                    {
+                        Color color;
+                        if (testData.TempList[i][j] > (decimal)Temperature + decimal.Parse(TTB偏差温度.Text))
+                            color = Color.Red;
+                        else if (testData.TempList[i][j] < (decimal)Temperature - decimal.Parse(TTB偏差温度.Text))
+                            color = Color.LightSkyBlue;
+                        else
+                            color = Color.Orange;
+
+                        if (labelsDic.TryGetValue($"D{i + 1}T{j + 1}", out var label))
+                        {
+                            label.Text = $"[{j + 1}]{Environment.NewLine}{testData.TempList[i][j]:N2}";
+                            label.BackColor = color;
+                        }
+                    });
+                }
+            }
+        }
+
+        public void AcquisitionT()
+        {
+            TempTest tempTest = config.ACQ.GetTemperatureList();
+            UpdateTempPicture(tempTest);//显示数据
+            temperatureList.Add(tempTest);//添加数据到收集的数据
+        }
+
+        private void TMI采集温度_Click(object sender, EventArgs e)
+        {
+            if (BGW温度.IsBusy)
+            {
+                MessageBox.Show("运行中……", "提示");
+                return;
+            }
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                FormKit.UpdateMessage(RTB温度信息, "开始采集！");
+                BGW温度.RunWorkerAsync(menuItem.Tag);
+            }
+        }
+
+        private void TMI温度测试_Click(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                switch (menuItem.Tag)
+                {
+                    case "cancel":
+                        BGW温度.CancelAsync();
+                        FormKit.UpdateMessage(RTB温度信息, "停止采集。");
+                        break;
+                    case "clear":
+                        RTB温度信息.Clear();
+                        temperatureList.Clear();
+                        FormKit.ShowInfoBox("数据清除完成。");
+                        break;
+                    case "excel":
+                        if (ExcelOutput.Output(temperatureList, name: TempTestName))
+                            FormKit.UpdateMessage(RTB温度信息, "导出数据完成。");
+                        break;
+                    case "picture":
+                        Bitmap bitmap = new(this.Width, this.Height);
+                        Graphics g = Graphics.FromImage(bitmap);
+                        g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                        g.CopyFromScreen(Left, Top, 0, 0, new Size(this.Width, this.Height));
+                        string path = "Data\\TempTest\\";
+                        if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                        path += $"[{DateTime.Now:yyyy-MM-dd HH-mm-ss}]{TempTestName}.png";
+                        bitmap.Save(path);
+                        FormKit.UpdateMessage(RTB温度信息, "保存完成");
+                        break;
+                    default: break;
+                }
+            }
+        }
+        #endregion
+
+        #region 压力测试
+        private void BGW压力测试_DoWork(object? sender, DoWorkEventArgs e)
+        {
+            if (sender is BackgroundWorker worker)
+                while (true)
+                {
+                    var pData = new PressureTest(DateTime.Now.ToString("HH:mm:ss"), config.PACE.GetPress());
+                    FormKit.UpdateMessage(RTB压力信息, pData.Pressure.ToString());
+                    pressureList.Add(pData);
+                    Thread.Sleep(1000 * PInterval);
+                    if (worker.CancellationPending)
+                    {
+                        e.Cancel = true;
+                        break;
+                    }
+                }
+        }
+
+        private void BGW压力测试_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        {
+
+        }
+
+        private void TMI采集压力_Click(object sender, EventArgs e)
+        {
+            if (BGW压力.IsBusy)
+            {
+                MessageBox.Show("运行中……", "提示");
+                return;
+            }
+            FormKit.UpdateMessage(RTB压力信息, "开始采集！");
+            BGW压力.RunWorkerAsync();
+        }
+
+        private void TMI压力测试_Click(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                switch (menuItem.Tag)
+                {
+
+                    default: break;
+                }
+            }
+        }
+        #endregion
+
         #region 运动测试
+        private void BGW运动_DoWork(object? sender, DoWorkEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void BGW运动_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
         private void TMI连接控制卡_Click(object sender, EventArgs e)
         {
             if (config.Zmotion.Connect())
@@ -177,15 +389,13 @@ namespace PressureCalibration.View
 
         private void BTN轴测试_Click(object sender, EventArgs e)
         {
-            if(config.Zmotion.Axes.TryGetValue(CMB轴列表.Text,out var result))
+            if (config.Zmotion.Axes.TryGetValue(CMB轴列表.Text, out var result))
             {
                 if (result == null) return;
                 new AxisTest(result).Show();
             }
         }
         #endregion
-
-
 
     }
 }

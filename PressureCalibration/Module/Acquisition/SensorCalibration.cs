@@ -166,7 +166,7 @@ namespace Module
         public decimal ReadTemperature(SerialPortTool connection)
         {
             byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
-            var result = connection.SendWithRead(CRC16.CRC16_1(sendBytes), 20);
+            var result = connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
             short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
             if (result.Length >= 8)
             {
@@ -182,40 +182,40 @@ namespace Module
         //读取uid初始化
         public void Initialize1(SerialPortTool connection)
         {
-            connection.SendWithRead(Write(0x06, 1, [0x80]));
+            connection.WriteRead(Write(0x06, 1, [0x80]));
             Thread.Sleep(10);
-            connection.SendWithRead(Write(0x7F, 1, [0x67]));
-            connection.SendWithRead(Write(0x50, 1, [0xFD]));
-            connection.SendWithRead(Write(0x51, 1, [0xFD]));
+            connection.WriteRead(Write(0x7F, 1, [0x67]));
+            connection.WriteRead(Write(0x50, 1, [0xFD]));
+            connection.WriteRead(Write(0x51, 1, [0xFD]));
             Thread.Sleep(10);
         }
         //采集数据初始化
         public void Initialize2(SerialPortTool connection)
         {
-            connection.SendWithRead(Write(0x06, 1, [0x08]));
-            connection.SendWithRead(Write(0x06, 1, [0x80]));
+            connection.WriteRead(Write(0x06, 1, [0x08]));
+            connection.WriteRead(Write(0x06, 1, [0x80]));
             Thread.Sleep(10);
-            connection.SendWithRead(Write(0x7F, 1, [0x67]));
-            connection.SendWithRead(Write(0x56, 1, [0x01]));
-            connection.SendWithRead(Write(0x07, 1, [0x08]));
-            connection.SendWithRead(Write(0x08, 1, [0x01]));
-            connection.SendWithRead(Write(0x09, 1, [0x1A]));
-            connection.SendWithRead(Write(0x06, 1, [0x13]));
+            connection.WriteRead(Write(0x7F, 1, [0x67]));
+            connection.WriteRead(Write(0x56, 1, [0x01]));
+            connection.WriteRead(Write(0x07, 1, [0x08]));
+            connection.WriteRead(Write(0x08, 1, [0x01]));
+            connection.WriteRead(Write(0x09, 1, [0x1A]));
+            connection.WriteRead(Write(0x06, 1, [0x13]));
             Thread.Sleep(10);
         }
         //烧录条件
         public void Initialize3(SerialPortTool connection)
         {
-            connection.SendWithRead(Write(0x50, 1, [0x08]));
+            connection.WriteRead(Write(0x50, 1, [0x08]));
             Thread.Sleep(10);
-            connection.SendWithRead(Write(0x51, 1, [0x08]));
+            connection.WriteRead(Write(0x51, 1, [0x08]));
             Thread.Sleep(10);
         }
         //得到芯片Uid
         public int GetSensorUID(SerialPortTool connection)
         {
             Initialize1(connection);
-            var uidResult = ReceivedData.ParseData(connection.SendWithRead(Read(0x02, 4)));//读取所有传感器的uid数据
+            var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x02, 4)));//读取所有传感器的uid数据
             byte[] uidBytes = uidResult[SensorIndex].Data;
             if (uidResult[SensorIndex].IsEffective && uidBytes.Length == 4)
             {
@@ -230,8 +230,8 @@ namespace Module
             temperature = 0;
             pressure = 0;
             Initialize2(connection);
-            var pressResult = ReceivedData.ParseData(connection.SendWithRead(Read(0x17, 3)));
-            var tempResult = ReceivedData.ParseData(connection.SendWithRead(Read(0x1A, 2)));
+            var pressResult = ReceivedData.ParseData(connection.WriteRead(Read(0x17, 3)));
+            var tempResult = ReceivedData.ParseData(connection.WriteRead(Read(0x1A, 2)));
             byte[] tempBytes = new byte[4];
             if (pressResult[SensorIndex].IsEffective && tempResult[SensorIndex].IsEffective)
             {

@@ -19,6 +19,7 @@ namespace PressureCalibration.View
             settingInfos.Add(new SettingInfo(Loader.Get<PressController>()));
             settingInfos.Add(new SettingInfo(Loader.Get<TECController>()));
             settingInfos.Add(new SettingInfo(Loader.Get<ZmotionMotionControl>()));
+            settingInfos.Add(new SettingInfo(Loader.Get<MotionParameter>()));
             for (int i = 0; i < settingInfos.Count; i++)
             {
                 settingInfos[i].Initialize(HTP设置.TabPages[i]);

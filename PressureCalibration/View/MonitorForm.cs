@@ -26,10 +26,10 @@ namespace PressureCalibration.View
             #region 数据初始化
             //压力数据初始化
             AxisData p1AxisData = new(this, $"P1", FP图表.Plot, Color.LightSkyBlue, CKBP1, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P1"]);
-            AxisData p2AxisData = new(this, $"P2", FP图表.Plot, Color.Black, CKBP2, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P2"]);
+            //AxisData p2AxisData = new(this, $"P2", FP图表.Plot, Color.Black, CKBP2, DataMonitor.DisplayedData["Time"], DataMonitor.DisplayedData[$"P2"]);
             //压力加入数据集
             pDisPoints.TryAdd(p1AxisData.Name, p1AxisData);
-            pDisPoints.TryAdd(p2AxisData.Name, p2AxisData);
+            //pDisPoints.TryAdd(p2AxisData.Name, p2AxisData);
             //温度数据初始化
             int x = 870;
             int y = 80;

@@ -1,4 +1,5 @@
-﻿using CSharpKit.Communication;
+﻿using Calibration.Data;
+using CSharpKit.Communication;
 using CSharpKit.FileManagement;
 using Services;
 using System.Collections.Concurrent;
@@ -32,6 +33,10 @@ namespace Module
             CurrentState = state;
             string message = state.GetType().Name.Split('.').Last();
             WorkProcess?.Invoke($"当前状态: {message}");
+            if (CurrentState is Idle)
+                IsRunning = false;
+            else
+                IsRunning = true;
             NotifyRecord.Record(message, NotifyRecord.LogType.Modification);
         }
 
@@ -50,6 +55,7 @@ namespace Module
 
         #region 设备
         public CalibrationParameter CalPara = Get<CalibrationParameter>();
+        public MotionParameter MotionPara = Get<MotionParameter>();
         public PressController Pace = Get<PressController>();
         public TECController Tec = Get<TECController>();
         public ZmotionMotionControl Motion = Get<ZmotionMotionControl>();
@@ -90,13 +96,17 @@ namespace Module
 
         #region 控制变量
         /// <summary>
+        /// 控制数据显示
+        /// </summary>
+        public bool IsShowData { get; set; } = false;
+        /// <summary>
         /// 当前温度索引
         /// </summary>
         public int CurrentTempIndex = 0;
         /// <summary>
-        /// 控制数据显示
+        /// 运行标记
         /// </summary>
-        public bool IsShowData { get; set; } = false;
+        public bool IsRunning = false;
         /// <summary>
         /// 控制暂停
         /// </summary>
@@ -174,6 +184,7 @@ namespace Module
                 WorkProcess?.Invoke("连接温度控制器失败！");
             if (Motion.Connect())
             {
+                Motion.ECInitialize();
                 //轴参数重新初始化
                 Motion.Initialize();
                 InMonitor = new InputMonitor(Motion);
@@ -187,30 +198,11 @@ namespace Module
 
         }
 
+        #region 数据采集
         public void ClearData()
         {
             foreach (var group in GroupDic.Values)
                 group.ClearData();
-        }
-
-        public ReceivedData[] PowerOn()
-        {
-            ReceivedData[] receivedData = new ReceivedData[CardAmount];
-            for (int i = 0; i < CardAmount; i++)
-            {
-                receivedData[i] = ReceivedData.ParseData(GroupDic[i + 1].PowerOn())[0];
-            }
-            return receivedData;
-        }
-
-        public ReceivedData[] PowerOff()
-        {
-            ReceivedData[] receivedData = new ReceivedData[CardAmount];
-            for (int i = 0; i < CardAmount; i++)
-            {
-                receivedData[i] = ReceivedData.ParseData(GroupDic[i + 1].PowerOff())[0];
-            }
-            return receivedData;
         }
 
         public void Open()
@@ -233,6 +225,44 @@ namespace Module
             }
         }
 
+        public ReceivedData[] PowerOn()
+        {
+            ReceivedData[] receivedData = new ReceivedData[CardAmount];
+            for (int i = 0; i < CardAmount; i++)
+            {
+                receivedData[i] = ReceivedData.ParseData(GroupDic[i + 1].PowerOn())[0];
+            }
+            return receivedData;
+        }
+
+        public ReceivedData[] PowerOff()
+        {
+            ReceivedData[] receivedData = new ReceivedData[CardAmount];
+            for (int i = 0; i < CardAmount; i++)
+            {
+                receivedData[i] = ReceivedData.ParseData(GroupDic[i + 1].PowerOff())[0];
+            }
+            return receivedData;
+        }
+
+        public TempTest GetTemperatureList()
+        {
+            TempTest tempData = new();
+            if (IsRunning) return tempData;
+            for (int i = 1; i <= GroupDic.Count; i++)
+            {
+                try
+                {
+                    tempData.TempList.Add(GroupDic[i].ReadTemperature());
+                    //FormKit.UpdateMessage(RTB温度测试信息, $"设备{i}：{Environment.NewLine}[第1路温度为]{r[0]}℃ [第2路温度为]{r[1]}℃ [第3路温度为]{r[2]}℃ [第4路温度为]{r[3]}℃");
+                }
+                catch (Exception)
+                {
+                    return tempData;
+                }
+            }
+            return tempData;
+        }
         /// <summary>
         /// 得到监视数据
         /// </summary>
@@ -548,6 +578,123 @@ namespace Module
                 return false;
             }
         }
+        #endregion
+
+        #region 运动控制
+        public bool ReadyPosition()
+        {
+            try
+            {
+                var axis1 = Motion.Axes[Motion.AxesName[0]];
+                var axis2 = Motion.Axes[Motion.AxesName[1]];
+                if (!axis1.IsEnabled()) axis1.Enable();
+                if (!axis2.IsEnabled()) axis2.Enable();
+
+                //设置轴类型
+                axis1.SetType(65);
+                axis1.SetType(65);
+                axis1.SingleAbsoluteMove(MotionPara.Axis1Work);
+                axis2.SingleAbsoluteMove(MotionPara.Axis2Work);
+                axis1.Wait();
+                axis2.Wait();
+
+                //设置轴类型
+                axis2.SetType(67);
+                axis2.SetTorque(MotionPara.Axis2Torque, MotionPara.Axis2RotateSpeed);
+                Thread.Sleep(3000);
+                axis2.Wait();
+                Thread.Sleep(3000);
+                //读取力矩？
+                WorkProcess?.Invoke($"轴2当前转矩：{axis2.GetTorque()}");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Warning("运动至工作位置失败，" + e.Message);
+                return false;
+            }
+        }
+
+        public bool WorkingTorque()
+        {
+            try
+            {
+                var axis1 = Motion.Axes[Motion.AxesName[0]];
+                var axis2 = Motion.Axes[Motion.AxesName[1]];
+                
+                //设置轴类型
+                axis1.SetType(67);
+                axis1.SetTorque(MotionPara.Axis1Torque, MotionPara.Axis1RotateSpeed);
+                Thread.Sleep(3000);
+                axis1.Wait();
+                Thread.Sleep(3000);
+                //读取力矩？
+                WorkProcess?.Invoke($"轴1当前转矩：{axis1.GetTorque()}");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Warning("运动至工作位置失败，" + e.Message);
+                return false;
+            }
+        }
+
+        public void UnloadTorque()
+        {
+            try
+            {
+                var axis1 = Motion.Axes[Motion.AxesName[0]];
+                var axis2 = Motion.Axes[Motion.AxesName[1]];
+                //设置轴类型todo
+                axis1.SetTorque(MotionPara.Axis1Torque / 2, MotionPara.Axis1RotateSpeed);
+                Thread.Sleep(2000);
+                axis1.SetTorque(MotionPara.Axis1Torque / 10, MotionPara.Axis1RotateSpeed);
+                Thread.Sleep(2000);
+                axis1.SetTorque(0, MotionPara.Axis1RotateSpeed);
+                Thread.Sleep(2000);
+                axis1.Wait();
+                Thread.Sleep(3000);
+
+                //设置轴类型todo
+                axis2.SetTorque(MotionPara.Axis2Torque / 2, MotionPara.Axis2RotateSpeed);
+                Thread.Sleep(2000);
+                axis2.SetTorque(0, MotionPara.Axis2RotateSpeed);
+                Thread.Sleep(2000);
+                axis2.Wait();
+                Thread.Sleep(3000);
+            }
+            catch (Exception e)
+            {
+                Warning("运动至上料位置失败，" + e.Message);
+            }
+        }
+
+        public void UploadPosition()
+        {
+            try
+            {
+                var axis1 = Motion.Axes[Motion.AxesName[0]];
+                var axis2 = Motion.Axes[Motion.AxesName[1]];
+                
+                //设置轴类型todo
+                axis1.SetType(65);
+                axis1.SingleAbsoluteMove(MotionPara.Axis1Work);
+                axis1.Wait();
+
+                //设置轴类型
+                axis2.SetType(65);
+                axis1.SingleAbsoluteMove(MotionPara.Axis1Upload);
+                Thread.Sleep(2000);
+                axis2.SingleAbsoluteMove(MotionPara.Axis2Upload);
+                axis1.Wait();
+                axis2.Wait();
+            }
+            catch (Exception e)
+            {
+                Warning("运动至上料位置失败，" + e.Message);
+            }
+        }
+        #endregion
 
     }
 
@@ -592,6 +739,9 @@ namespace Module
                     return;
                 }
             }
+
+
+
             context.SetState(new WaitT());
             context.Run();
         }

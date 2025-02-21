@@ -2,7 +2,7 @@
 {
     public class TempTest
     {
-        public string Date { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        public string Date { get; set; } = DateTime.Now.ToString("HH:mm:ss");
         public List<decimal[]> TempList { get; set; } = [];
     }
 

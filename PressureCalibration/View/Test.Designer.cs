@@ -32,7 +32,7 @@
             TP温度测试 = new TabPage();
             GPB温度分布 = new GroupBox();
             PN温度分布 = new Panel();
-            richTextBox1 = new RichTextBox();
+            RTB温度信息 = new RichTextBox();
             MS温度测试 = new MenuStrip();
             TMI温控 = new ToolStripMenuItem();
             TMI连接采集卡 = new ToolStripMenuItem();
@@ -51,15 +51,16 @@
             TTB设置温度 = new ToolStripTextBox();
             TMI温度设置 = new ToolStripMenuItem();
             TMI温度采集 = new ToolStripMenuItem();
-            采集一次ToolStripMenuItem = new ToolStripMenuItem();
-            开始采集ToolStripMenuItem = new ToolStripMenuItem();
-            清除数据ToolStripMenuItem = new ToolStripMenuItem();
-            停止采集ToolStripMenuItem = new ToolStripMenuItem();
-            导出表格ToolStripMenuItem = new ToolStripMenuItem();
-            保存图片ToolStripMenuItem = new ToolStripMenuItem();
+            TMI采集一次 = new ToolStripMenuItem();
+            TMI采集温度 = new ToolStripMenuItem();
+            TMI停止采集温度 = new ToolStripMenuItem();
+            TMI清除温度数据 = new ToolStripMenuItem();
+            TMI导出温度表格 = new ToolStripMenuItem();
+            TMI保存温度图片 = new ToolStripMenuItem();
             TTB温度测试名称 = new ToolStripTextBox();
             温度测试名称 = new ToolStripMenuItem();
             TP压力测试 = new TabPage();
+            RTB压力信息 = new RichTextBox();
             MS压力测试 = new MenuStrip();
             TMI压控 = new ToolStripMenuItem();
             采集间隔ToolStripMenuItem1 = new ToolStripMenuItem();
@@ -70,6 +71,10 @@
             paToolStripMenuItem = new ToolStripMenuItem();
             TMI压力设置 = new ToolStripMenuItem();
             TMI压力采集 = new ToolStripMenuItem();
+            TMI采集压力 = new ToolStripMenuItem();
+            TMI停止采集压力 = new ToolStripMenuItem();
+            TMI清除压力数据 = new ToolStripMenuItem();
+            TMI导出压力Excel = new ToolStripMenuItem();
             TTB压力测试名称 = new ToolStripTextBox();
             测试名称ToolStripMenuItem = new ToolStripMenuItem();
             TP控制卡 = new TabPage();
@@ -118,7 +123,7 @@
             // TP温度测试
             // 
             TP温度测试.Controls.Add(GPB温度分布);
-            TP温度测试.Controls.Add(richTextBox1);
+            TP温度测试.Controls.Add(RTB温度信息);
             TP温度测试.Controls.Add(MS温度测试);
             TP温度测试.Location = new Point(0, 40);
             TP温度测试.Name = "TP温度测试";
@@ -147,17 +152,17 @@
             PN温度分布.Size = new Size(551, 536);
             PN温度分布.TabIndex = 0;
             // 
-            // richTextBox1
+            // RTB温度信息
             // 
-            richTextBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            richTextBox1.BackColor = Color.Silver;
-            richTextBox1.BorderStyle = BorderStyle.None;
-            richTextBox1.Location = new Point(4, 31);
-            richTextBox1.Margin = new Padding(1);
-            richTextBox1.Name = "richTextBox1";
-            richTextBox1.Size = new Size(413, 566);
-            richTextBox1.TabIndex = 1;
-            richTextBox1.Text = "";
+            RTB温度信息.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            RTB温度信息.BackColor = Color.Silver;
+            RTB温度信息.BorderStyle = BorderStyle.None;
+            RTB温度信息.Location = new Point(4, 31);
+            RTB温度信息.Margin = new Padding(1);
+            RTB温度信息.Name = "RTB温度信息";
+            RTB温度信息.Size = new Size(413, 566);
+            RTB温度信息.TabIndex = 1;
+            RTB温度信息.Text = "";
             // 
             // MS温度测试
             // 
@@ -268,46 +273,58 @@
             // TMI温度采集
             // 
             TMI温度采集.Alignment = ToolStripItemAlignment.Right;
-            TMI温度采集.DropDownItems.AddRange(new ToolStripItem[] { 采集一次ToolStripMenuItem, 开始采集ToolStripMenuItem, 清除数据ToolStripMenuItem, 停止采集ToolStripMenuItem, 导出表格ToolStripMenuItem, 保存图片ToolStripMenuItem });
+            TMI温度采集.DropDownItems.AddRange(new ToolStripItem[] { TMI采集一次, TMI采集温度, TMI停止采集温度, TMI清除温度数据, TMI导出温度表格, TMI保存温度图片 });
             TMI温度采集.Name = "TMI温度采集";
             TMI温度采集.Size = new Size(44, 23);
             TMI温度采集.Text = "采集";
             // 
-            // 采集一次ToolStripMenuItem
+            // TMI采集一次
             // 
-            采集一次ToolStripMenuItem.Name = "采集一次ToolStripMenuItem";
-            采集一次ToolStripMenuItem.Size = new Size(124, 22);
-            采集一次ToolStripMenuItem.Text = "采集一次";
+            TMI采集一次.Name = "TMI采集一次";
+            TMI采集一次.Size = new Size(124, 22);
+            TMI采集一次.Tag = "a1";
+            TMI采集一次.Text = "采集一次";
+            TMI采集一次.Click += TMI采集温度_Click;
             // 
-            // 开始采集ToolStripMenuItem
+            // TMI采集温度
             // 
-            开始采集ToolStripMenuItem.Name = "开始采集ToolStripMenuItem";
-            开始采集ToolStripMenuItem.Size = new Size(124, 22);
-            开始采集ToolStripMenuItem.Text = "开始采集";
+            TMI采集温度.Name = "TMI采集温度";
+            TMI采集温度.Size = new Size(124, 22);
+            TMI采集温度.Tag = "af";
+            TMI采集温度.Text = "开始采集";
+            TMI采集温度.Click += TMI采集温度_Click;
             // 
-            // 清除数据ToolStripMenuItem
+            // TMI停止采集温度
             // 
-            清除数据ToolStripMenuItem.Name = "清除数据ToolStripMenuItem";
-            清除数据ToolStripMenuItem.Size = new Size(124, 22);
-            清除数据ToolStripMenuItem.Text = "清除数据";
+            TMI停止采集温度.Name = "TMI停止采集温度";
+            TMI停止采集温度.Size = new Size(124, 22);
+            TMI停止采集温度.Tag = "cancel";
+            TMI停止采集温度.Text = "停止采集";
+            TMI停止采集温度.Click += TMI温度测试_Click;
             // 
-            // 停止采集ToolStripMenuItem
+            // TMI清除温度数据
             // 
-            停止采集ToolStripMenuItem.Name = "停止采集ToolStripMenuItem";
-            停止采集ToolStripMenuItem.Size = new Size(124, 22);
-            停止采集ToolStripMenuItem.Text = "停止采集";
+            TMI清除温度数据.Name = "TMI清除温度数据";
+            TMI清除温度数据.Size = new Size(124, 22);
+            TMI清除温度数据.Tag = "clear";
+            TMI清除温度数据.Text = "清除数据";
+            TMI清除温度数据.Click += TMI温度测试_Click;
             // 
-            // 导出表格ToolStripMenuItem
+            // TMI导出温度表格
             // 
-            导出表格ToolStripMenuItem.Name = "导出表格ToolStripMenuItem";
-            导出表格ToolStripMenuItem.Size = new Size(124, 22);
-            导出表格ToolStripMenuItem.Text = "导出表格";
+            TMI导出温度表格.Name = "TMI导出温度表格";
+            TMI导出温度表格.Size = new Size(124, 22);
+            TMI导出温度表格.Tag = "excel";
+            TMI导出温度表格.Text = "导出表格";
+            TMI导出温度表格.Click += TMI温度测试_Click;
             // 
-            // 保存图片ToolStripMenuItem
+            // TMI保存温度图片
             // 
-            保存图片ToolStripMenuItem.Name = "保存图片ToolStripMenuItem";
-            保存图片ToolStripMenuItem.Size = new Size(124, 22);
-            保存图片ToolStripMenuItem.Text = "保存图片";
+            TMI保存温度图片.Name = "TMI保存温度图片";
+            TMI保存温度图片.Size = new Size(124, 22);
+            TMI保存温度图片.Tag = "picture";
+            TMI保存温度图片.Text = "保存图片";
+            TMI保存温度图片.Click += TMI温度测试_Click;
             // 
             // TTB温度测试名称
             // 
@@ -324,6 +341,7 @@
             // 
             // TP压力测试
             // 
+            TP压力测试.Controls.Add(RTB压力信息);
             TP压力测试.Controls.Add(MS压力测试);
             TP压力测试.Location = new Point(0, 40);
             TP压力测试.Name = "TP压力测试";
@@ -332,6 +350,17 @@
             TP压力测试.TabIndex = 1;
             TP压力测试.Text = "压力测试";
             TP压力测试.UseVisualStyleBackColor = true;
+            // 
+            // RTB压力信息
+            // 
+            RTB压力信息.BackColor = Color.WhiteSmoke;
+            RTB压力信息.BorderStyle = BorderStyle.None;
+            RTB压力信息.Dock = DockStyle.Fill;
+            RTB压力信息.Location = new Point(3, 30);
+            RTB压力信息.Name = "RTB压力信息";
+            RTB压力信息.Size = new Size(978, 568);
+            RTB压力信息.TabIndex = 1;
+            RTB压力信息.Text = "";
             // 
             // MS压力测试
             // 
@@ -358,7 +387,7 @@
             // 
             TTB压力采集间隔.Name = "TTB压力采集间隔";
             TTB压力采集间隔.Size = new Size(30, 23);
-            TTB压力采集间隔.Text = "2";
+            TTB压力采集间隔.Text = "5";
             // 
             // sToolStripMenuItem1
             // 
@@ -393,9 +422,36 @@
             // TMI压力采集
             // 
             TMI压力采集.Alignment = ToolStripItemAlignment.Right;
+            TMI压力采集.DropDownItems.AddRange(new ToolStripItem[] { TMI采集压力, TMI停止采集压力, TMI清除压力数据, TMI导出压力Excel });
             TMI压力采集.Name = "TMI压力采集";
             TMI压力采集.Size = new Size(44, 23);
             TMI压力采集.Text = "采集";
+            // 
+            // TMI采集压力
+            // 
+            TMI采集压力.Name = "TMI采集压力";
+            TMI采集压力.Size = new Size(180, 22);
+            TMI采集压力.Text = "开始采集";
+            TMI采集压力.Click += TMI采集压力_Click;
+            // 
+            // TMI停止采集压力
+            // 
+            TMI停止采集压力.Name = "TMI停止采集压力";
+            TMI停止采集压力.Size = new Size(180, 22);
+            TMI停止采集压力.Text = "停止采集";
+            TMI停止采集压力.Click += TMI压力测试_Click;
+            // 
+            // TMI清除压力数据
+            // 
+            TMI清除压力数据.Name = "TMI清除压力数据";
+            TMI清除压力数据.Size = new Size(180, 22);
+            TMI清除压力数据.Text = "清除数据";
+            // 
+            // TMI导出压力Excel
+            // 
+            TMI导出压力Excel.Name = "TMI导出压力Excel";
+            TMI导出压力Excel.Size = new Size(180, 22);
+            TMI导出压力Excel.Text = "导出Excel";
             // 
             // TTB压力测试名称
             // 
@@ -532,12 +588,12 @@
         private ToolStripMenuItem TMI温度采集;
         private ToolStripTextBox TTB温度测试名称;
         private ToolStripMenuItem 温度测试名称;
-        private ToolStripMenuItem 采集一次ToolStripMenuItem;
-        private ToolStripMenuItem 开始采集ToolStripMenuItem;
-        private ToolStripMenuItem 清除数据ToolStripMenuItem;
-        private ToolStripMenuItem 停止采集ToolStripMenuItem;
-        private ToolStripMenuItem 导出表格ToolStripMenuItem;
-        private ToolStripMenuItem 保存图片ToolStripMenuItem;
+        private ToolStripMenuItem TMI采集一次;
+        private ToolStripMenuItem TMI采集温度;
+        private ToolStripMenuItem TMI清除温度数据;
+        private ToolStripMenuItem TMI停止采集温度;
+        private ToolStripMenuItem TMI导出温度表格;
+        private ToolStripMenuItem TMI保存温度图片;
         private ToolStripMenuItem 采集间隔ToolStripMenuItem1;
         private ToolStripTextBox TTB压力采集间隔;
         private ToolStripMenuItem sToolStripMenuItem1;
@@ -548,7 +604,7 @@
         private ToolStripMenuItem TMI压力采集;
         private ToolStripTextBox TTB压力测试名称;
         private ToolStripMenuItem 测试名称ToolStripMenuItem;
-        private RichTextBox richTextBox1;
+        private RichTextBox RTB温度信息;
         private GroupBox GPB温度分布;
         private Panel PN温度分布;
         private TabPage TP控制卡;
@@ -559,5 +615,10 @@
         private ToolStripMenuItem TMI平面轨迹测试;
         private Button BTN轴测试;
         private ComboBox CMB轴列表;
+        private RichTextBox RTB压力信息;
+        private ToolStripMenuItem TMI采集压力;
+        private ToolStripMenuItem TMI停止采集压力;
+        private ToolStripMenuItem TMI清除压力数据;
+        private ToolStripMenuItem TMI导出压力Excel;
     }
 }

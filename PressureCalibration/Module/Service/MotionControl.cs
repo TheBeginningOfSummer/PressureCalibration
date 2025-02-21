@@ -2,6 +2,7 @@
 using CSharpKit.FileManagement;
 using cszmcaux;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -88,7 +89,7 @@ namespace Services
 
         public abstract void Stop(int mode);
 
-        public abstract void Wait();
+        public abstract void Wait(double timeout);
 
         public abstract void Datum(int mode);
 
@@ -676,9 +677,28 @@ namespace Services
             message += $"当前速度：{CurrentSpeed}{Environment.NewLine}";
             return message;
         }
+
+        public void SetType(int type = 65)
+        {
+            int result = Zmcaux.ZAux_Direct_SetAtype(Handle, Number, type);
+            if (result != 0)
+                throw new Exception("设置轴类型失败");
+        }
         #endregion
 
         #region 运动控制
+        public bool IsEnabled()
+        {
+            int status = -1;
+            int result = Zmcaux.ZAux_Direct_GetAxisStatus(Handle, Number, ref status);
+            if (status == 1 && result == 0) return true;
+            else
+            {
+                if (result != 0)
+                    throw new ArgumentException("控制器未连接", nameof(result));
+                return false;
+            }
+        }
         /// <summary>
         /// 使能
         /// </summary>
@@ -687,7 +707,12 @@ namespace Services
         {
             int result = Zmcaux.ZAux_Direct_SetAxisEnable(Handle, Number, 1);
             if (result == 0) return true;
-            else return false;
+            else
+            {
+                if (result != 0)
+                    throw new ArgumentException("轴使能失败", nameof(result));
+                return false;
+            }
         }
         /// <summary>
         /// 关闭使能
@@ -702,12 +727,19 @@ namespace Services
             Zmcaux.ZAux_Direct_Single_Cancel(Handle, Number, mode);
         }
 
-        public override void Wait()
+        public override void Wait(double timeout = 50)
         {
+            var stopwatch = new Stopwatch();
             Thread.Sleep(100);
+            stopwatch.Start();
             do
             {
-                Thread.Sleep(50);
+                Thread.Sleep(100);
+                if (stopwatch.ElapsedMilliseconds > (long)(timeout * 1000))
+                {
+                    stopwatch.Stop();
+                    throw new Exception($"等待轴运行超时:{timeout}S");
+                }
             } while (IsMoving);
         }
 
@@ -821,6 +853,20 @@ namespace Services
                 axis.Initialize();
         }
 
+        public static string[] Scan()
+        {
+            int num;
+            string[] sArray;
+            StringBuilder buffer = new(10240);
+            string buff = "";
+            Zmcaux.ZAux_SearchEthlist(buffer, 10230, 200);
+            buff += buffer;
+            sArray = buff.Split(' ');
+            num = buff.Split(' ').Length;
+            sArray = sArray.Take(num - 1).ToArray();
+            return sArray;
+        }
+
         public void UploadBasFile(string filename, uint mode = 1)
         {
             ErrorCode += Zmcaux.ZAux_BasDown(Zmotion, filename, mode);
@@ -906,7 +952,7 @@ namespace Services
         /// </summary>
         public override void Scram()
         {
-            ErrorCode = Zmcaux.ZAux_Direct_Rapidstop(Zmotion, 0);
+            ErrorCode = Zmcaux.ZAux_Direct_Rapidstop(Zmotion, 2);
         }
         #endregion
 

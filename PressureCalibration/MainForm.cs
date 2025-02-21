@@ -30,7 +30,7 @@ namespace PressureCalibration
                 config.ACQ.Run();
                 e.Result = "运行完成";
             }
-            if (e.Argument is "Excel")
+            if (e.Argument is "excel")
             {
                 UpdateMessage("导出Excel");
                 string path = $"Data\\Excel\\[{DateTime.Now:yyyy-MM-dd HH_mm_ss}]\\";
@@ -47,7 +47,7 @@ namespace PressureCalibration
                 //}
                 e.Result = "导出完成";
             }
-            if (e.Argument is "Data")
+            if (e.Argument is "data")
             {
                 UpdateMessage("导出标定数据");
                 string path = $"Data\\SensorData\\[{DateTime.Now:yyyy-MM-dd HH_mm_ss}]\\";
@@ -79,30 +79,37 @@ namespace PressureCalibration
         #region 主界面按钮
         private void TMI窗口_Click(object sender, EventArgs e)
         {
-            new MonitorForm().Show();
-        }
-
-        private void TMI测试_Click(object sender, EventArgs e)
-        {
-            new Test().Show();
-        }
-
-        private void TMI清除_Click(object sender, EventArgs e)
-        {
-            HRTB信息.Clear();
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                switch (menuItem.Tag)
+                {
+                    case "monitor": new MonitorForm().Show(); break;
+                    case "test": new Test().Show(); break;
+                    default: break;
+                }
+            }
+            else if (sender is ToolStripButton button)
+            {
+                switch (button.Tag)
+                {
+                    case "setting": new Setting().Show(); break;
+                    default: break;
+                }
+            }
         }
 
         private void TMI导出_Click(object sender, EventArgs e)
         {
             if (IsRunning()) return;
-            ToolStripMenuItem button = (ToolStripMenuItem)sender;
-            if (button.Tag is string tag)
-                BGWRun.RunWorkerAsync(tag);
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                BGWRun.RunWorkerAsync(menuItem.Tag);
+            }
         }
 
-        private void TMI设置_Click(object sender, EventArgs e)
+        private void TMI清除_Click(object sender, EventArgs e)
         {
-            new Setting().Show();
+            HRTB信息.Clear();
         }
 
         private void LBN运行_Click(object sender, EventArgs e)

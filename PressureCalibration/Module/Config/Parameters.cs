@@ -113,4 +113,34 @@ namespace Module
 
     }
 
+    public class MotionParameter : Loader
+    {
+        public double Axis1Work { get; set; }
+        public double Axis2Work { get; set; }
+        public float Axis1Torque { get; set; }
+        public float Axis2Torque { get; set; }
+        public int Axis1RotateSpeed { get; set; }
+        public int Axis2RotateSpeed { get; set; }
+
+        public double Axis1Upload { get; set; }
+        public double Axis2Upload { get; set; }
+
+        public MotionParameter() { }
+
+        public override string Translate(string name)
+        {
+            return name switch
+            {
+                nameof(Axis1Work) => "轴1工作位置",
+                nameof(Axis2Work) => "轴2工作位置",
+                nameof(Axis1Torque) => "轴1目标转矩",
+                nameof(Axis2Torque) => "轴2目标转矩",
+                nameof(Axis1RotateSpeed) => "轴1转速",
+                nameof(Axis2RotateSpeed) => "轴2转速",
+                nameof(Axis1Upload) => "轴1上料位置",
+                nameof(Axis2Upload) => "轴2上料位置",
+                _ => name,
+            };
+        }
+    }
 }

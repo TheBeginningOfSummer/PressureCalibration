@@ -61,7 +61,7 @@ namespace Module
 
         public byte[] GetDeviceInfo()
         {
-            return Connection.SendWithRead(CRC16.CRC16_1(Header(functionCode: 0x00)), 9);
+            return Connection.WriteRead(CRC16.CRC16_1(Header(functionCode: 0x00)), 9);
         }
 
         public byte[] PowerControl(float voltage = 0)
@@ -74,7 +74,7 @@ namespace Module
                 1.8f => Header(functionCode: 0x13),
                 _ => Header(functionCode: 0x10),
             };
-            return Connection.SendWithRead(CRC16.CRC16_1(sendBytes), 7);
+            return Connection.WriteRead(CRC16.CRC16_1(sendBytes), 7);
         }
 
         public byte[] PowerOn(float voltage = 1.8f)
@@ -112,7 +112,7 @@ namespace Module
 
             byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12 + selectedSensorCount * count);
-            return Connection.SendWithRead(sendData);
+            return Connection.WriteRead(sendData);
         }
 
         public SendData WriteAll(byte address, byte count, byte[] data, byte speed = 0x00, byte chip = 0x20)
@@ -135,7 +135,7 @@ namespace Module
             List<byte> bytes = [];
             for (int i = SensorDataGroup.Count - 1; i >= 0; i--)
                 bytes.AddRange(SensorDataGroup[i].CurrentCalibrationData.registerData);
-            return Connection.SendWithRead(WriteAll(address, length, [.. bytes]));
+            return Connection.WriteRead(WriteAll(address, length, [.. bytes]));
         }
 
         public SendData FuseAll(byte address = 0x34, byte count = 28, byte speed = 0x00, byte chip = 0x20)
@@ -159,7 +159,7 @@ namespace Module
 
             byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
-            return Connection.SendWithRead(sendData);
+            return Connection.WriteRead(sendData);
         }
         public byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00, byte chip = 0x20)
         {
@@ -193,7 +193,7 @@ namespace Module
             {
                 short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
                 byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
-                var result = Connection.SendWithRead(CRC16.CRC16_1(sendBytes), 20);
+                var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
                 if (result.Length >= 18)
                 {
                     v1 = BitConverter.ToInt16([result[17], result[16]]);
@@ -227,39 +227,39 @@ namespace Module
         //读取uid初始化
         public void Initialize1()
         {
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
             Thread.Sleep(10);
-            Connection.SendWithRead(WriteAll(0x7F, 1, GetArray(0x67, SensorCount)));
-            Connection.SendWithRead(WriteAll(0x50, 2, GetArray(0xFD, SensorCount * 2)));
+            Connection.WriteRead(WriteAll(0x7F, 1, GetArray(0x67, SensorCount)));
+            Connection.WriteRead(WriteAll(0x50, 2, GetArray(0xFD, SensorCount * 2)));
             Thread.Sleep(20);
         }
         //采集数据初始化
         public void Initialize2()
         {
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x08, SensorCount)));
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x08, SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
             Thread.Sleep(10);
-            Connection.SendWithRead(WriteAll(0x7F, 1, GetArray(0x67, SensorCount)));
-            Connection.SendWithRead(WriteAll(0x56, 1, GetArray(0x01, SensorCount)));
-            Connection.SendWithRead(WriteAll(0x07, 3, GetArray([0x08, 0x01, 0x1A], SensorCount)));
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x13, SensorCount)));
+            Connection.WriteRead(WriteAll(0x7F, 1, GetArray(0x67, SensorCount)));
+            Connection.WriteRead(WriteAll(0x56, 1, GetArray(0x01, SensorCount)));
+            Connection.WriteRead(WriteAll(0x07, 3, GetArray([0x08, 0x01, 0x1A], SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x13, SensorCount)));
             Thread.Sleep(20);
         }
         //采集数据初始化
         public void InitializeOutput()
         {
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x08, SensorCount)));
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x08, SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
             Thread.Sleep(10);
             //Connection.SendWithRead(WriteAll(0x7F, 1, GetArray(0x67, SensorCount)));
-            Connection.SendWithRead(WriteAll(0x07, 3, GetArray([0x08, 0x01, 0x1A], SensorCount)));
-            Connection.SendWithRead(WriteAll(0x06, 1, GetArray(0x13, SensorCount)));
+            Connection.WriteRead(WriteAll(0x07, 3, GetArray([0x08, 0x01, 0x1A], SensorCount)));
+            Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x13, SensorCount)));
             Thread.Sleep(20);
         }
         //烧录条件
         public void Initialize3()
         {
-            Connection.SendWithRead(WriteAll(0x50, 2, GetArray(0x08, SensorCount * 2)));
+            Connection.WriteRead(WriteAll(0x50, 2, GetArray(0x08, SensorCount * 2)));
             Thread.Sleep(20);
         }
         /// <summary>
