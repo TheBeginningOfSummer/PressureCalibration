@@ -63,6 +63,11 @@
             RTB压力信息 = new RichTextBox();
             MS压力测试 = new MenuStrip();
             TMI压控 = new ToolStripMenuItem();
+            TMI连接压控 = new ToolStripMenuItem();
+            TMI断开压控 = new ToolStripMenuItem();
+            TMI测量模式 = new ToolStripMenuItem();
+            TMI控制模式 = new ToolStripMenuItem();
+            TMI通大气 = new ToolStripMenuItem();
             采集间隔ToolStripMenuItem1 = new ToolStripMenuItem();
             TTB压力采集间隔 = new ToolStripTextBox();
             sToolStripMenuItem1 = new ToolStripMenuItem();
@@ -78,6 +83,10 @@
             TTB压力测试名称 = new ToolStripTextBox();
             测试名称ToolStripMenuItem = new ToolStripMenuItem();
             TP控制卡 = new TabPage();
+            button3 = new Button();
+            button2 = new Button();
+            button1 = new Button();
+            BTN轨迹1 = new Button();
             BTN轴测试 = new Button();
             CMB轴列表 = new ComboBox();
             MS控制卡 = new MenuStrip();
@@ -184,25 +193,33 @@
             // 
             TMI连接采集卡.Name = "TMI连接采集卡";
             TMI连接采集卡.Size = new Size(136, 22);
+            TMI连接采集卡.Tag = "openACQ";
             TMI连接采集卡.Text = "连接采集卡";
+            TMI连接采集卡.Click += TMI温度测试_Click;
             // 
             // TMI断开采集卡
             // 
             TMI断开采集卡.Name = "TMI断开采集卡";
             TMI断开采集卡.Size = new Size(136, 22);
+            TMI断开采集卡.Tag = "closeACQ";
             TMI断开采集卡.Text = "断开采集卡";
+            TMI断开采集卡.Click += TMI温度测试_Click;
             // 
             // TMI连接温控
             // 
             TMI连接温控.Name = "TMI连接温控";
             TMI连接温控.Size = new Size(136, 22);
+            TMI连接温控.Tag = "openTEC";
             TMI连接温控.Text = "连接温控";
+            TMI连接温控.Click += TMI温度测试_Click;
             // 
             // TMI断开温控
             // 
             TMI断开温控.Name = "TMI断开温控";
             TMI断开温控.Size = new Size(136, 22);
+            TMI断开温控.Tag = "closeTEC";
             TMI断开温控.Text = "断开温控";
+            TMI断开温控.Click += TMI温度测试_Click;
             // 
             // 采集间隔ToolStripMenuItem
             // 
@@ -268,7 +285,9 @@
             // 
             TMI温度设置.Name = "TMI温度设置";
             TMI温度设置.Size = new Size(44, 23);
+            TMI温度设置.Tag = "setT";
             TMI温度设置.Text = "设置";
+            TMI温度设置.Click += TMI温度测试_Click;
             // 
             // TMI温度采集
             // 
@@ -373,9 +392,45 @@
             // 
             // TMI压控
             // 
+            TMI压控.DropDownItems.AddRange(new ToolStripItem[] { TMI连接压控, TMI断开压控, TMI测量模式, TMI控制模式, TMI通大气 });
             TMI压控.Name = "TMI压控";
             TMI压控.Size = new Size(44, 23);
             TMI压控.Text = "设备";
+            // 
+            // TMI连接压控
+            // 
+            TMI连接压控.Name = "TMI连接压控";
+            TMI连接压控.Size = new Size(124, 22);
+            TMI连接压控.Tag = "conPACE";
+            TMI连接压控.Text = "连接压控";
+            // 
+            // TMI断开压控
+            // 
+            TMI断开压控.Name = "TMI断开压控";
+            TMI断开压控.Size = new Size(124, 22);
+            TMI断开压控.Tag = "disPACE";
+            TMI断开压控.Text = "断开压控";
+            // 
+            // TMI测量模式
+            // 
+            TMI测量模式.Name = "TMI测量模式";
+            TMI测量模式.Size = new Size(124, 22);
+            TMI测量模式.Tag = "gaug";
+            TMI测量模式.Text = "测量模式";
+            // 
+            // TMI控制模式
+            // 
+            TMI控制模式.Name = "TMI控制模式";
+            TMI控制模式.Size = new Size(124, 22);
+            TMI控制模式.Tag = "act";
+            TMI控制模式.Text = "控制模式";
+            // 
+            // TMI通大气
+            // 
+            TMI通大气.Name = "TMI通大气";
+            TMI通大气.Size = new Size(124, 22);
+            TMI通大气.Tag = "vent";
+            TMI通大气.Text = "通大气";
             // 
             // 采集间隔ToolStripMenuItem1
             // 
@@ -417,6 +472,7 @@
             // 
             TMI压力设置.Name = "TMI压力设置";
             TMI压力设置.Size = new Size(44, 23);
+            TMI压力设置.Tag = "setP";
             TMI压力设置.Text = "设置";
             // 
             // TMI压力采集
@@ -430,28 +486,34 @@
             // TMI采集压力
             // 
             TMI采集压力.Name = "TMI采集压力";
-            TMI采集压力.Size = new Size(180, 22);
+            TMI采集压力.Size = new Size(129, 22);
+            TMI采集压力.Tag = "af";
             TMI采集压力.Text = "开始采集";
             TMI采集压力.Click += TMI采集压力_Click;
             // 
             // TMI停止采集压力
             // 
             TMI停止采集压力.Name = "TMI停止采集压力";
-            TMI停止采集压力.Size = new Size(180, 22);
+            TMI停止采集压力.Size = new Size(129, 22);
+            TMI停止采集压力.Tag = "cancel";
             TMI停止采集压力.Text = "停止采集";
             TMI停止采集压力.Click += TMI压力测试_Click;
             // 
             // TMI清除压力数据
             // 
             TMI清除压力数据.Name = "TMI清除压力数据";
-            TMI清除压力数据.Size = new Size(180, 22);
+            TMI清除压力数据.Size = new Size(129, 22);
+            TMI清除压力数据.Tag = "clear";
             TMI清除压力数据.Text = "清除数据";
+            TMI清除压力数据.Click += TMI压力测试_Click;
             // 
             // TMI导出压力Excel
             // 
             TMI导出压力Excel.Name = "TMI导出压力Excel";
-            TMI导出压力Excel.Size = new Size(180, 22);
+            TMI导出压力Excel.Size = new Size(129, 22);
+            TMI导出压力Excel.Tag = "excel";
             TMI导出压力Excel.Text = "导出Excel";
+            TMI导出压力Excel.Click += TMI压力测试_Click;
             // 
             // TTB压力测试名称
             // 
@@ -468,6 +530,10 @@
             // 
             // TP控制卡
             // 
+            TP控制卡.Controls.Add(button3);
+            TP控制卡.Controls.Add(button2);
+            TP控制卡.Controls.Add(button1);
+            TP控制卡.Controls.Add(BTN轨迹1);
             TP控制卡.Controls.Add(BTN轴测试);
             TP控制卡.Controls.Add(CMB轴列表);
             TP控制卡.Controls.Add(MS控制卡);
@@ -479,6 +545,50 @@
             TP控制卡.TabIndex = 2;
             TP控制卡.Text = "控制卡";
             TP控制卡.UseVisualStyleBackColor = true;
+            // 
+            // button3
+            // 
+            button3.Location = new Point(110, 108);
+            button3.Name = "button3";
+            button3.Size = new Size(75, 23);
+            button3.TabIndex = 6;
+            button3.Tag = "4";
+            button3.Text = "轨迹4";
+            button3.UseVisualStyleBackColor = true;
+            button3.Click += BTN轨迹测试_Click;
+            // 
+            // button2
+            // 
+            button2.Location = new Point(29, 108);
+            button2.Name = "button2";
+            button2.Size = new Size(75, 23);
+            button2.TabIndex = 5;
+            button2.Tag = "3";
+            button2.Text = "轨迹3";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += BTN轨迹测试_Click;
+            // 
+            // button1
+            // 
+            button1.Location = new Point(110, 79);
+            button1.Name = "button1";
+            button1.Size = new Size(75, 23);
+            button1.TabIndex = 4;
+            button1.Tag = "2";
+            button1.Text = "轨迹2";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += BTN轨迹测试_Click;
+            // 
+            // BTN轨迹1
+            // 
+            BTN轨迹1.Location = new Point(29, 79);
+            BTN轨迹1.Name = "BTN轨迹1";
+            BTN轨迹1.Size = new Size(75, 23);
+            BTN轨迹1.TabIndex = 3;
+            BTN轨迹1.Tag = "1";
+            BTN轨迹1.Text = "轨迹1";
+            BTN轨迹1.UseVisualStyleBackColor = true;
+            BTN轨迹1.Click += BTN轨迹测试_Click;
             // 
             // BTN轴测试
             // 
@@ -620,5 +730,14 @@
         private ToolStripMenuItem TMI停止采集压力;
         private ToolStripMenuItem TMI清除压力数据;
         private ToolStripMenuItem TMI导出压力Excel;
+        private ToolStripMenuItem TMI连接压控;
+        private ToolStripMenuItem TMI断开压控;
+        private ToolStripMenuItem TMI测量模式;
+        private ToolStripMenuItem TMI控制模式;
+        private ToolStripMenuItem TMI通大气;
+        private Button button3;
+        private Button button2;
+        private Button button1;
+        private Button BTN轨迹1;
     }
 }

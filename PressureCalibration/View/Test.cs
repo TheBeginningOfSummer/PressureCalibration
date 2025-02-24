@@ -283,6 +283,24 @@ namespace PressureCalibration.View
             {
                 switch (menuItem.Tag)
                 {
+                    case "openACQ":
+                        config.ACQ.Open();
+                        break;
+                    case "closeACQ":
+                        config.ACQ.Close();
+                        break;
+                    case "openTEC":
+                        config.TEC.Open();
+                        break;
+                    case "closeTEC":
+                        config.TEC.Close();
+                        break;
+                    case "setT":
+                        config.TEC.TECOnOff(true);
+                        if (config.TEC.SetTemp((short)(Temperature * 100)))
+                            FormKit.UpdateMessage(RTB温度信息, $"设置温度{Temperature}℃.");
+                        break;
+
                     case "cancel":
                         BGW温度.CancelAsync();
                         FormKit.UpdateMessage(RTB温度信息, "停止采集。");
@@ -353,7 +371,43 @@ namespace PressureCalibration.View
             {
                 switch (menuItem.Tag)
                 {
+                    case "conPACE":
+                        if (config.PACE.Connect())
+                            FormKit.UpdateMessage(RTB压力信息, "连接压力控制器成功！");
+                        else
+                            FormKit.UpdateMessage(RTB压力信息, "连接压力控制器失败！");
+                        break;
+                    case "disPACE":
+                        config.PACE.Disconnect();
+                        break;
+                    case "gaug":
+                        var m1 = config.PACE.SelectMode();
+                        FormKit.UpdateMessage(RTB压力信息, m1);
+                        break;
+                    case "act":
+                        var m2 = config.PACE.SelectMode(1);
+                        FormKit.UpdateMessage(RTB压力信息, m2);
+                        break;
+                    case "vent":
+                        config.PACE.Vent();
+                        break;
+                    case "SetP":
+                        config.PACE.SetPress((decimal)Pressure);
+                        break;
 
+                    case "cancel":
+                        BGW压力.CancelAsync();
+                        FormKit.UpdateMessage(RTB压力信息, "停止采集。");
+                        break;
+                    case "clear":
+                        RTB压力信息.Clear();
+                        pressureList.Clear();
+                        FormKit.ShowInfoBox("数据清除完成。");
+                        break;
+                    case "excel":
+                        if (ExcelOutput.Output(pressureList, "Data\\PressureTest\\", PressTestName))
+                            FormKit.UpdateMessage(RTB压力信息, "导出数据完成。");
+                        break;
                     default: break;
                 }
             }
@@ -363,12 +417,37 @@ namespace PressureCalibration.View
         #region 运动测试
         private void BGW运动_DoWork(object? sender, DoWorkEventArgs e)
         {
-            throw new NotImplementedException();
+            try
+            {
+                if (sender is BackgroundWorker worker)
+                {
+                    switch (e.Argument)
+                    {
+                        case "1":
+                            config.ACQ.ReadyPosition();
+                            break;
+                        case "2":
+                            config.ACQ.WorkingTorque();
+                            break;
+                        case "3":
+                            config.ACQ.UnloadTorque();
+                            break;
+                        case "4":
+                            config.ACQ.UploadPosition();
+                            break;
+                        default: break;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+
+            }
         }
 
         private void BGW运动_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
         {
-            throw new NotImplementedException();
+
         }
 
         private void TMI连接控制卡_Click(object sender, EventArgs e)
@@ -395,7 +474,22 @@ namespace PressureCalibration.View
                 new AxisTest(result).Show();
             }
         }
+
+        private void BTN轨迹测试_Click(object sender, EventArgs e)
+        {
+            if (BGW运动.IsBusy)
+            {
+                MessageBox.Show("运行中……", "提示");
+                return;
+            }
+            if (sender is Button button)
+            {
+                //FormKit.UpdateMessage(RTB运动信息, "开始采集！");
+                BGW运动.RunWorkerAsync(button.Tag);
+            }
+        }
         #endregion
+
 
     }
 }
