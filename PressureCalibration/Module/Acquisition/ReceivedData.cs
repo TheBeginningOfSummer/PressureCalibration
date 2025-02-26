@@ -5,46 +5,51 @@ namespace Module
 {
     public class ReceivedData
     {
+        /// <summary>
+        /// 设备地址
+        /// </summary>
         public byte DeviceAddress { get; set; }
-        public int SensorIndex { get; set; }
+        /// <summary>
+        /// 传感器索引地址
+        /// </summary>
+        public int SensorIndex { get; set; } = -1;
+        /// <summary>
+        /// 是否短路
+        /// </summary>
         public bool IsFault { get; set; } = false;
-        public int Voltage { get; set; }
-
+        /// <summary>
+        /// 是否有效
+        /// </summary>
         public bool IsEffective { get; set; } = false;
-        public byte[] Data { get; set; } = [];
+        /// <summary>
+        /// 消息类型
+        /// </summary>
         public ReceivedType DataType { get; set; } = ReceivedType.None;
+        /// <summary>
+        /// 数据
+        /// </summary>
+        public byte[] Data { get; set; } = [];
+
+        /// <summary>
+        /// 电压
+        /// </summary>
+        public int Voltage { get; set; }
+        /// <summary>
+        /// 温度
+        /// </summary>
+        public decimal Temperature { get; set; }
 
         //读取数据
-        public ReceivedData(byte deviceAddress, int index, bool isEffective, byte[] data, ReceivedType dataType = ReceivedType.Read)
+        public ReceivedData(byte deviceAddress, int sensorIndex, bool isFault, bool isEffective, ReceivedType dataType, byte[]? data)
         {
             DeviceAddress = deviceAddress;
-            SensorIndex = index;
-            IsEffective = isEffective;
-            Data = data;
-            DataType = dataType;
-        }
-        //写入数据
-        public ReceivedData(byte deviceAddress, int index, bool isEffective, ReceivedType dataType = ReceivedType.Write)
-        {
-            DeviceAddress = deviceAddress;
-            SensorIndex = index;
-            IsEffective = isEffective;
-            DataType = dataType;
-        }
-        //电源
-        public ReceivedData(byte deviceAddress, bool isFault, ReceivedType dataType = ReceivedType.PowerOff)
-        {
-            DeviceAddress = deviceAddress;
+            SensorIndex = sensorIndex;
             IsFault = isFault;
+            IsEffective = isEffective;
             DataType = dataType;
+            if (data != null) Data = data;
         }
-        //错误数据
-        public ReceivedData(byte deviceAddress, ReceivedType dataType = ReceivedType.None)
-        {
-            DeviceAddress = deviceAddress;
-            DataType = dataType;
-        }
-
+        
         /// <summary>
         /// 解析与分割数据
         /// </summary>
@@ -75,33 +80,19 @@ namespace Module
                     {
                         case 0x20://读取数据
                             byte[] registerData = data.Skip(10).ToArray();
-                            if (registerData.Length == receivedDataCount * registerLength)//读全部数据
+                            int count = registerData.Length / registerLength;
+                            for (int i = 0; i < receivedDataCount; i++)
                             {
-                                int j = receivedDataCount;
-                                for (int i = 0; i < receivedDataCount; i++)
+                                bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
+                                if (isEffective)
                                 {
-                                    j--;
-                                    bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
-                                    byte[] register = BytesTool.CutBytesByLength(registerData, j * registerLength, registerLength);
-                                    recivedList[i] = new ReceivedData(deviceAddress, i, isEffective, register);
+                                    count--;
+                                    byte[] register = BytesTool.CutBytesByLength(registerData, count * registerLength, registerLength);
+                                    recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Read, register);
                                 }
-                            }
-                            else//读部分数据
-                            {
-                                int j = registerData.Length / registerLength;
-                                for (int i = 0; i < receivedDataCount; i++)
+                                else
                                 {
-                                    bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
-                                    if (isEffective)
-                                    {
-                                        j--;
-                                        byte[] register = BytesTool.CutBytesByLength(registerData, j * registerLength, registerLength);
-                                        recivedList[i] = new ReceivedData(deviceAddress, i, isEffective, register);
-                                    }
-                                    else
-                                    {
-                                        recivedList[i] = new ReceivedData(deviceAddress, i, isEffective, []);
-                                    }
+                                    recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Read, []);
                                 }
                             }
                             break;
@@ -109,7 +100,7 @@ namespace Module
                             for (int i = 0; i < receivedDataCount; i++)
                             {
                                 bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
-                                recivedList[i] = new ReceivedData(deviceAddress, i, isEffective);
+                                recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Write, null);
                             }
                             break;
                         case 0x21://读取温度
@@ -120,7 +111,9 @@ namespace Module
                                 for (int i = 0; i < tempCount; i++)
                                 {
                                     bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
-                                    recivedList[i] = new ReceivedData(deviceAddress, i, isEffective, BytesTool.CutBytesByLength(temperatureData, j * registerLength, registerLength), ReceivedType.ReadTemp);
+                                    recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.ReadTemp,
+                                        BytesTool.CutBytesByLength(temperatureData, j * registerLength, registerLength));
+                                    recivedList[i].GetData();
                                     j--;
                                 }
                             }
@@ -129,23 +122,24 @@ namespace Module
                             for (int i = 0; i < receivedDataCount; i++)
                             {
                                 bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
-                                recivedList[i] = new ReceivedData(deviceAddress, i, isEffective, ReceivedType.Fuse);
+                                recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Fuse, null);
                             }
                             break;
                         case 0x13://电源置1.8V
-                            recivedList[0] = new ReceivedData(deviceAddress, isFault, ReceivedType.Voltage1_8);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage1_8, null);
                             break;
                         case 0x12://电源置4.1V
-                            recivedList[0] = new ReceivedData(deviceAddress, isFault, ReceivedType.Voltage4_1);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage4_1, null);
                             break;
                         case 0x11://电源置3.3V
-                            recivedList[0] = new ReceivedData(deviceAddress, isFault, ReceivedType.Voltage3_3);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage3_3, null);
                             break;
                         case 0x10://电源关闭
-                            recivedList[0] = new ReceivedData(deviceAddress, isFault, ReceivedType.PowerOff);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.PowerOff, null);
                             break;
                         case 0x00://板卡信息
-                            recivedList[0] = new ReceivedData(deviceAddress, isFault, ReceivedType.Info) { Voltage = bytes[4] };
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Info, [bytes[4]]);
+                            recivedList[0].GetData();
                             break;
                         default: break;
                     }
@@ -153,47 +147,52 @@ namespace Module
                 }
                 else
                 {
-                    recivedList[0] = new ReceivedData(deviceAddress);
+                    recivedList[0] = new ReceivedData(deviceAddress, -1, false, false, ReceivedType.None, null);
                     //无效数据
                     return recivedList;
                 }
             }
             else
             {
-                recivedList[0] = new ReceivedData(0, ReceivedType.Timeout);
+                recivedList[0] = new ReceivedData(0, -1, false, false, ReceivedType.Timeout, null);
                 //超时数据
                 return recivedList;
             }
         }
 
-        public void SetReadData(byte deviceAddress, int index, bool isEffective, byte[] data, ReceivedType dataType = ReceivedType.Read)
+        public void SetData(byte deviceAddress, int sensorIndex, bool isFault, bool isEffective, ReceivedType dataType, byte[]? data = null)
         {
             DeviceAddress = deviceAddress;
-            SensorIndex = index;
+            SensorIndex = sensorIndex;
+            IsFault = isFault;
             IsEffective = isEffective;
-            Data = data;
             DataType = dataType;
+            if (data != null) Data = data;
         }
 
-        public void SetWriteData(byte deviceAddress, int index, bool isEffective, ReceivedType dataType = ReceivedType.Write)
+        public void GetData()
         {
-            DeviceAddress = deviceAddress;
-            SensorIndex = index;
-            IsEffective = isEffective;
-            DataType = dataType;
+            if (DataType.Equals(ReceivedType.Info))
+            {
+                Voltage = Data[0];
+            }
+            if (DataType.Equals(ReceivedType.ReadTemp))
+            {
+                Temperature = BitConverter.ToInt16(Data) * 0.0078125M;
+            }
         }
 
         public string Show()
         {
-            if (DataType == ReceivedType.Read || DataType == ReceivedType.ReadTemp)
+            if (DataType == ReceivedType.Read)
                 return $"设备:{DeviceAddress}  消息类型:{DataType}  传感器地址：{SensorIndex}  是否有效：{IsEffective}{Environment.NewLine}" +
                     $"数据：{DataConverter.BytesToHexString(Data)}";
             else if (DataType == ReceivedType.Timeout)
-                return $"超时";
+                return $"数据无法解析或超时";
             else if (DataType == ReceivedType.Info)
                 return $"设备:{DeviceAddress} 当前电压:{Voltage}";
             else if (DataType == ReceivedType.ReadTemp)
-                return $"设备:{DeviceAddress} 读取四路温度";
+                return $"设备:{DeviceAddress} 读取温度，当前温度:{Temperature}";
             else if (DataType == ReceivedType.PowerOff)
                 return $"设备:{DeviceAddress} 断电";
             else if (DataType == ReceivedType.Voltage1_8)
@@ -213,16 +212,6 @@ namespace Module
                     return $"设备:{DeviceAddress} 设为4.1V";
             else
                 return $"设备:{DeviceAddress}  消息类型:{DataType}  传感器地址：{SensorIndex}  是否有效：{IsEffective}{Environment.NewLine}";
-        }
-
-        public decimal GetTemp()
-        {
-            if (DataType.Equals(ReceivedType.ReadTemp))
-            {
-                short v = BitConverter.ToInt16(Data);
-                return v * 0.0078125M;
-            }
-            return -1M;
         }
     }
 

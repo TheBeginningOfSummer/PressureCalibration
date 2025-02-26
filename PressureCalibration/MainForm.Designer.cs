@@ -46,6 +46,7 @@
             TDB窗口 = new ToolStripDropDownButton();
             TMI测试 = new ToolStripMenuItem();
             TMI监视 = new ToolStripMenuItem();
+            TMI芯片 = new ToolStripMenuItem();
             TDB导出 = new ToolStripDropDownButton();
             TMI导出Excel = new ToolStripMenuItem();
             TMI导出数据 = new ToolStripMenuItem();
@@ -253,7 +254,7 @@
             // TDB窗口
             // 
             TDB窗口.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            TDB窗口.DropDownItems.AddRange(new ToolStripItem[] { TMI测试, TMI监视 });
+            TDB窗口.DropDownItems.AddRange(new ToolStripItem[] { TMI测试, TMI监视, TMI芯片 });
             TDB窗口.Image = Properties.Resources.application_16x;
             TDB窗口.ImageTransparentColor = Color.Magenta;
             TDB窗口.Name = "TDB窗口";
@@ -263,7 +264,7 @@
             // TMI测试
             // 
             TMI测试.Name = "TMI测试";
-            TMI测试.Size = new Size(100, 22);
+            TMI测试.Size = new Size(180, 22);
             TMI测试.Tag = "test";
             TMI测试.Text = "测试";
             TMI测试.Click += TMI窗口_Click;
@@ -271,10 +272,18 @@
             // TMI监视
             // 
             TMI监视.Name = "TMI监视";
-            TMI监视.Size = new Size(100, 22);
+            TMI监视.Size = new Size(180, 22);
             TMI监视.Tag = "monitor";
             TMI监视.Text = "监视";
             TMI监视.Click += TMI窗口_Click;
+            // 
+            // TMI芯片
+            // 
+            TMI芯片.Name = "TMI芯片";
+            TMI芯片.Size = new Size(180, 22);
+            TMI芯片.Tag = "chip";
+            TMI芯片.Text = "芯片";
+            TMI芯片.Click += TMI窗口_Click;
             // 
             // TDB导出
             // 
@@ -349,5 +358,6 @@
         private ToolStripDropDownButton TDB导出;
         private ToolStripMenuItem TMI导出Excel;
         private ToolStripMenuItem TMI导出数据;
+        private ToolStripMenuItem TMI芯片;
     }
 }

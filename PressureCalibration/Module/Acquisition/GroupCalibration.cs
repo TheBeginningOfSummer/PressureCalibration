@@ -92,15 +92,16 @@ namespace Module
         public SendData Read(bool[] selectedSensor, byte address, byte count, byte speed = 0x00, byte chip = 0x20)
         {
             byte[] sensorAddressBytes = [0x00, 0x00];
+            int selectedSensorCount = 0;
 
             int j = 0;
-            int selectedSensorCount = 0;
             for (int i = 0; i < Math.Min(selectedSensor.Length, SensorCount); i++)
             {
                 if (i % 8 == 0 && i != 0) j++;
                 if (selectedSensor[i]) selectedSensorCount++;
                 sensorAddressBytes[j] = BytesTool.SetBit(sensorAddressBytes[j], (ushort)(i - j * 8), selectedSensor[i]);
             }
+
             byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12 + selectedSensorCount * count);
             return sendData;
@@ -108,7 +109,7 @@ namespace Module
         public byte[] ReadAll(byte address, byte count, byte speed = 0x00, byte chip = 0x20)
         {
             byte[] sensorAddressBytes = [0xFF, 0xFF];
-            int selectedSensorCount = 16;
+            int selectedSensorCount = SensorCount;
 
             byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12 + selectedSensorCount * count);
@@ -316,26 +317,51 @@ namespace Module
         /// </summary>
         /// <param name="tempArray">温度值</param>
         /// <param name="pressArray">压力值</param>
-        public void GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray)
+        public void GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, int type = 0)
         {
+            ReceivedData[] tempResult;
+            ReceivedData[] pressResult;
             tempArray = new decimal[SensorCount];
             pressArray = new decimal[SensorCount];
-
-            InitializeOutput();
-            var pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
-            var tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
             byte[] tempBytes = new byte[4];
-            for (int i = 0; i < SensorCount; i++)
+
+            if (type == 0)
             {
-                Array.Clear(tempBytes);
-                if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                InitializeOutput();
+                pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
+                for (int i = 0; i < SensorCount; i++)
                 {
-                    tempResult[i].Data.CopyTo(tempBytes, 0);
-                    tempArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
-                    SensorDataGroup[i].OutputT = tempArray[i];
-                    pressResult[i].Data.CopyTo(tempBytes, 0);
-                    pressArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
-                    SensorDataGroup[i].OutputP = pressArray[i];
+                    Array.Clear(tempBytes);
+                    if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                    {
+                        tempResult[i].Data.CopyTo(tempBytes, 0);
+                        tempArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
+                        SensorDataGroup[i].OutputT.Add(tempArray[i]);
+                        pressResult[i].Data.CopyTo(tempBytes, 0);
+                        pressArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
+                        SensorDataGroup[i].OutputP.Add(pressArray[i]);
+                    }
+                }
+            }
+            else
+            {
+                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount)));
+                Thread.Sleep(10);
+                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2), SensorCount);
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    Array.Clear(tempBytes);
+                    if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                    {
+                        tempResult[i].Data.CopyTo(tempBytes, 0);
+                        tempArray[i] = BitConverter.ToInt32(tempBytes) / (decimal)Math.Pow(2, 8);
+                        SensorDataGroup[i].OutputT.Add(tempArray[i]);
+                        pressResult[i].Data.CopyTo(tempBytes, 0);
+                        pressArray[i] = BitConverter.ToInt32(tempBytes) / (decimal)Math.Pow(2, 23);
+                        SensorDataGroup[i].OutputP.Add(pressArray[i]);
+                    }
                 }
             }
         }

@@ -39,8 +39,8 @@ namespace Module
             }
         }//测试结果
         public bool IsFused { get; set; } = false;//是否烧录过
-        public decimal OutputP { get; set; } = 0;
-        public decimal OutputT { get; set; } = 0;
+        public List<decimal> OutputP { get; set; } = [];
+        public List<decimal> OutputT { get; set; } = [];
 
         public double SingleYield { get; set; } = 1.0;//良率
         public double MinYield { get; set; } = 0.8;//最小良率
@@ -212,16 +212,26 @@ namespace Module
             Thread.Sleep(10);
         }
         //得到芯片Uid
-        public int GetSensorUID(SerialPortTool connection)
+        public int GetSensorUID(SerialPortTool connection, int type = 0)
         {
-            Initialize1(connection);
-            var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x02, 4)));//读取所有传感器的uid数据
-            byte[] uidBytes = uidResult[SensorIndex].Data;
-            if (uidResult[SensorIndex].IsEffective && uidBytes.Length == 4)
+            if (type == 0)
             {
-                Array.Reverse(uidBytes);
+                Initialize1(connection);
+                var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x02, 4)));//读取所有传感器的uid数据
+                byte[] uidBytes = uidResult[SensorIndex].Data;
+                if (uidResult[SensorIndex].IsEffective && uidBytes.Length == 4)
+                {
+                    Array.Reverse(uidBytes);
+                    Uid = BitConverter.ToInt32(uidBytes);
+                }
+            }
+            else
+            {
+                var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x01, 1)));//读取所有传感器的uid数据
+                byte[] uidBytes = uidResult[SensorIndex].Data;
                 Uid = BitConverter.ToInt32(uidBytes);
             }
+
             return Uid;
         }
         //得到芯片数据

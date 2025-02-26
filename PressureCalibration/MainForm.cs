@@ -85,6 +85,7 @@ namespace PressureCalibration
                 {
                     case "monitor": new MonitorForm().Show(); break;
                     case "test": new Test().Show(); break;
+                    case "chip": new ChipTest().Show(); break;
                     default: break;
                 }
             }

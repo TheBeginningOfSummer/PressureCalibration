@@ -96,6 +96,10 @@ namespace Module
 
         #region 控制变量
         /// <summary>
+        /// 是否标定
+        /// </summary>
+        public bool IsCalibrate { get; set; } = true;
+        /// <summary>
         /// 控制数据显示
         /// </summary>
         public bool IsShowData { get; set; } = false;
@@ -550,7 +554,7 @@ namespace Module
                 decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
                 foreach (var group in GroupDic.Values)
                 {
-                    group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
+                    group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
                     for (int i = 0; i < tempArray.Length; i++)
                     {
                         if ((pressArray[i] - result) > CalPara.CheckPressureDiff)
