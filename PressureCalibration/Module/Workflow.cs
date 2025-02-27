@@ -2,6 +2,7 @@
 using CSharpKit.Communication;
 using CSharpKit.FileManagement;
 using Services;
+using Sunny.UI.Win32;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text.Json.Serialization;
@@ -130,6 +131,7 @@ namespace Module
                 nameof(OverallYield) => "总良率",
                 nameof(MinYield) => "最小良率",
                 nameof(Connection) => "连接",
+                nameof(IsCalibrate) => "是否标定",
                 nameof(IsShowData) => "数据显示",
                 _ => name,
             };
@@ -546,27 +548,37 @@ namespace Module
             return true;
         }
 
-        public bool CheckSensorOutput()
+        public bool GetSensorOutput()
         {
-            if (WaitPressure(CalPara.CheckPressure))
+            decimal[] checkPArray = [.. CalPara.CheckPressures];
+
+            for (int i = 0; i < checkPArray.Length; i++)
             {
-                //得到压力
-                decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
-                foreach (var group in GroupDic.Values)
+                WorkProcess?.Invoke($"开始采集检测压力{checkPArray[i]}");
+                if (WaitPressure(checkPArray[i]))
                 {
-                    group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
-                    for (int i = 0; i < tempArray.Length; i++)
+                    decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
+                    foreach (var group in GroupDic.Values)
                     {
-                        if ((pressArray[i] - result) > CalPara.CheckPressureDiff)
-                            group.SensorDataGroup[i].Result = "Check";
+                        var temp = group.ReadTemperature(CalPara.IsTestVer);
+                        group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
+                        for (int j = 0; j < tempArray.Length; j++)
+                        {
+                            var t = temp[GroupCalibration.GetTempIndex(j)];
+                            if (Math.Abs(pressArray[j] - result) > CalPara.CheckPressureDiff && Math.Abs(tempArray[j] - t) > CalPara.CheckTemperatureDiff)
+                                group.SensorDataGroup[j].Result = "Check";
+                            else
+                                group.SensorDataGroup[j].Result = "NG";
+                        }
+                        if (CalPara.IsSave)
+                            group.SaveDatabase().Wait();
                     }
-                    if (CalPara.IsSave)
-                        group.SaveDatabase().Wait();
                 }
-                return true;
+                else
+                    return false;
+                WorkProcess?.Invoke($"完成采集检测压力{checkPArray[i]}");
             }
-            else
-                return false;
+            return true;
         }
 
         public bool OutputExcel(string path = $"Data\\Excel\\")
@@ -718,7 +730,10 @@ namespace Module
         {
             if (context.CalPara.IsTestVer)
             {
-                context.SetState(new WaitT());
+                if (context.IsCalibrate)
+                    context.SetState(new WaitT());
+                else
+                    context.SetState(new WaitCheckTemperature());
                 context.Run();
                 return;
             }
@@ -744,9 +759,10 @@ namespace Module
                 }
             }
 
-
-
-            context.SetState(new WaitT());
+            if (context.IsCalibrate)
+                context.SetState(new WaitT());
+            else
+                context.SetState(new WaitCheckTemperature());
             context.Run();
         }
     }
@@ -936,6 +952,54 @@ namespace Module
             context.PowerOn();
             context.SetState(new Check());
             context.Run();
+        }
+    }
+
+    public class WaitCheckTemperature : IAcqState
+    {
+        public void Process(Acquisition context)
+        {
+            decimal[] checkTArray = [.. context.CalPara.CheckTemperatures];
+            var targetT = checkTArray[context.CurrentTempIndex];
+            context.WorkProcess?.Invoke($"等待温度{targetT}");
+
+            try
+            {
+                if (context.WaitTemperature(targetT))
+                {
+                    context.WorkProcess?.Invoke($"温度OK。");
+                    context.SetState(new WaitCheckPressure());
+                    context.Run();
+                }
+            }
+            catch (Exception e)
+            {
+                context.Warning(e.Message);
+            }
+        }
+    }
+
+    public class WaitCheckPressure : IAcqState
+    {
+        public void Process(Acquisition context)
+        {
+            decimal[] checkTArray = [.. context.CalPara.CheckTemperatures];
+
+            if (context.GetSensorOutput())
+            {
+                if (context.CurrentTempIndex >= (checkTArray.Length - 1))
+                {
+                    context.CurrentTempIndex = 0;
+                    context.SetState(new Idle());
+                    context.Run();
+                }
+                else
+                {
+                    context.CurrentTempIndex += 1;
+                    context.SetState(new WaitCheckTemperature());
+                    context.Run();
+                }
+            }
         }
     }
 

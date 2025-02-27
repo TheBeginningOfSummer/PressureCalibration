@@ -49,7 +49,7 @@ namespace Module
             //注意加载顺序
             DB = Loader.Load<Database>(ConfigPath, DatabaseName, nameof(Database));//加载数据库
             CP = Loader.Load<CalibrationParameter>(ConfigPath, CalibName, nameof(CalibrationParameter));//加载参数
-            MP = Loader.Load<MotionParameter>(ConfigPath, CalibName, nameof(MotionParameter));
+            MP = Loader.Load<MotionParameter>(ConfigPath, MotionName, nameof(MotionParameter));
             PACE = Loader.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
             TEC = Loader.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
             Zmotion = Loader.Load<ZmotionMotionControl>(ConfigPath, ZmotionName, nameof(ZmotionMotionControl));

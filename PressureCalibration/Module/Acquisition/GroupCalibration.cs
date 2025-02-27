@@ -169,7 +169,7 @@ namespace Module
         #endregion
 
         #region 数据采集
-        private static int GetTempIndex(int sensorIndex)
+        public static int GetTempIndex(int sensorIndex)
         {
             if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
             if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
@@ -203,6 +203,29 @@ namespace Module
                     v4 = BitConverter.ToInt16([result[11], result[10]]);
                 }
                 return [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+            }
+        }
+
+        public decimal ReadTemperature(int index, bool isTest = false)
+        {
+            if (isTest)
+            {
+                return (decimal)random.NextDouble() * 100;
+            }
+            else
+            {
+                short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
+                byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
+                var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
+                if (result.Length >= 18)
+                {
+                    v1 = BitConverter.ToInt16([result[17], result[16]]);
+                    v2 = BitConverter.ToInt16([result[15], result[14]]);
+                    v3 = BitConverter.ToInt16([result[13], result[12]]);
+                    v4 = BitConverter.ToInt16([result[11], result[10]]);
+                }
+                decimal[] tempArray = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+                return tempArray[GetTempIndex(index)];
             }
         }
 
@@ -346,10 +369,10 @@ namespace Module
             }
             else
             {
-                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount)));
+                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount), chip: 0x76));
                 Thread.Sleep(10);
-                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3), SensorCount);
-                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2), SensorCount);
+                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3, chip: 0x76), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2, chip: 0x76), SensorCount);
                 for (int i = 0; i < SensorCount; i++)
                 {
                     Array.Clear(tempBytes);

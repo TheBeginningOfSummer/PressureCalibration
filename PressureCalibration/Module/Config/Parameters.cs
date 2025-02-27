@@ -10,10 +10,6 @@ namespace Module
         /// </summary>
         public int AcquisitionCount { get; set; } = 1;
         /// <summary>
-        /// 采集温度时的延迟时间
-        /// </summary>
-        public int TempDelay { get; set; } = 60;
-        /// <summary>
         /// 压力采集时的延时时间
         /// </summary>
         public int PressDelay { get; set; } = 10;
@@ -62,12 +58,21 @@ namespace Module
         /// </summary>
         public bool IsFuse { get; set; } = false;
 
-        public decimal CheckTemperatureDiff { get; set; } = 0.5m;
+        /// <summary>
+        /// 检测温度
+        /// </summary>
+        public BindingList<decimal> CheckTemperatures { get; set; } = [-20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80];
         /// <summary>
         /// 检测压力
         /// </summary>
-        public decimal CheckPressure { get; set; } = 90000;
-
+        public BindingList<decimal> CheckPressures { get; set; } = [30000, 60000, 90000, 120000, 150000, 180000, 210000];
+        /// <summary>
+        /// 检测温差
+        /// </summary>
+        public decimal CheckTemperatureDiff { get; set; } = 0.5m;
+        /// <summary>
+        /// 检测压差
+        /// </summary>
         public decimal CheckPressureDiff { get; set; } = 80;
 
         public bool IsTestVer { get; set; } = true;
@@ -86,7 +91,6 @@ namespace Module
             return name switch
             {
                 nameof(AcquisitionCount) => "采集次数",
-                nameof(TempDelay) => "温度延时(S)",
                 nameof(PressDelay) => "压力延时(S)",
                 nameof(TempaturePoints) => "采集温度(℃)",
                 nameof(SetTPoints) => "设置温度(℃)",
@@ -100,9 +104,11 @@ namespace Module
                 nameof(FuseTDiff) => "烧录温差(℃)",
                 nameof(IsFuse) => "是否烧录",
 
-                nameof(CheckTemperatureDiff) => "检测温度差",
-                nameof(CheckPressure) => "检测压力",
+                nameof(CheckTemperatures) => "检测温度",
+                nameof(CheckPressures) => "检测压力",
                 nameof(CheckPressureDiff) => "检测压力差",
+                nameof(CheckTemperatureDiff) => "检测温度差",
+
                 nameof(IsTestVer) => "测试版本",
                 nameof(Method) => "计算方法",
                 nameof(IsSave) => "数据保存",
