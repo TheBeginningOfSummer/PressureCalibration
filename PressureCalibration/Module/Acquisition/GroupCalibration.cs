@@ -290,21 +290,38 @@ namespace Module
         /// 得到采集卡所有芯片UID
         /// </summary>
         /// <returns></returns>
-        public int[] GetSensorsUID()
+        public int[] GetSensorsUID(int type = 0)
         {
             int[] uidArray = new int[SensorCount];
-
-            //采集UID
-            Initialize1();
-            var uidResult = ReceivedData.ParseData(ReadAll(0x02, 4), SensorCount);//读取所有传感器的uid数据
-            byte[] uidBytes = new byte[4];
-            for (int i = 0; i < SensorCount; i++)
+            if (type == 0)
             {
-                if (uidResult[i].IsEffective)
+                //采集UID
+                Initialize1();
+                var uidResult = ReceivedData.ParseData(ReadAll(0x02, 4), SensorCount);//读取所有传感器的uid数据
+                byte[] uidBytes = new byte[4];
+                for (int i = 0; i < SensorCount; i++)
                 {
-                    uidResult[i].Data.CopyTo(uidBytes, 0);
-                    Array.Reverse(uidBytes);
-                    uidArray[i] = BitConverter.ToInt32(uidBytes);
+                    if (uidResult[i].IsEffective)
+                    {
+                        uidResult[i].Data.CopyTo(uidBytes, 0);
+                        Array.Reverse(uidBytes);
+                        uidArray[i] = BitConverter.ToInt32(uidBytes);
+                    }
+                }
+            }
+            else
+            {
+                //采集UID
+                var uidResult = ReceivedData.ParseData(ReadAll(0x01, 1, chip: 0x7F), SensorCount);//读取所有传感器的uid数据
+                byte[] uidBytes = new byte[2];
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    if (uidResult[i].IsEffective)
+                    {
+                        uidResult[i].Data.CopyTo(uidBytes, 1);
+                        Array.Reverse(uidBytes);
+                        uidArray[i] = BitConverter.ToInt16(uidBytes);
+                    }
                 }
             }
             return uidArray;
@@ -346,7 +363,8 @@ namespace Module
             ReceivedData[] pressResult;
             tempArray = new decimal[SensorCount];
             pressArray = new decimal[SensorCount];
-            byte[] tempBytes = new byte[4];
+            byte[] tempBytes = new byte[2];
+            byte[] pressBytes = new byte[4];
 
             if (type == 0)
             {
@@ -369,20 +387,25 @@ namespace Module
             }
             else
             {
-                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount), chip: 0x76));
+                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount), chip: 0x7F));
                 Thread.Sleep(10);
-                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3, chip: 0x76), SensorCount);
-                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2, chip: 0x76), SensorCount);
+                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3, chip: 0x7F), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2, chip: 0x7F), SensorCount);
                 for (int i = 0; i < SensorCount; i++)
                 {
-                    Array.Clear(tempBytes);
                     if (pressResult[i].IsEffective && tempResult[i].IsEffective)
                     {
+                        Array.Clear(tempBytes);
+                        Array.Clear(pressBytes);
+
                         tempResult[i].Data.CopyTo(tempBytes, 0);
-                        tempArray[i] = BitConverter.ToInt32(tempBytes) / (decimal)Math.Pow(2, 8);
+                        Array.Reverse(tempBytes);
+                        tempArray[i] = BitConverter.ToInt16(tempBytes) / (decimal)Math.Pow(2, 8);
                         SensorDataGroup[i].OutputT.Add(tempArray[i]);
-                        pressResult[i].Data.CopyTo(tempBytes, 0);
-                        pressArray[i] = BitConverter.ToInt32(tempBytes) / (decimal)Math.Pow(2, 23);
+
+                        pressResult[i].Data.CopyTo(pressBytes, 1);
+                        Array.Reverse(pressBytes);
+                        pressArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
                         SensorDataGroup[i].OutputP.Add(pressArray[i]);
                     }
                 }

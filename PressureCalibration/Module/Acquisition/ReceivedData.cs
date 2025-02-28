@@ -33,7 +33,7 @@ namespace Module
         /// <summary>
         /// 电压
         /// </summary>
-        public int Voltage { get; set; }
+        public double Voltage { get; set; }
         /// <summary>
         /// 温度
         /// </summary>
@@ -126,16 +126,20 @@ namespace Module
                             }
                             break;
                         case 0x13://电源置1.8V
-                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage1_8, null);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage1_8, [bytes[4]]);
+                            recivedList[0].GetData();
                             break;
                         case 0x12://电源置4.1V
-                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage4_1, null);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage4_1, [bytes[4]]);
+                            recivedList[0].GetData();
                             break;
                         case 0x11://电源置3.3V
-                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage3_3, null);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Voltage3_3, [bytes[4]]);
+                            recivedList[0].GetData();
                             break;
                         case 0x10://电源关闭
-                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.PowerOff, null);
+                            recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.PowerOff, [bytes[4]]);
+                            recivedList[0].GetData();
                             break;
                         case 0x00://板卡信息
                             recivedList[0] = new ReceivedData(deviceAddress, -1, isFault, false, ReceivedType.Info, [bytes[4]]);
@@ -172,9 +176,15 @@ namespace Module
 
         public void GetData()
         {
-            if (DataType.Equals(ReceivedType.Info))
+            if (DataType.Equals(ReceivedType.Info) || DataType.Equals(ReceivedType.Voltage3_3) || DataType.Equals(ReceivedType.Voltage4_1) || DataType.Equals(ReceivedType.Voltage1_8))
             {
-                Voltage = Data[0];
+                switch (Data[0])
+                {
+                    case 0x01: Voltage = 3.3; break;
+                    case 0x02: Voltage = 4.1; break;
+                    case 0x03: Voltage = 1.8; break;
+                    default: Voltage = Data[0]; break;
+                }
             }
             if (DataType.Equals(ReceivedType.ReadTemp))
             {

@@ -28,7 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             RTB信息 = new RichTextBox();
+            CMS信息 = new ContextMenuStrip(components);
+            TMI清除 = new ToolStripMenuItem();
             CB设备地址 = new ComboBox();
             label1 = new Label();
             BTN读取UID = new Button();
@@ -46,6 +49,7 @@
             BTN关闭电源 = new Button();
             BTN读取芯片数据 = new Button();
             BTN读取 = new Button();
+            CMS信息.SuspendLayout();
             GB电源控制.SuspendLayout();
             SuspendLayout();
             // 
@@ -53,12 +57,27 @@
             // 
             RTB信息.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             RTB信息.BorderStyle = BorderStyle.None;
+            RTB信息.ContextMenuStrip = CMS信息;
             RTB信息.Location = new Point(10, 10);
             RTB信息.Margin = new Padding(1);
             RTB信息.Name = "RTB信息";
+            RTB信息.ReadOnly = true;
             RTB信息.Size = new Size(547, 430);
             RTB信息.TabIndex = 0;
             RTB信息.Text = "";
+            // 
+            // CMS信息
+            // 
+            CMS信息.Items.AddRange(new ToolStripItem[] { TMI清除 });
+            CMS信息.Name = "CMS信息";
+            CMS信息.Size = new Size(101, 26);
+            // 
+            // TMI清除
+            // 
+            TMI清除.Name = "TMI清除";
+            TMI清除.Size = new Size(100, 22);
+            TMI清除.Text = "清除";
+            TMI清除.Click += TMI清除_Click;
             // 
             // CB设备地址
             // 
@@ -191,6 +210,7 @@
             BTN41V.Tag = "4.1";
             BTN41V.Text = "4.1V";
             BTN41V.UseVisualStyleBackColor = true;
+            BTN41V.Click += BTN采集卡_Click;
             // 
             // BTN33V
             // 
@@ -201,6 +221,7 @@
             BTN33V.Tag = "3.3";
             BTN33V.Text = "3.3V";
             BTN33V.UseVisualStyleBackColor = true;
+            BTN33V.Click += BTN采集卡_Click;
             // 
             // BTN18V
             // 
@@ -211,6 +232,7 @@
             BTN18V.Tag = "1.8";
             BTN18V.Text = "1.8V";
             BTN18V.UseVisualStyleBackColor = true;
+            BTN18V.Click += BTN采集卡_Click;
             // 
             // BTN关闭电源
             // 
@@ -221,6 +243,7 @@
             BTN关闭电源.Tag = "off";
             BTN关闭电源.Text = "关闭电源";
             BTN关闭电源.UseVisualStyleBackColor = true;
+            BTN关闭电源.Click += BTN采集卡_Click;
             // 
             // BTN读取芯片数据
             // 
@@ -268,6 +291,7 @@
             Name = "ChipTest";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "芯片测试";
+            CMS信息.ResumeLayout(false);
             GB电源控制.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
@@ -293,5 +317,7 @@
         private Button BTN关闭电源;
         private Button BTN读取芯片数据;
         private Button BTN读取;
+        private ContextMenuStrip CMS信息;
+        private ToolStripMenuItem TMI清除;
     }
 }

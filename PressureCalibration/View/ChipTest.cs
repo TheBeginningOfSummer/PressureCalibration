@@ -13,6 +13,7 @@ namespace PressureCalibration.View
         //选中的传感器
         SensorCalibration sensor;
 
+        #region 绑定属性
         private int deviceAddress = 1;
         public int DeviceAddress
         {
@@ -68,6 +69,7 @@ namespace PressureCalibration.View
                 //PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RegisterCount)));
             }
         }
+        #endregion
 
         public ChipTest()
         {
@@ -112,14 +114,14 @@ namespace PressureCalibration.View
                             e.Result += $"{Environment.NewLine}第{i}路温度：{resultT[i]}";
                         break;
                     case "readUID":
-                        int[] resultUID = group.GetSensorsUID();
+                        int[] resultUID = group.GetSensorsUID(1);
                         for (int i = 0; i < resultUID.Length; i++)
                             e.Result += $"{Environment.NewLine}第{i}路芯片UID：{resultUID[i]}";
                         break;
                     case "readOutput":
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
                         for (int i = 0; i < group.SensorCount; i++)
-                            e.Result += $"{Environment.NewLine}芯片{i}  温度值：{tempArray[i]}  压力值：{pressArray[i]}";
+                            e.Result += $"{Environment.NewLine}芯片{i.ToString().PadLeft(2, '0')}  温度值：{tempArray[i]:F2}℃  压力值：{pressArray[i]:N6}MPa";
                         break;
 
                     case "off":
@@ -168,6 +170,11 @@ namespace PressureCalibration.View
             }
             if (sender is Button button)
                 BGW采集卡.RunWorkerAsync(button.Tag);
+        }
+
+        private void TMI清除_Click(object sender, EventArgs e)
+        {
+            RTB信息.Clear();
         }
     }
 }
