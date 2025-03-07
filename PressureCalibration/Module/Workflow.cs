@@ -64,9 +64,13 @@ namespace Module
 
         #region 参数
         /// <summary>
-        /// 数据采集组数量，用来初始化采集卡的地址
+        /// 数据采集组（采集卡）数量，可以用来初始化采集卡的地址
         /// </summary>
         public int CardAmount { get; set; } = 8;//采集卡数量
+        /// <summary>
+        /// 每个采集组的传感器数量
+        /// </summary>
+        public int SensorCount { get; set; } = 16;
         /// <summary>
         /// 整体良率
         /// </summary>
@@ -138,11 +142,12 @@ namespace Module
 
         public override void LoaderInitialize()
         {
-            //初始化通信端口
-            int connectionAmount = (CardAmount + 1) / 2;
+            //初始化通信端口数量
+            //int connectionAmount = (CardAmount + 1) / 2;
+            int connectionAmount = CardAmount;
             for (int i = 0; i < connectionAmount; i++)
             {
-                if (Connection.Count < connectionAmount)
+                if (Connection.Count < connectionAmount)//端口过少时，添加端口
                 {
                     if (i < Connection.Count)
                         continue;
@@ -151,17 +156,17 @@ namespace Module
                 }
             }
             //初始化采集组
-            int connectionIndex = 0;
+            //int connectionIndex = 0;
             for (int i = 1; i <= CardAmount; i++)
             {
                 //通信连接
-                var group = new GroupCalibration((byte)i, Connection[connectionIndex]);
+                var group = new GroupCalibration((byte)i, Connection[i - 1], SensorCount);
                 //分配给板卡1-9的设备地址
                 GroupDic.TryAdd(i, group);
                 //初始化采集温度数据
                 for (int j = 1; j <= 4; j++)
                     DisplayedKeys.Add($"D{i}T{j}");
-                if (i % 2 == 0) connectionIndex++;
+                //if (i % 2 == 0) connectionIndex++;
             }
             //按通信串口分组
             foreach (var acq in GroupDic.Values)
@@ -307,7 +312,7 @@ namespace Module
             foreach (var group in GroupDic.Values)
             {
                 //采集数据
-                var temp = group.GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, CalPara.IsTestVer);
+                var temp = group.GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, 2, CalPara.IsTestVer);
                 //采集监视数据
                 MonitoringData(monitorData, group, temp, pressure);
                 //暂停
@@ -345,7 +350,7 @@ namespace Module
                         else
                         {
                             //采集数据
-                            var temp = acq.GetData(CalPara.AcquisitionCount, (decimal)setP, (decimal)setT, out decimal pressure, CalPara.IsTestVer);
+                            var temp = acq.GetData(CalPara.AcquisitionCount, (decimal)setP, (decimal)setT, out decimal pressure, 2, CalPara.IsTestVer);
                             //采集监视数据
                             MonitoringData(monitorData, acq, temp, pressure);
                         }
@@ -547,7 +552,7 @@ namespace Module
             return true;
         }
 
-        public bool GetSensorOutput()
+        public bool GetSensorOutput(int tempCount = 2)
         {
             decimal[] checkPArray = [.. CalPara.CheckPressures];
 
@@ -563,7 +568,7 @@ namespace Module
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
                         for (int j = 0; j < tempArray.Length; j++)
                         {
-                            var t = temp[GroupCalibration.GetTempIndex(j)];
+                            var t = temp[GroupCalibration.GetTempIndex(j, tempCount)];
                             if (Math.Abs(pressArray[j] - result) > CalPara.CheckPressureDiff && Math.Abs(tempArray[j] - t) > CalPara.CheckTemperatureDiff)
                                 group.SensorDataGroup[j].Result = "Check";
                             else

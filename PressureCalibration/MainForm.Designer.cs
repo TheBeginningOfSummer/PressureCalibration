@@ -41,7 +41,7 @@
             GB结果 = new GroupBox();
             BGWRun = new System.ComponentModel.BackgroundWorker();
             HF压力标定 = new ReaLTaiizor.Forms.HopeForm();
-            toolStrip1 = new ToolStrip();
+            TS设置 = new ToolStrip();
             TSB设置 = new ToolStripButton();
             TDB窗口 = new ToolStripDropDownButton();
             TMI测试 = new ToolStripMenuItem();
@@ -50,10 +50,11 @@
             TDB导出 = new ToolStripDropDownButton();
             TMI导出Excel = new ToolStripMenuItem();
             TMI导出数据 = new ToolStripMenuItem();
+            TSB清除 = new ToolStripButton();
             ATP主选项卡.SuspendLayout();
             TP操作.SuspendLayout();
             TP查看.SuspendLayout();
-            toolStrip1.SuspendLayout();
+            TS设置.SuspendLayout();
             SuspendLayout();
             // 
             // HRTB信息
@@ -228,16 +229,16 @@
             HF压力标定.Text = "压力标定";
             HF压力标定.ThemeColor = Color.DimGray;
             // 
-            // toolStrip1
+            // TS设置
             // 
-            toolStrip1.Dock = DockStyle.Right;
-            toolStrip1.GripStyle = ToolStripGripStyle.Hidden;
-            toolStrip1.Items.AddRange(new ToolStripItem[] { TSB设置, TDB窗口, TDB导出 });
-            toolStrip1.Location = new Point(1154, 40);
-            toolStrip1.Name = "toolStrip1";
-            toolStrip1.Size = new Size(30, 721);
-            toolStrip1.TabIndex = 8;
-            toolStrip1.Text = "toolStrip1";
+            TS设置.Dock = DockStyle.Right;
+            TS设置.GripStyle = ToolStripGripStyle.Hidden;
+            TS设置.Items.AddRange(new ToolStripItem[] { TSB设置, TDB窗口, TDB导出, TSB清除 });
+            TS设置.Location = new Point(1154, 40);
+            TS设置.Name = "TS设置";
+            TS设置.Size = new Size(30, 721);
+            TS设置.TabIndex = 8;
+            TS设置.Text = "toolStrip1";
             // 
             // TSB设置
             // 
@@ -246,7 +247,7 @@
             TSB设置.Image = Properties.Resources.baseline_build_black_24dp;
             TSB设置.ImageTransparentColor = Color.Magenta;
             TSB设置.Name = "TSB设置";
-            TSB设置.Size = new Size(27, 20);
+            TSB设置.Size = new Size(29, 20);
             TSB设置.Tag = "setting";
             TSB设置.Text = "toolStripButton1";
             TSB设置.Click += TMI窗口_Click;
@@ -258,7 +259,7 @@
             TDB窗口.Image = Properties.Resources.application_16x;
             TDB窗口.ImageTransparentColor = Color.Magenta;
             TDB窗口.Name = "TDB窗口";
-            TDB窗口.Size = new Size(27, 20);
+            TDB窗口.Size = new Size(29, 20);
             TDB窗口.Text = "窗口";
             // 
             // TMI测试
@@ -311,12 +312,22 @@
             TMI导出数据.Text = "导出数据";
             TMI导出数据.Click += TMI导出_Click;
             // 
+            // TSB清除
+            // 
+            TSB清除.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            TSB清除.Image = (Image)resources.GetObject("TSB清除.Image");
+            TSB清除.ImageTransparentColor = Color.Magenta;
+            TSB清除.Name = "TSB清除";
+            TSB清除.Size = new Size(29, 20);
+            TSB清除.Text = "toolStripButton1";
+            TSB清除.Click += TMI清除_Click;
+            // 
             // MainForm
             // 
             AutoScaleMode = AutoScaleMode.None;
             BackColor = Color.LightGray;
             ClientSize = new Size(1184, 761);
-            Controls.Add(toolStrip1);
+            Controls.Add(TS设置);
             Controls.Add(HF压力标定);
             Controls.Add(ATP主选项卡);
             FormBorderStyle = FormBorderStyle.None;
@@ -331,8 +342,8 @@
             TP操作.ResumeLayout(false);
             TP操作.PerformLayout();
             TP查看.ResumeLayout(false);
-            toolStrip1.ResumeLayout(false);
-            toolStrip1.PerformLayout();
+            TS设置.ResumeLayout(false);
+            TS设置.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -350,7 +361,7 @@
         private GroupBox GB结果;
         private Label label1;
         private ReaLTaiizor.Forms.HopeForm HF压力标定;
-        private ToolStrip toolStrip1;
+        private ToolStrip TS设置;
         private ToolStripButton TSB设置;
         private ToolStripDropDownButton TDB窗口;
         private ToolStripMenuItem TMI测试;
@@ -359,5 +370,6 @@
         private ToolStripMenuItem TMI导出Excel;
         private ToolStripMenuItem TMI导出数据;
         private ToolStripMenuItem TMI芯片;
+        private ToolStripButton TSB清除;
     }
 }

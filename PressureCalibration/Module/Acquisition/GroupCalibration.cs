@@ -22,6 +22,10 @@ namespace Module
         /// </summary>
         public bool[] SelectedSensor = [];
         /// <summary>
+        /// I2C地址
+        /// </summary>
+        public byte I2CAddress = 0x7F;
+        /// <summary>
         /// 当前温度的数据是否采集完成
         /// </summary>
         public bool IsAcqOK = false;
@@ -89,7 +93,7 @@ namespace Module
         #endregion
 
         #region 寄存器操作
-        public SendData Read(bool[] selectedSensor, byte address, byte count, byte speed = 0x00, byte chip = 0x20)
+        public SendData Read(bool[] selectedSensor, byte address, byte count, byte speed = 0x00)
         {
             byte[] sensorAddressBytes = [0x00, 0x00];
             int selectedSensorCount = 0;
@@ -102,33 +106,33 @@ namespace Module
                 sensorAddressBytes[j] = BytesTool.SetBit(sensorAddressBytes[j], (ushort)(i - j * 8), selectedSensor[i]);
             }
 
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, I2CAddress, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12 + selectedSensorCount * count);
             return sendData;
         }
-        public byte[] ReadAll(byte address, byte count, byte speed = 0x00, byte chip = 0x20)
+        public byte[] ReadAll(byte address, byte count, byte speed = 0x00)
         {
             byte[] sensorAddressBytes = [0xFF, 0xFF];
             int selectedSensorCount = SensorCount;
 
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x20, sensorAddressBytes[1], sensorAddressBytes[0], speed, I2CAddress, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12 + selectedSensorCount * count);
             return Connection.WriteRead(sendData);
         }
 
-        public SendData WriteAll(byte address, byte count, byte[] data, byte speed = 0x00, byte chip = 0x20)
+        public SendData WriteAll(byte address, byte count, byte[] data, byte speed = 0x00)
         {
-            byte[] header = [0x24, DeviceAddress, 0x80, 0x30, 0xFF, 0xFF, speed, chip, address, count];
+            byte[] header = [0x24, DeviceAddress, 0x80, 0x30, 0xFF, 0xFF, speed, I2CAddress, address, count];
             byte[] sendBytes = BytesTool.SpliceBytes(header, data);
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
             return sendData;
         }
-        public SendData WriteAll(byte address, byte count, List<byte[]> data, byte speed = 0x00, byte chip = 0x20)
+        public SendData WriteAll(byte address, byte count, List<byte[]> data, byte speed = 0x00)
         {
             List<byte> bytes = [];
             for (int i = data.Count - 1; i >= 0; i--)
                 bytes.AddRange(data[i]);
-            return WriteAll(address, count, bytes.ToArray(), speed, chip);
+            return WriteAll(address, count, bytes.ToArray(), speed);
         }
         public byte[] WriteAllFuseData(byte address = 0x34, byte length = 28)
         {
@@ -139,14 +143,14 @@ namespace Module
             return Connection.WriteRead(WriteAll(address, length, [.. bytes]));
         }
 
-        public SendData FuseAll(byte address = 0x34, byte count = 28, byte speed = 0x00, byte chip = 0x20)
+        public SendData FuseAll(byte address = 0x34, byte count = 28, byte speed = 0x00)
         {
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, 0xFF, 0xFF, speed, chip, address, count];
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, 0xFF, 0xFF, speed, I2CAddress, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
             return sendData;
         }
 
-        public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00, byte chip = 0x20)
+        public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00)
         {
             Initialize3();
             byte[] sensorAddressBytes = [0x00, 0x00];
@@ -158,22 +162,29 @@ namespace Module
                 sensorAddressBytes[j] = BytesTool.SetBit(sensorAddressBytes[j], (ushort)(i - j * 8), selectedSensor[i]);
             }
 
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], speed, chip, address, count];
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], speed, I2CAddress, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
             return Connection.WriteRead(sendData);
         }
-        public byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00, byte chip = 0x20)
+        public byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00)
         {
-            return Fuse(SelectedSensor, address, count, speed, chip);
+            return Fuse(SelectedSensor, address, count, speed);
         }
         #endregion
 
         #region 数据采集
-        public static int GetTempIndex(int sensorIndex)
+        public static int GetTempIndex(int sensorIndex, int tempCount = 4)
         {
-            if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
-            if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
-            if (sensorIndex >= 12 && sensorIndex <= 15) return 3;
+            if (tempCount == 4)
+            {
+                if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
+                if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
+                if (sensorIndex >= 12 && sensorIndex <= 15) return 3;
+            }
+            else if (tempCount == 2)
+            {
+                if (sensorIndex > 7) return 1;
+            }
             return 0;
         }
         /// <summary>
@@ -312,7 +323,7 @@ namespace Module
             else
             {
                 //采集UID
-                var uidResult = ReceivedData.ParseData(ReadAll(0x01, 1, chip: 0x7F), SensorCount);//读取所有传感器的uid数据
+                var uidResult = ReceivedData.ParseData(ReadAll(0x01, 1), SensorCount);//读取所有传感器的uid数据
                 byte[] uidBytes = new byte[2];
                 for (int i = 0; i < SensorCount; i++)
                 {
@@ -387,10 +398,10 @@ namespace Module
             }
             else
             {
-                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount), chip: 0x7F));
+                Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount)));
                 Thread.Sleep(10);
-                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3, chip: 0x7F), SensorCount);
-                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2, chip: 0x7F), SensorCount);
+                pressResult = ReceivedData.ParseData(ReadAll(0x06, 3), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x09, 2), SensorCount);
                 for (int i = 0; i < SensorCount; i++)
                 {
                     if (pressResult[i].IsEffective && tempResult[i].IsEffective)
@@ -418,7 +429,7 @@ namespace Module
         /// <param name="acquisitionTimes">采集次数</param>
         /// <param name="setP">设置压力</param>
         /// <param name="setT">设置温度</param>
-        public decimal[] GetData(int acquisitionTimes, decimal setP, decimal setT, out decimal press, bool isTest = false)
+        public decimal[] GetData(int acquisitionTimes, decimal setP, decimal setT, out decimal press, int tempCount = 2, bool isTest = false)
         {
             lock (Connection)
             {
@@ -471,7 +482,7 @@ namespace Module
                     ori.RAW_C = praw / acquisitionTimes;
                     ori.UNCALTempCodes = traw / acquisitionTimes;
                     ori.PACERef = press;
-                    ori.TProbe = currentTemp[GetTempIndex(j)];
+                    ori.TProbe = currentTemp[GetTempIndex(j, tempCount)];
                 }
                 return currentTemp;
             }

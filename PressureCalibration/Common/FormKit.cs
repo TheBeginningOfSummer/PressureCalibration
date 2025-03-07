@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Runtime.Serialization;
 
 namespace WinformKit
 {
@@ -250,6 +251,58 @@ namespace WinformKit
             cb.ValueMember = value;
         }
         #endregion
+    }
+
+    public class DisplayLabel
+    {
+        public Label Display = new();
+
+        public DisplayLabel(string name)
+        {
+            Display.Name = name;
+            Display.ForeColor = Color.Black;
+            //TrayLabel.BackColor = Color.LightSkyBlue;
+            Display.Text = name;
+            Display.AutoSize = true;
+        }
+
+        public void SetLabel(Control canvasControl, Point location)
+        {
+            FormKit.OnThread(canvasControl, () =>
+            {
+                Display.Location = location;
+                canvasControl.Controls.Add(Display);
+            });
+        }
+    }
+
+    public class ControlConfig<T> where T : Control, new()
+    {
+        public string Name { get; set; } = "Default";
+        public Point Location { get; set; } = new Point();
+        public object Tag { get; set; } = "Default";
+
+        public T? Control;
+
+        public ControlConfig()
+        {
+
+        }
+
+        [OnDeserialized]
+        internal void OnDeserialized()
+        {
+            Control = new T
+            {
+                Name = Name,
+                Location = Location,
+                Tag = Tag
+            };
+            if (Control is TextBox textBox)
+            {
+
+            }
+        }
     }
 
 }
