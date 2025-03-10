@@ -1,7 +1,6 @@
 ﻿using Calibration.Data;
 using CompreDemo.Forms;
 using CSharpKit.DataManagement;
-using CSharpKit.FileManagement;
 using Module;
 using System.ComponentModel;
 using WinformKit;

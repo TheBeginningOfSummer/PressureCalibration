@@ -153,7 +153,7 @@ namespace Module
         }
         #endregion
 
-        #region 数据采集
+        #region 数据采集(不使用)
         // 得到对应传感器的温度测量值的索引值
         private int GetTempIndex()
         {
@@ -214,24 +214,14 @@ namespace Module
         //得到芯片Uid
         public int GetSensorUID(SerialPortTool connection, int type = 0)
         {
-            if (type == 0)
+            Initialize1(connection);
+            var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x02, 4)));//读取所有传感器的uid数据
+            byte[] uidBytes = uidResult[SensorIndex].Data;
+            if (uidResult[SensorIndex].IsEffective && uidBytes.Length == 4)
             {
-                Initialize1(connection);
-                var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x02, 4)));//读取所有传感器的uid数据
-                byte[] uidBytes = uidResult[SensorIndex].Data;
-                if (uidResult[SensorIndex].IsEffective && uidBytes.Length == 4)
-                {
-                    Array.Reverse(uidBytes);
-                    Uid = BitConverter.ToInt32(uidBytes);
-                }
-            }
-            else
-            {
-                var uidResult = ReceivedData.ParseData(connection.WriteRead(Read(0x01, 1)));//读取所有传感器的uid数据
-                byte[] uidBytes = uidResult[SensorIndex].Data;
+                Array.Reverse(uidBytes);
                 Uid = BitConverter.ToInt32(uidBytes);
             }
-
             return Uid;
         }
         //得到芯片数据
@@ -338,30 +328,6 @@ namespace Module
                 {
                     if (Result != "NG") Result = "GOOD";
                 }
-            }
-        }
-
-        public bool CheckYield()
-        {
-            if (SingleYield < MinYield) return false;
-            return true;
-        }
-
-        /// <summary>
-        /// 导出数据到excel
-        /// </summary>
-        /// <returns></returns>
-        public bool OutputExcel(string path = $"Data\\Excel\\")
-        {
-            try
-            {
-                if (ExcelOutput.Output(this, path, $"采集卡{DeviceAddress}位置{SensorIndex}UID[{CurrentRawData.FirstOrDefault()?.uid.ToString()}]{Result}"))
-                    return true;
-                return false;
-            }
-            catch (Exception)
-            {
-                return false;
             }
         }
         /// <summary>

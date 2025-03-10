@@ -72,6 +72,10 @@ namespace Module
         /// </summary>
         public int SensorCount { get; set; } = 16;
         /// <summary>
+        /// 传感器类型
+        /// </summary>
+        public string SensorType { get; set; } = "7570";
+        /// <summary>
         /// 整体良率
         /// </summary>
         public double OverallYield { get; set; } = 1.0;
@@ -131,6 +135,8 @@ namespace Module
             return name switch
             {
                 nameof(CardAmount) => "采集卡数",
+                nameof(SensorCount) => "传感器数",
+                nameof(SensorType) => "类型",
                 nameof(OverallYield) => "总良率",
                 nameof(MinYield) => "最小良率",
                 nameof(Connection) => "连接",
@@ -160,7 +166,7 @@ namespace Module
             for (int i = 1; i <= CardAmount; i++)
             {
                 //通信连接
-                var group = new GroupCalibration((byte)i, Connection[i - 1], SensorCount);
+                var group = new GroupCalibration(Connection[i - 1], (byte)i, SensorCount, SensorType);
                 //分配给板卡1-9的设备地址
                 GroupDic.TryAdd(i, group);
                 //初始化采集温度数据
@@ -565,7 +571,7 @@ namespace Module
                     foreach (var group in GroupDic.Values)
                     {
                         var temp = group.ReadTemperature(CalPara.IsTestVer);
-                        group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
+                        group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int j = 0; j < tempArray.Length; j++)
                         {
                             var t = temp[GroupCalibration.GetTempIndex(j, tempCount)];

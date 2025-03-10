@@ -6,6 +6,7 @@ namespace Module
 {
     public class Calculation
     {
+        #region BOE2520
         private readonly static Calibration.Method calculator = new();
         private static void B12mapper(int b12Val, ref int b40prog, ref int b12prog)
         {
@@ -362,6 +363,8 @@ namespace Module
             double T = (double)digT1.ToArray().GetValue(0, 0)!;
             return T / 128 - 273.15;
         }
+        #endregion
+
 
     }
 }

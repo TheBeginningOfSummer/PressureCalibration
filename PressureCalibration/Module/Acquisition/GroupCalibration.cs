@@ -9,6 +9,11 @@ namespace Module
     public class GroupCalibration : Loader
     {
         #region 参数
+        public string SensorType { get; set; } = "BOE2520";
+        /// <summary>
+        /// I2C地址
+        /// </summary>
+        public byte I2CAddress = 0x7F;
         /// <summary>
         /// 采集地址
         /// </summary>
@@ -21,14 +26,6 @@ namespace Module
         /// 传感器选择数组
         /// </summary>
         public bool[] SelectedSensor = [];
-        /// <summary>
-        /// I2C地址
-        /// </summary>
-        public byte I2CAddress = 0x7F;
-        /// <summary>
-        /// 当前温度的数据是否采集完成
-        /// </summary>
-        public bool IsAcqOK = false;
         #endregion
 
         readonly Random random = new();
@@ -41,11 +38,19 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, SensorCalibration> SensorDataGroup = [];
 
-        public GroupCalibration(byte deviceAddress, SerialPortTool serialPort, int sensorCount = 16)
+        public GroupCalibration(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16, string sensorType = "BOE2520")
         {
-            DeviceAddress = deviceAddress;
             Connection = serialPort;
+            DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
+            SensorType = sensorType;
+            switch (SensorType)
+            {
+                case "2520(BOE)": I2CAddress = 0x20; break;
+                case "7570": I2CAddress = 0x7F; break;
+                case "6862": I2CAddress = 0x77; break;
+                default: break;
+            }
 
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
@@ -136,23 +141,16 @@ namespace Module
         }
         public byte[] WriteAllFuseData(byte address = 0x34, byte length = 28)
         {
-            Initialize1();
+            BOE2520UID();
             List<byte> bytes = [];
             for (int i = SensorDataGroup.Count - 1; i >= 0; i--)
                 bytes.AddRange(SensorDataGroup[i].CurrentCalibrationData.registerData);
             return Connection.WriteRead(WriteAll(address, length, [.. bytes]));
         }
 
-        public SendData FuseAll(byte address = 0x34, byte count = 28, byte speed = 0x00)
-        {
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, 0xFF, 0xFF, speed, I2CAddress, address, count];
-            SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
-            return sendData;
-        }
-
         public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00)
         {
-            Initialize3();
+            BOE2520Fuse();
             byte[] sensorAddressBytes = [0x00, 0x00];
 
             int j = 0;
@@ -217,29 +215,6 @@ namespace Module
             }
         }
 
-        public decimal ReadTemperature(int index, bool isTest = false)
-        {
-            if (isTest)
-            {
-                return (decimal)random.NextDouble() * 100;
-            }
-            else
-            {
-                short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
-                byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
-                var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
-                if (result.Length >= 18)
-                {
-                    v1 = BitConverter.ToInt16([result[17], result[16]]);
-                    v2 = BitConverter.ToInt16([result[15], result[14]]);
-                    v3 = BitConverter.ToInt16([result[13], result[12]]);
-                    v4 = BitConverter.ToInt16([result[11], result[10]]);
-                }
-                decimal[] tempArray = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
-                return tempArray[GetTempIndex(index)];
-            }
-        }
-
         public static byte[] GetArray(byte value, int length = 16)
         {
             byte[] array = new byte[length];
@@ -259,8 +234,11 @@ namespace Module
             return arrayList.ToArray();
         }
 
-        //读取uid初始化
-        public void Initialize1()
+        #region BOE2520
+        /// <summary>
+        /// 读取uid初始化
+        /// </summary>
+        public void BOE2520UID()
         {
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
             Thread.Sleep(10);
@@ -268,8 +246,10 @@ namespace Module
             Connection.WriteRead(WriteAll(0x50, 2, GetArray(0xFD, SensorCount * 2)));
             Thread.Sleep(20);
         }
-        //采集数据初始化
-        public void Initialize2()
+        /// <summary>
+        /// 采集数据初始化
+        /// </summary>
+        public void BOE2520RawData()
         {
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x08, SensorCount)));
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
@@ -280,8 +260,10 @@ namespace Module
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x13, SensorCount)));
             Thread.Sleep(20);
         }
-        //采集数据初始化
-        public void InitializeOutput()
+        /// <summary>
+        /// 采集输出值
+        /// </summary>
+        public void BOE2520Output()
         {
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x08, SensorCount)));
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x80, SensorCount)));
@@ -291,23 +273,27 @@ namespace Module
             Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x13, SensorCount)));
             Thread.Sleep(20);
         }
-        //烧录条件
-        public void Initialize3()
+        /// <summary>
+        /// 烧录条件
+        /// </summary>
+        public void BOE2520Fuse()
         {
             Connection.WriteRead(WriteAll(0x50, 2, GetArray(0x08, SensorCount * 2)));
             Thread.Sleep(20);
         }
+        #endregion
+
         /// <summary>
         /// 得到采集卡所有芯片UID
         /// </summary>
         /// <returns></returns>
-        public int[] GetSensorsUID(int type = 0)
+        public int[] GetSensorsUID()
         {
             int[] uidArray = new int[SensorCount];
-            if (type == 0)
+            if (SensorType == "BOE2520")
             {
                 //采集UID
-                Initialize1();
+                BOE2520UID();
                 var uidResult = ReceivedData.ParseData(ReadAll(0x02, 4), SensorCount);//读取所有传感器的uid数据
                 byte[] uidBytes = new byte[4];
                 for (int i = 0; i < SensorCount; i++)
@@ -320,7 +306,7 @@ namespace Module
                     }
                 }
             }
-            else
+            else if (SensorType == "7570")
             {
                 //采集UID
                 var uidResult = ReceivedData.ParseData(ReadAll(0x01, 1), SensorCount);//读取所有传感器的uid数据
@@ -340,63 +326,71 @@ namespace Module
         /// <summary>
         /// 得到采集卡所有芯片数据
         /// </summary>
-        /// <param name="tempArray">温度数据</param>
-        /// <param name="pressArray">压力数据</param>
-        public void GetSensorsData(out int[] tempArray, out int[] pressArray)
+        /// <param name="tRawArray">温度数据</param>
+        /// <param name="pRawArray">压力数据</param>
+        public void GetSensorsData(out int[] tRawArray, out int[] pRawArray)
         {
-            tempArray = new int[SensorCount];
-            pressArray = new int[SensorCount];
-
-            Initialize2();
-            var pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
-            var tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
-            byte[] tempBytes = new byte[4];
-            for (int i = 0; i < SensorCount; i++)
+            tRawArray = new int[SensorCount];
+            pRawArray = new int[SensorCount];
+            if (SensorType == "BOE2520")
             {
-                Array.Clear(tempBytes);
-                if (pressResult[i].IsEffective && tempResult[i].IsEffective)
-                {
-                    tempResult[i].Data.CopyTo(tempBytes, 0);
-                    tempArray[i] = BitConverter.ToInt32(tempBytes);
-                    pressResult[i].Data.CopyTo(tempBytes, 0);
-                    pressArray[i] = BitConverter.ToInt32(tempBytes);
-                }
-            }
-        }
-        /// <summary>
-        /// 得到采集卡所有芯片输出
-        /// </summary>
-        /// <param name="tempArray">温度值</param>
-        /// <param name="pressArray">压力值</param>
-        public void GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, int type = 0)
-        {
-            ReceivedData[] tempResult;
-            ReceivedData[] pressResult;
-            tempArray = new decimal[SensorCount];
-            pressArray = new decimal[SensorCount];
-            byte[] tempBytes = new byte[2];
-            byte[] pressBytes = new byte[4];
-
-            if (type == 0)
-            {
-                InitializeOutput();
-                pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
-                tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
+                BOE2520RawData();
+                var pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
+                var tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
+                byte[] tempBytes = new byte[4];
                 for (int i = 0; i < SensorCount; i++)
                 {
                     Array.Clear(tempBytes);
                     if (pressResult[i].IsEffective && tempResult[i].IsEffective)
                     {
                         tempResult[i].Data.CopyTo(tempBytes, 0);
-                        tempArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
-                        SensorDataGroup[i].OutputT.Add(tempArray[i]);
+                        tRawArray[i] = BitConverter.ToInt32(tempBytes);
                         pressResult[i].Data.CopyTo(tempBytes, 0);
-                        pressArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
-                        SensorDataGroup[i].OutputP.Add(pressArray[i]);
+                        pRawArray[i] = BitConverter.ToInt32(tempBytes);
                     }
                 }
             }
-            else
+            else if (SensorType == "7570")
+            {
+
+            }
+        }
+        /// <summary>
+        /// 得到采集卡所有芯片输出
+        /// </summary>
+        /// <param name="tArray">温度值</param>
+        /// <param name="pArray">压力值</param>
+        public void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray)
+        {
+            ReceivedData[] tempResult;
+            ReceivedData[] pressResult;
+            tArray = new decimal[SensorCount];
+            pArray = new decimal[SensorCount];
+            byte[] tempBytes = new byte[2];
+            byte[] pressBytes = new byte[4];
+
+            if (SensorType == "BOE2520")
+            {
+                BOE2520Output();
+                pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                    {
+                        Array.Clear(tempBytes);
+
+                        tempResult[i].Data.CopyTo(tempBytes, 0);
+                        tArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
+                        SensorDataGroup[i].OutputT.Add(tArray[i]);
+
+                        pressResult[i].Data.CopyTo(tempBytes, 0);
+                        pArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
+                        SensorDataGroup[i].OutputP.Add(pArray[i]);
+                    }
+                }
+            }
+            else if (SensorType == "7570")
             {
                 Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount)));
                 Thread.Sleep(10);
@@ -411,18 +405,17 @@ namespace Module
 
                         tempResult[i].Data.CopyTo(tempBytes, 0);
                         Array.Reverse(tempBytes);
-                        tempArray[i] = BitConverter.ToInt16(tempBytes) / (decimal)Math.Pow(2, 8);
-                        SensorDataGroup[i].OutputT.Add(tempArray[i]);
+                        tArray[i] = BitConverter.ToInt16(tempBytes) / (decimal)Math.Pow(2, 8);
+                        SensorDataGroup[i].OutputT.Add(tArray[i]);
 
                         pressResult[i].Data.CopyTo(pressBytes, 1);
                         Array.Reverse(pressBytes);
-                        pressArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
-                        SensorDataGroup[i].OutputP.Add(pressArray[i]);
+                        pArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
+                        SensorDataGroup[i].OutputP.Add(pArray[i]);
                     }
                 }
             }
         }
-
         /// <summary>
         /// 采集一次组中所有传感器的数据(单温度单压力)
         /// </summary>
@@ -486,26 +479,6 @@ namespace Module
                 }
                 return currentTemp;
             }
-        }
-        /// <summary>
-        /// 检查是否采集到数据
-        /// </summary>
-        /// <param name="setT">检查的设置温度</param>
-        /// <returns></returns>
-        public bool CheckData(decimal setT, out List<int> sensorIndex)
-        {
-            sensorIndex = [];
-            IsAcqOK = true;
-            for (int i = 0; i < SensorCount; i++)
-            {
-                var sensorOriData = SensorDataGroup[i].CurrentRawData.Where((t) => t.SetT == setT).First();
-                if (sensorOriData.UNCALTempCodes == 0 || sensorOriData.RAW_C == 0)
-                {
-                    sensorIndex.Add(i);
-                    IsAcqOK = false;
-                }
-            }
-            return IsAcqOK;
         }
         #endregion
 

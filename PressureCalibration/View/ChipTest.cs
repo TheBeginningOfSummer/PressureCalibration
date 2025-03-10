@@ -114,12 +114,12 @@ namespace PressureCalibration.View
                             e.Result += $"{Environment.NewLine}第{i}路温度：{resultT[i]}";
                         break;
                     case "readUID":
-                        int[] resultUID = group.GetSensorsUID(1);
+                        int[] resultUID = group.GetSensorsUID();
                         for (int i = 0; i < resultUID.Length; i++)
                             e.Result += $"{Environment.NewLine}第{i}路芯片UID：{resultUID[i]}";
                         break;
                     case "readOutput":
-                        group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray, 1);
+                        group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int i = 0; i < group.SensorCount; i++)
                             e.Result += $"{Environment.NewLine}芯片{i.ToString().PadLeft(2, '0')}  温度值：{tempArray[i]:F2}℃  压力值：{pressArray[i]:N6}MPa";
                         break;
