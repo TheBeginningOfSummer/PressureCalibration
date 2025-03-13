@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
-using Calibration.Data;
+using Data;
 using OfficeOpenXml;
 
 namespace Module
@@ -13,10 +13,10 @@ namespace Module
             string dataDirectory = Application.StartupPath + path;
             if (!Directory.Exists(dataDirectory)) Directory.CreateDirectory(dataDirectory);
             string fileName = $"{dataDirectory}[{DateTime.Now:yyyy-MM-dd HHmmss}]{name}.xlsx";
-            if (typeof(T) == typeof(SensorCalibration))
-                SaveExcel((SensorCalibration)(object)data, fileName);
-            else if (typeof(T) == typeof(ConcurrentDictionary<int, GroupCalibration>))
-                SaveExcel((ConcurrentDictionary<int, GroupCalibration>)(object)data, fileName);
+            if (typeof(T) == typeof(SensorBOE2520))
+                SaveExcel((SensorBOE2520)(object)data, fileName);
+            else if (typeof(T) == typeof(ConcurrentDictionary<int, GroupBOE2520>))
+                SaveExcel((ConcurrentDictionary<int, GroupBOE2520>)(object)data, fileName);
             else if (typeof(T) == typeof(List<TempTest>))
                 SaveExcel((List<TempTest>)(object)data, fileName);
             else if (typeof(T) == typeof(List<PressureTest>))
@@ -67,7 +67,7 @@ namespace Module
             }
         }
 
-        public static void SaveExcel(SensorCalibration sensorData, string flieName = @"d:\myExcel.xlsx")
+        public static void SaveExcel(SensorBOE2520 sensorData, string flieName = @"d:\myExcel.xlsx")
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             FileInfo file = new(flieName);
@@ -96,7 +96,7 @@ namespace Module
             }
         }
 
-        public static void SaveExcel(ConcurrentDictionary<int, GroupCalibration> allSensorData, string flieName = @"d:\myExcel.xlsx")
+        public static void SaveExcel(ConcurrentDictionary<int, GroupBOE2520> allSensorData, string flieName = @"d:\myExcel.xlsx")
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             FileInfo file = new(flieName);
@@ -119,7 +119,7 @@ namespace Module
                 {
                     for (int i = 0; i < group.SensorDataGroup.Count; i++)
                     {
-                        SensorCalibration sensorData = group.SensorDataGroup[i];
+                        SensorBOE2520 sensorData = group.SensorDataGroup[i];
                         AddData(sensorData.CurrentRawData, worksheet1, ref index1);
                         AddData(sensorData.CurrentValidationData, worksheet2, ref index2);
                         worksheet3.Cells[index3 + 1, 18].Value = sensorData.CurrentCalibrationData.RegisterString;

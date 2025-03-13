@@ -9,7 +9,7 @@ namespace PressureCalibration
 {
     public partial class MainForm : Form
     {
-        readonly Config config = Config.Instance;
+        readonly Acquisition ACQ = Acquisition.Instance;
         readonly Service service = Service.Instance;
 
         public MainForm()
@@ -19,8 +19,9 @@ namespace PressureCalibration
             BGWRun.DoWork += BGWRun_DoWork;
             BGWRun.RunWorkerCompleted += BGWRun_RunWorkerCompleted;
 
-            config.ACQ.WorkProcess += UpdateMessage;
-            config.ACQ.Initialize();
+            ACQ.WorkProcess += UpdateMessage;
+            ACQ.Initialize();
+
         }
 
         #region 私有方法
@@ -28,7 +29,7 @@ namespace PressureCalibration
         {
             if (e.Argument is "Run")
             {
-                config.ACQ.Run();
+                ACQ.Run();
                 e.Result = "运行完成";
             }
             if (e.Argument is "excel")
@@ -36,7 +37,7 @@ namespace PressureCalibration
                 UpdateMessage("导出Excel");
                 string path = $"Data\\Excel\\[{DateTime.Now:yyyy-MM-dd HH_mm_ss}]\\";
                 //输出总表
-                config.ACQ.OutputExcel(path);
+                ACQ.OutputExcel(path);
                 //存储每个传感器的表
                 //foreach (var item in config.ACQ.GroupDic.Values)
                 //{
@@ -52,7 +53,7 @@ namespace PressureCalibration
             {
                 UpdateMessage("导出标定数据");
                 string path = $"Data\\SensorData\\[{DateTime.Now:yyyy-MM-dd HH_mm_ss}]\\";
-                foreach (var item in config.ACQ.GroupDic.Values)
+                foreach (var item in ACQ.GroupDic.Values)
                     item.SaveData(path);
                 e.Result = "导出完成";
             }
@@ -123,8 +124,8 @@ namespace PressureCalibration
         private void LBN暂停_Click(object sender, EventArgs e)
         {
             LostButton button = (LostButton)sender;
-            config.ACQ.IsSuspend = !config.ACQ.IsSuspend;
-            if (config.ACQ.IsSuspend)
+            ACQ.IsSuspend = !ACQ.IsSuspend;
+            if (ACQ.IsSuspend)
             {
                 button.Text = "继续";
             }

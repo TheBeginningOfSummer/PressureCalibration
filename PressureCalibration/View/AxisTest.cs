@@ -1,6 +1,6 @@
 ﻿using Services;
 
-namespace CompreDemo.Forms
+namespace PressureCalibration.View
 {
     public partial class AxisTest : Form
     {

@@ -1,4 +1,4 @@
-﻿namespace Calibration.Data
+﻿namespace Data
 {
     public class TempTest
     {

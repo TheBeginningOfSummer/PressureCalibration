@@ -1,4 +1,4 @@
-﻿namespace CompreDemo.Forms
+﻿namespace PressureCalibration.View
 {
     partial class AxisTest
     {

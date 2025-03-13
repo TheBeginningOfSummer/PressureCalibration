@@ -1,6 +1,6 @@
-﻿using Calibration.Data;
-using CSharpKit.Communication;
+﻿using CSharpKit.Communication;
 using CSharpKit.FileManagement;
+using Data;
 using Services;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -18,6 +18,24 @@ namespace Module
     public class Acquisition : Loader
     {
         public Action<string>? WorkProcess;
+        public Config config = Config.Instance;
+
+        #region 单例模式
+        private static Acquisition? _instance = null;
+        private static readonly object _instanceLock = new();
+        public static Acquisition Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (_instanceLock)
+                        _instance = Load<Acquisition>("Config", "[Device]ACQCard.json", nameof(Acquisition));
+                }
+                return _instance;
+            }
+        }
+        #endregion
 
         #region 状态模式
         private IAcqState currentState = new Idle();
@@ -53,15 +71,6 @@ namespace Module
         }
         #endregion
 
-        #region 设备
-        public CalibrationParameter CalPara = Get<CalibrationParameter>();
-        public MotionParameter MotionPara = Get<MotionParameter>();
-        public PressController Pace = Get<PressController>();
-        public TECController Tec = Get<TECController>();
-        public ZmotionMotionControl Motion = Get<ZmotionMotionControl>();
-        public InputMonitor InMonitor;
-        #endregion
-
         #region 参数
         /// <summary>
         /// 数据采集组（采集卡）数量，可以用来初始化采集卡的地址
@@ -92,11 +101,11 @@ namespace Module
         /// <summary>
         /// 采集的数据，地址-采集卡
         /// </summary>
-        public readonly ConcurrentDictionary<int, GroupCalibration> GroupDic = [];
+        public readonly ConcurrentDictionary<int, Group> GroupDic = [];
         /// <summary>
         /// 与GroupDic关联的采集数据组，按通讯端口分组
         /// </summary>
-        public readonly ConcurrentDictionary<string, List<GroupCalibration>> GroupByCom = [];
+        public readonly ConcurrentDictionary<string, List<Group>> GroupByCom = [];
         /// <summary>
         /// 数据监控键值
         /// </summary>
@@ -125,8 +134,25 @@ namespace Module
         public bool IsSuspend = false;
         #endregion
 
+        #region 设备
+        public Database DB;
+        public CalibrationParameter CalPara;
+        public MotionParameter MotionPara;
+        public PressController Pace;
+        public TECController Tec;
+        public ZmotionMotionControl Motion;
+        public InputMonitor InMonitor;
+        #endregion
+
         public Acquisition()
         {
+            DB = config.DB;//加载数据库
+            CalPara = config.CP;
+            MotionPara = config.MP;
+            Pace = config.PACE;
+            Tec = config.TEC;
+            Motion = config.Zmotion;
+
             InMonitor = new InputMonitor(Motion);
         }
 
@@ -149,11 +175,9 @@ namespace Module
         public override void LoaderInitialize()
         {
             //初始化通信端口数量
-            //int connectionAmount = (CardAmount + 1) / 2;
-            int connectionAmount = CardAmount;
-            for (int i = 0; i < connectionAmount; i++)
+            for (int i = 0; i < CardAmount; i++)
             {
-                if (Connection.Count < connectionAmount)//端口过少时，添加端口
+                if (Connection.Count < CardAmount)//端口过少时，添加端口
                 {
                     if (i < Connection.Count)
                         continue;
@@ -162,17 +186,28 @@ namespace Module
                 }
             }
             //初始化采集组
-            //int connectionIndex = 0;
             for (int i = 1; i <= CardAmount; i++)
             {
-                //通信连接
-                var group = new GroupCalibration(Connection[i - 1], (byte)i, SensorCount, SensorType);
+                Group group = new GroupBOE2520(Connection[i - 1], (byte)i, SensorCount);
+                //初始化采集组
+                switch (SensorType)
+                {
+                    case "BOE2520":
+                        group = new GroupBOE2520(Connection[i - 1], (byte)i, SensorCount);
+                        break;
+                    case "6862":
+                        group = new GroupZXC6862(Connection[i - 1], (byte)i, SensorCount);
+                        break;
+                    case "7570":
+                        group = new GroupZXW7570(Connection[i - 1], (byte)i, SensorCount);
+                        break;
+                    default: break;
+                }
                 //分配给板卡1-9的设备地址
                 GroupDic.TryAdd(i, group);
                 //初始化采集温度数据
                 for (int j = 1; j <= 4; j++)
                     DisplayedKeys.Add($"D{i}T{j}");
-                //if (i % 2 == 0) connectionIndex++;
             }
             //按通信串口分组
             foreach (var acq in GroupDic.Values)
@@ -218,7 +253,7 @@ namespace Module
         public void ClearData()
         {
             foreach (var group in GroupDic.Values)
-                group.ClearData();
+                group.ReinitializeData();
         }
 
         public void Open()
@@ -286,7 +321,7 @@ namespace Module
         /// <param name="group">采集组</param>
         /// <param name="temp">温度数据</param>
         /// <param name="press">压力数据</param>
-        public void MonitoringData(ConcurrentDictionary<string, double> monitorData, GroupCalibration group, decimal[]? temp, decimal? press)
+        public void MonitoringData(ConcurrentDictionary<string, double> monitorData, Group group, decimal[]? temp, decimal? press)
         {
             //取某次采集的时间和温度数据
             if (group.DeviceAddress == 1)
@@ -318,7 +353,7 @@ namespace Module
             foreach (var group in GroupDic.Values)
             {
                 //采集数据
-                var temp = group.GetData(CalPara.AcquisitionCount, setP, setT, out decimal pressure, 2, CalPara.IsTestVer);
+                var temp = group.GetData(setP, setT, out decimal pressure, CalPara.IsTestVer);
                 //采集监视数据
                 MonitoringData(monitorData, group, temp, pressure);
                 //暂停
@@ -356,7 +391,7 @@ namespace Module
                         else
                         {
                             //采集数据
-                            var temp = acq.GetData(CalPara.AcquisitionCount, (decimal)setP, (decimal)setT, out decimal pressure, 2, CalPara.IsTestVer);
+                            var temp = acq.GetData((decimal)setP, (decimal)setT, out decimal pressure, CalPara.IsTestVer);
                             //采集监视数据
                             MonitoringData(monitorData, acq, temp, pressure);
                         }
@@ -378,9 +413,7 @@ namespace Module
             foreach (var sensorGroup in GroupDic.Values)
             {
                 //采集验证数据
-                sensorGroup.AcqVerifyGroup();
-                //验证计算
-                sensorGroup.VerifyGroup(CalPara);
+                sensorGroup.Verify();
                 //选择芯片
                 sensorGroup.SelectSensor();
             }
@@ -574,11 +607,11 @@ namespace Module
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int j = 0; j < tempArray.Length; j++)
                         {
-                            var t = temp[GroupCalibration.GetTempIndex(j, tempCount)];
+                            var t = temp[group.GetTempIndex(j, tempCount)];
                             if (Math.Abs(pressArray[j] - result) > CalPara.CheckPressureDiff && Math.Abs(tempArray[j] - t) > CalPara.CheckTemperatureDiff)
-                                group.SensorDataGroup[j].Result = "Check";
+                                group.GetSensor(j).Result = "Check";
                             else
-                                group.SensorDataGroup[j].Result = "NG";
+                                group.GetSensor(j).Result = "NG";
                         }
                         if (CalPara.IsSave)
                             group.SaveDatabase().Wait();
@@ -849,7 +882,7 @@ namespace Module
             {
                 //标定计算
                 foreach (var sensorGroup in context.GroupDic.Values)
-                    sensorGroup.CalGroup(context.CalPara.Method);
+                    sensorGroup.Calculate();
                 context.SetState(new Verify());
                 context.Run();
             }
@@ -914,7 +947,7 @@ namespace Module
                 {
                     if (!item.IsEffective)
                     {
-                        sensorGroup.SensorDataGroup[item.SensorIndex].Result = "NG";
+                        sensorGroup.GetSensor(item.SensorIndex).Result = "NG";
                         context.Warning($"采集卡{item.DeviceAddress}芯片{item.SensorIndex}写入失败");
                     }
                 }
@@ -934,7 +967,7 @@ namespace Module
             context.WorkProcess?.Invoke("开始烧录");
             foreach (var sensorGroup in context.GroupDic.Values)
             {
-                var message = ReceivedData.ParseData(sensorGroup.Fuse(sensorGroup.SelectedSensor));
+                var message = ReceivedData.ParseData(sensorGroup.Fuse());
                 //解析显示message
                 foreach (var item in message)
                 {
@@ -942,11 +975,11 @@ namespace Module
                     {
                         if (item.IsEffective)
                         {
-                            sensorGroup.SensorDataGroup[item.SensorIndex].IsFused = true;
+                            sensorGroup.GetSensor(item.SensorIndex).IsFused = true;
                         }
                         else
                         {
-                            sensorGroup.SensorDataGroup[item.SensorIndex].IsFused = false;
+                            sensorGroup.GetSensor(item.SensorIndex).IsFused = false;
                             context.Warning($"采集卡{item.DeviceAddress}芯片{item.SensorIndex}烧录失败");
                         }
                     }

@@ -6,7 +6,7 @@ namespace Module
     public class Config
     {
         #region 单例模式
-        private static Config? _instance;
+        private static Config? _instance = null;
         private static readonly object _instanceLock = new();
         public static Config Instance
         {
@@ -28,7 +28,6 @@ namespace Module
         public string DatabaseName { get; private set; } = "[Config]Database.json";
         public string CalibName { get; private set; } = "[Parameter]CalibPara.json";
         public string MotionName { get; private set; } = "[Parameter]MotionPara.json";
-        public string ACQCardName { get; private set; } = "[Device]ACQCard.json";
         public string PressureName { get; private set; } = "[Device]Pressure.json";
         public string TECName { get; private set; } = "[Device]Temperature.json";
         public string ZmotionName { get; private set; } = "[Device]Zmotion.json";
@@ -40,7 +39,6 @@ namespace Module
         public MotionParameter MP { get; private set; }
         public PressController PACE { get; private set; }
         public TECController TEC { get; private set; }
-        public Acquisition ACQ { get; private set; }
         public ZmotionMotionControl Zmotion { get; private set; }
         #endregion
 
@@ -53,9 +51,6 @@ namespace Module
             PACE = Loader.Load<PressController>(ConfigPath, PressureName, nameof(PressController));//加载设备
             TEC = Loader.Load<TECController>(ConfigPath, TECName, nameof(TECController));//加载设备
             Zmotion = Loader.Load<ZmotionMotionControl>(ConfigPath, ZmotionName, nameof(ZmotionMotionControl));
-
-            ACQ = Loader.Load<Acquisition>(ConfigPath, ACQCardName, nameof(Acquisition));//采集总实例，需最后加载
-            
         }
     }
 }

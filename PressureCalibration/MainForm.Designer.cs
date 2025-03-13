@@ -75,7 +75,7 @@
             HRTB信息.SelectedText = "";
             HRTB信息.SelectionLength = 0;
             HRTB信息.SelectionStart = 0;
-            HRTB信息.Size = new Size(224, 244);
+            HRTB信息.Size = new Size(250, 327);
             HRTB信息.TabIndex = 5;
             HRTB信息.TabStop = false;
             HRTB信息.UseSystemPasswordChar = false;
@@ -247,7 +247,7 @@
             TSB设置.Image = Properties.Resources.baseline_build_black_24dp;
             TSB设置.ImageTransparentColor = Color.Magenta;
             TSB设置.Name = "TSB设置";
-            TSB设置.Size = new Size(29, 20);
+            TSB设置.Size = new Size(27, 20);
             TSB设置.Tag = "setting";
             TSB设置.Text = "toolStripButton1";
             TSB设置.Click += TMI窗口_Click;
@@ -259,7 +259,7 @@
             TDB窗口.Image = Properties.Resources.application_16x;
             TDB窗口.ImageTransparentColor = Color.Magenta;
             TDB窗口.Name = "TDB窗口";
-            TDB窗口.Size = new Size(29, 20);
+            TDB窗口.Size = new Size(27, 20);
             TDB窗口.Text = "窗口";
             // 
             // TMI测试
@@ -318,7 +318,7 @@
             TSB清除.Image = (Image)resources.GetObject("TSB清除.Image");
             TSB清除.ImageTransparentColor = Color.Magenta;
             TSB清除.Name = "TSB清除";
-            TSB清除.Size = new Size(29, 20);
+            TSB清除.Size = new Size(27, 20);
             TSB清除.Text = "toolStripButton1";
             TSB清除.Click += TMI清除_Click;
             // 

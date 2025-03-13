@@ -1,5 +1,5 @@
-﻿using Calibration.Data;
-using CSharpKit.DataManagement;
+﻿using CSharpKit.DataManagement;
+using Data;
 using MathWorks.MATLAB.NET.Arrays;
 
 namespace Module
@@ -7,7 +7,7 @@ namespace Module
     public class Calculation
     {
         #region BOE2520
-        private readonly static Calibration.Method calculator = new();
+        private readonly static BOECalibration.BOE2520 calculator = new();
         private static void B12mapper(int b12Val, ref int b40prog, ref int b12prog)
         {
             if (b12Val > -513 && b12Val < 510)
@@ -30,14 +30,14 @@ namespace Module
             }
 
         }
-        public static CalibrationData? StartCalibration12(List<RawData> oriData)
+        public static CalibrationBOE2520? StartCalibration12(List<RawDataBOE2520> oriData)
         {
             if (oriData == null || oriData.Count == 0) return null;
 
             int[] ROMData = [0, -75, 3657, 18, -181, -4508, -129, 3025, -207093, 135, -2246, 77723];
             int[] bits = [9, 10, 15, 7, 11, 18, 9, 13, 19, 11, 14, 20];
 
-            CalibrationData data = new() { uid = oriData[0].uid };
+            CalibrationBOE2520 data = new() { uid = oriData[0].uid };
 
             //开始温度拟合
             {
@@ -45,7 +45,7 @@ namespace Module
                 double[] mT = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawData ori in oriData)
+                foreach (RawDataBOE2520 ori in oriData)
                 {
                     aT[index] = Convert.ToDouble(ori.Tens);
                     mT[index] = Convert.ToDouble(ori.TProbe);
@@ -68,7 +68,7 @@ namespace Module
                 double[] digC = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawData ori in oriData)
+                foreach (RawDataBOE2520 ori in oriData)
                 {
                     P_ref[index] = Convert.ToDouble(ori.PACERef / 100);
                     digT[index] = ori.UNCALTempCodes;
@@ -161,14 +161,14 @@ namespace Module
             //结束计算寄存器的值
             return data;
         }
-        public static CalibrationData? StartCalibration9(List<RawData> oriData)
+        public static CalibrationBOE2520? StartCalibration9(List<RawDataBOE2520> oriData)
         {
             if (oriData == null || oriData.Count == 0) return null;
 
             int[] ROMData = [0, -75, 3657, 18, -181, -4508, -129, 3025, -207093, 135, -2246, 77723];
             int[] bits = [9, 10, 15, 7, 11, 18, 9, 13, 19, 11, 14, 20];
 
-            CalibrationData data = new() { uid = oriData[0].uid };
+            CalibrationBOE2520 data = new() { uid = oriData[0].uid };
 
             //开始温度拟合
             {
@@ -176,7 +176,7 @@ namespace Module
                 double[] mT = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawData ori in oriData)
+                foreach (RawDataBOE2520 ori in oriData)
                 {
                     aT[index] = Convert.ToDouble(ori.Tens);
                     mT[index] = Convert.ToDouble(ori.TProbe);
@@ -199,7 +199,7 @@ namespace Module
                 double[] digC = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawData ori in oriData)
+                foreach (RawDataBOE2520 ori in oriData)
                 {
                     P_ref[index] = Convert.ToDouble(ori.PACERef / 100);
                     digT[index] = ori.UNCALTempCodes;
@@ -301,7 +301,7 @@ namespace Module
         /// <param name="p">实际压力值</param>
         /// <param name="Pcal">传感器读取值经系数校正的压力值</param>
         /// <param name="residual">传感器压力值与压控实际压力值的差值</param>
-        public static void StartValidation(CalibrationData calibPara, double y, double t, double p, ref double Pcal, ref double residual)
+        public static void StartValidation(CalibrationBOE2520 calibPara, double y, double t, double p, ref double Pcal, ref double residual)
         {
             double[] digT = [t];
             MWNumericArray para11 = new MWNumericArray(1, 1, digT);
@@ -330,7 +330,7 @@ namespace Module
         /// <param name="Pcal">传感器读取值经系数校正的压力值</param>
         /// <param name="residual">传感器压力值与压控实际压力值的差值</param>
         /// <param name="tCal">系数校正后的温度值</param>
-        public static void StartValidation(CalibrationData calibPara, double raw_C, double uncalTempCodes, out double pCal, out double tCal)
+        public static void StartValidation(CalibrationBOE2520 calibPara, double raw_C, double uncalTempCodes, out double pCal, out double tCal)
         {
             MWNumericArray para11 = new(1, 1, [uncalTempCodes]);
             MWArray digT = calculator.Raw2Temp(calculator.Temp2Raw(para11, 0, 0), calibPara.alpha, calibPara.A);
@@ -365,6 +365,32 @@ namespace Module
         }
         #endregion
 
+        private readonly static ZXCalibration.ZXP zx = new();
+
+        public static void Test()
+        {
+            double[] p = [872639, 43879, -171863, -402066, 874956, 48653, -166100];
+            double[] t = [153638, 153704, 153510, 153460, 86508, 86726, 86300];
+            double[] pr = [40000, 85000, 95000, 105000, 40000, 85000, 95000];
+            double[] tr = [24.632812, 24.640625, 24.687500, 24.703125, 58.007812, 57.906250, 58.140625];
+
+            MWNumericArray kp = new(1, 1, new double[] { 1040384 });
+            MWNumericArray kt = new(1, 1, new double[] { 524288 });
+            
+            MWNumericArray pRef = new(pr);
+            MWNumericArray tRef = new(tr);
+            MWNumericArray pRaw = p;
+            MWNumericArray tRaw = new(t);
+
+            var r = zx.PTCalibration(kp, kt, pRef, tRef, pRaw, tRaw).ToArray();
+            List<int> data = [];
+            foreach(double i in r)
+            {
+                string t1111 = i.GetType().Name;
+                data.Add((int)i);
+            }
+
+        }
 
     }
 }

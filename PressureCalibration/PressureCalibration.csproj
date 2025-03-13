@@ -27,14 +27,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Calibration">
-      <HintPath>libs\Calibration.dll</HintPath>
+    <Reference Include="BOECalibration">
+      <HintPath>libs\BOECalibration.dll</HintPath>
     </Reference>
-    <Reference Include="CalibrationNative">
-      <HintPath>libs\CalibrationNative.dll</HintPath>
+    <Reference Include="BOECalibrationNative">
+      <HintPath>libs\BOECalibrationNative.dll</HintPath>
     </Reference>
     <Reference Include="MWArray">
-      <HintPath>libs\MWArray.dll</HintPath>
+      <HintPath>C:\Program Files\MATLAB\MATLAB Runtime\R2024a\toolbox\dotnetbuilder\bin\win64\netstandard2.0\MWArray.dll</HintPath>
+    </Reference>
+    <Reference Include="ZXCalibration">
+      <HintPath>libs\ZXCalibration.dll</HintPath>
+    </Reference>
+    <Reference Include="ZXCalibrationNative">
+      <HintPath>libs\ZXCalibrationNative.dll</HintPath>
     </Reference>
   </ItemGroup>
 

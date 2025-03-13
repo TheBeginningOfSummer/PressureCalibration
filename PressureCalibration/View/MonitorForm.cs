@@ -34,7 +34,7 @@ namespace PressureCalibration.View
             int x = 870;
             int y = 80;
             Color color = Color.White;
-            for (int i = 1; i <= Config.Instance.ACQ.CardAmount; i++)
+            for (int i = 1; i <= Acquisition.Instance.CardAmount; i++)
             {
                 for (int j = 1; j <= 4; j++)
                 {

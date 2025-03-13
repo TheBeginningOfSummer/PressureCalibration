@@ -1,6 +1,6 @@
-﻿using Calibration.Data;
-using CompreDemo.Forms;
+﻿
 using CSharpKit.DataManagement;
+using Data;
 using Module;
 using System.ComponentModel;
 using WinformKit;
@@ -107,7 +107,7 @@ namespace PressureCalibration.View
         public Test()
         {
             InitializeComponent();
-            DeviceCount = config.ACQ.CardAmount;
+            DeviceCount = Acquisition.Instance.CardAmount;
             InitialzeTempPicture(DeviceCount);
             Bindings();
             BGW温度.WorkerSupportsCancellation = true;
@@ -257,7 +257,7 @@ namespace PressureCalibration.View
 
         public void AcquisitionT()
         {
-            TempTest tempTest = config.ACQ.GetTemperatureList();
+            TempTest tempTest = Acquisition.Instance.GetTemperatureList();
             UpdateTempPicture(tempTest);//显示数据
             temperatureList.Add(tempTest);//添加数据到收集的数据
         }
@@ -283,10 +283,10 @@ namespace PressureCalibration.View
                 switch (menuItem.Tag)
                 {
                     case "openACQ":
-                        config.ACQ.Open();
+                        Acquisition.Instance.Open();
                         break;
                     case "closeACQ":
-                        config.ACQ.Close();
+                        Acquisition.Instance.Close();
                         break;
                     case "openTEC":
                         config.TEC.Open();
@@ -423,16 +423,16 @@ namespace PressureCalibration.View
                     switch (e.Argument)
                     {
                         case "1":
-                            config.ACQ.ReadyPosition();
+                            Acquisition.Instance.ReadyPosition();
                             break;
                         case "2":
-                            config.ACQ.WorkingTorque();
+                            Acquisition.Instance.WorkingTorque();
                             break;
                         case "3":
-                            config.ACQ.UnloadTorque();
+                            Acquisition.Instance.UnloadTorque();
                             break;
                         case "4":
-                            config.ACQ.UploadPosition();
+                            Acquisition.Instance.UploadPosition();
                             break;
                         default: break;
                     }

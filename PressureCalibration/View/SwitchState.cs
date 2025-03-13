@@ -13,7 +13,7 @@ namespace PressureCalibration.View
 
         private void LBN确定_Click(object sender, EventArgs e)
         {
-            Config.Instance.ACQ.SetState(acqState);
+            Acquisition.Instance.SetState(acqState);
             Close();
         }
 
@@ -28,15 +28,15 @@ namespace PressureCalibration.View
                         acqState = new Initialize();
                         break;
                     case "T1":
-                        Config.Instance.ACQ.CurrentTempIndex = 0;
+                        Acquisition.Instance.CurrentTempIndex = 0;
                         acqState = new WaitT();
                         break;
                     case "T2":
-                        Config.Instance.ACQ.CurrentTempIndex = 1;
+                        Acquisition.Instance.CurrentTempIndex = 1;
                         acqState = new WaitT();
                         break;
                     case "T3":
-                        Config.Instance.ACQ.CurrentTempIndex = 2;
+                        Acquisition.Instance.CurrentTempIndex = 2;
                         acqState = new WaitT();
                         break;
                     case "P":

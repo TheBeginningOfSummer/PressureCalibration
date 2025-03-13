@@ -9,9 +9,9 @@ namespace PressureCalibration.View
     {
         readonly BackgroundWorker BGW采集卡 = new();
         //选中的采集组
-        GroupCalibration group;
+        Group group;
         //选中的传感器
-        SensorCalibration sensor;
+        Sensor sensor;
 
         #region 绑定属性
         private int deviceAddress = 1;
@@ -25,9 +25,9 @@ namespace PressureCalibration.View
                     deviceAddress = value;
                     //PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DeviceAddress)));
 
-                    group = Config.Instance.ACQ.GroupDic[DeviceAddress];
+                    group = Acquisition.Instance.GroupDic[DeviceAddress];
                     if (SensorIndex >= 0)
-                        sensor = group.SensorDataGroup[SensorIndex];
+                        sensor = group.GetSensor(SensorIndex);
                 }
             }
         }
@@ -43,7 +43,7 @@ namespace PressureCalibration.View
                 if (group != null)
                 {
                     if (SensorIndex >= 0)
-                        sensor = group.SensorDataGroup[SensorIndex];
+                        sensor = group.GetSensor(SensorIndex);
                 }
             }
         }
@@ -76,8 +76,8 @@ namespace PressureCalibration.View
             InitializeComponent();
 
             Bindings();
-            group = Config.Instance.ACQ.GroupDic[DeviceAddress];
-            sensor = group.SensorDataGroup[0];
+            group = Acquisition.Instance.GroupDic[DeviceAddress];
+            sensor = group.GetSensor(0);
         }
 
         public void Bindings()
