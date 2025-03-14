@@ -3,6 +3,8 @@ using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using Data;
 using System.Collections.Concurrent;
+using UIKit;
+using static OfficeOpenXml.ExcelErrorValue;
 
 namespace Module
 {
@@ -149,6 +151,23 @@ namespace Module
         }
         #endregion
 
+        public Label[] TInfo = new Label[4];
+
+        public void SetLabelLoc(Point point, int index)
+        {
+            TInfo[index].Location = point;
+        }
+        private void SetTInfo(decimal[] value)
+        {
+            if (value.Length != TInfo.Length) return;
+            for (int i = 0; i < TInfo.Length; i++)
+            {
+                if (TInfo[i].IsHandleCreated)
+                    TInfo[i].Invoke(() => TInfo[i].Text = $"{value[i]:N2}℃");
+                else
+                    TInfo[i].Text = $"{value[i]:N2}℃";
+            }
+        }
         /// <summary>
         /// 读取四路温度值
         /// </summary>
@@ -161,7 +180,9 @@ namespace Module
                 var v2 = random.NextDouble() * 100;
                 var v3 = random.NextDouble() * 100;
                 var v4 = random.NextDouble() * 100;
-                return [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
+                decimal[] value = [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
+                SetTInfo(value);
+                return value;
             }
             else
             {
@@ -175,7 +196,9 @@ namespace Module
                     v3 = BitConverter.ToInt16([result[13], result[12]]);
                     v4 = BitConverter.ToInt16([result[11], result[10]]);
                 }
-                return [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+                decimal[] value = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+                SetTInfo(value);
+                return value;
             }
         }
         /// <summary>
@@ -213,6 +236,23 @@ namespace Module
         public abstract void LoadData(string fileName, string path = "Data\\SensorData\\");
         public abstract Task SaveDatabase();
         public abstract string Show();
+
+        public Group()
+        {
+            for (int i = 0; i < TInfo.Length; i++)
+            {
+                TInfo[i] = new()
+                {
+                    AutoSize = false,
+                    Size = new Size(55, 55),
+                    BackColor = Color.Gray,
+                    ForeColor = Color.White,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Font = new Font("Segoe UI", 9),
+                    Text = "0℃"
+                };
+            }
+        }
     }
 
     public class GroupBOE2520 : Group
@@ -222,7 +262,7 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, SensorBOE2520> SensorDataGroup = [];
 
-        public GroupBOE2520(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16)
+        public GroupBOE2520(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
@@ -412,10 +452,12 @@ namespace Module
                     tempResult[i].Data.CopyTo(tempBytes, 0);
                     tArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
                     SensorDataGroup[i].OutputT.Add(tArray[i]);
-
+                    
                     pressResult[i].Data.CopyTo(tempBytes, 0);
                     pArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
                     SensorDataGroup[i].OutputP.Add(pArray[i]);
+
+                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
             }
         }
@@ -594,7 +636,7 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, SensorZXC6862> SensorDataGroup = [];
 
-        public GroupZXC6862(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16)
+        public GroupZXC6862(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
@@ -824,7 +866,7 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, SensorZXW7570> SensorDataGroup = [];
 
-        public GroupZXW7570(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16)
+        public GroupZXW7570(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
@@ -907,12 +949,14 @@ namespace Module
                     tempResult[i].Data.CopyTo(tempBytes, 0);
                     Array.Reverse(tempBytes);
                     tArray[i] = BitConverter.ToInt16(tempBytes) / (decimal)Math.Pow(2, 8);
-                    SensorDataGroup[i].OutputT.Add(tArray[i]);
+                    //SensorDataGroup[i].OutputT.Add(tArray[i]);
 
                     pressResult[i].Data.CopyTo(pressBytes, 1);
                     Array.Reverse(pressBytes);
                     pArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
-                    SensorDataGroup[i].OutputP.Add(pArray[i]);
+                    //SensorDataGroup[i].OutputP.Add(pArray[i]);
+
+                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
             }
         }

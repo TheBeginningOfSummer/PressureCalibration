@@ -155,6 +155,7 @@
             // 
             // PN温度分布
             // 
+            PN温度分布.AutoScroll = true;
             PN温度分布.Dock = DockStyle.Fill;
             PN温度分布.Location = new Point(3, 25);
             PN温度分布.Name = "PN温度分布";

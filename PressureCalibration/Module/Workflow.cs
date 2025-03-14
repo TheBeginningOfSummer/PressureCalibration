@@ -18,7 +18,7 @@ namespace Module
     public class Acquisition : Loader
     {
         public Action<string>? WorkProcess;
-        public Config config = Config.Instance;
+        public Config CFG = Config.Instance;//此处加载可以保证加载完成，先于构造函数
 
         #region 单例模式
         private static Acquisition? _instance = null;
@@ -71,7 +71,7 @@ namespace Module
         }
         #endregion
 
-        #region 参数
+        #region 参数、数据
         /// <summary>
         /// 数据采集组（采集卡）数量，可以用来初始化采集卡的地址
         /// </summary>
@@ -92,8 +92,6 @@ namespace Module
         /// 最小良率
         /// </summary>
         public double MinYield { get; set; } = 0.9;
-        #endregion
-
         /// <summary>
         /// 采集卡连接（保存）
         /// </summary>
@@ -110,6 +108,7 @@ namespace Module
         /// 数据监控键值
         /// </summary>
         public readonly List<string> DisplayedKeys = [];
+        #endregion
 
         #region 控制变量
         /// <summary>
@@ -146,12 +145,12 @@ namespace Module
 
         public Acquisition()
         {
-            DB = config.DB;//加载数据库
-            CalPara = config.CP;
-            MotionPara = config.MP;
-            Pace = config.PACE;
-            Tec = config.TEC;
-            Motion = config.Zmotion;
+            DB = CFG.DB;//加载数据库
+            CalPara = CFG.CP;
+            MotionPara = CFG.MP;
+            Pace = CFG.PACE;
+            Tec = CFG.TEC;
+            Motion = CFG.Zmotion;
 
             InMonitor = new InputMonitor(Motion);
         }
@@ -591,7 +590,7 @@ namespace Module
             return true;
         }
 
-        public bool GetSensorOutput(int tempCount = 2)
+        public bool GetSensorOutput()
         {
             decimal[] checkPArray = [.. CalPara.CheckPressures];
 
@@ -607,7 +606,7 @@ namespace Module
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int j = 0; j < tempArray.Length; j++)
                         {
-                            var t = temp[group.GetTempIndex(j, tempCount)];
+                            var t = temp[group.GetTempIndex(j)];
                             if (Math.Abs(pressArray[j] - result) > CalPara.CheckPressureDiff && Math.Abs(tempArray[j] - t) > CalPara.CheckTemperatureDiff)
                                 group.GetSensor(j).Result = "Check";
                             else

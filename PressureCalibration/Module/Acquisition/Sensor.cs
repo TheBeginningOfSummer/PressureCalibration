@@ -41,6 +41,15 @@ namespace Module
         #endregion
 
         public byte I2CAddress = 0x7F;
+        public Label SensorInfo = new()
+        {
+            AutoSize = false,
+            Size = new Size(55, 55),
+            BackColor = Color.Gray,
+            ForeColor = Color.White,
+            TextAlign = ContentAlignment.TopCenter,
+            Font = new Font("Segoe UI", 9)
+        };
 
         #region 寄存器操作
         public SendData Read(byte address, byte count, byte speed = 0x00)
@@ -122,6 +131,24 @@ namespace Module
             return sendData;
         }
         #endregion
+
+        public void SetLabelLoc(Point point)
+        {
+            SensorInfo.Location = point;
+        }
+
+        public void SetSensorInfo(decimal t, decimal p)
+        {
+            if (SensorInfo.IsHandleCreated)
+                SensorInfo.Invoke(() => SensorInfo.Text = $"[{SensorIndex + 1}]{Environment.NewLine}{t:N2}℃{Environment.NewLine}{p:N2}");
+            else
+                SensorInfo.Text = $"[{SensorIndex + 1}]{Environment.NewLine}{t:N2}℃{Environment.NewLine}{p:N2}";
+        }
+
+        public Sensor()
+        {
+
+        }
     }
 
     public class SensorBOE2520 : Sensor
@@ -133,11 +160,14 @@ namespace Module
         public List<ValidationBOE2520> CurrentValidationData { get; set; } = [];
         #endregion
 
-        public SensorBOE2520(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x20)
+        public SensorBOE2520(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x20) : base()
         {
             DeviceAddress = deviceAddress;
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
+            SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
+            SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
+            SensorInfo.Text = $"[{SensorIndex + 1}]";
         }
 
         #region 数据采集(不使用)
@@ -353,6 +383,9 @@ namespace Module
             DeviceAddress = deviceAddress;
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
+            SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
+            SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
+            SensorInfo.Text = $"[{SensorIndex + 1}]";
         }
 
         #region 数据处理
@@ -440,6 +473,9 @@ namespace Module
             DeviceAddress = deviceAddress;
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
+            SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
+            SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
+            SensorInfo.Text = $"[{SensorIndex + 1}]";
         }
 
         public void ClearData(CalibrationParameter parameter)

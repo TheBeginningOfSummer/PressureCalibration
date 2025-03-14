@@ -1,5 +1,4 @@
-﻿
-using CSharpKit.DataManagement;
+﻿using CSharpKit.DataManagement;
 using Data;
 using Module;
 using System.ComponentModel;
@@ -11,8 +10,10 @@ namespace PressureCalibration.View
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public Point IniPoint = new(30, 212);
-        public Point Interval = new(120, 132);
+        public Point IniPoint = new(30, 30);
+        public Point Interval = new(200, 132);
+        public Size LBSize = new(55, 55);
+        public int Offset = 56;
         public int RowCount = 2;
 
         readonly Config config = Config.Instance;
@@ -107,8 +108,9 @@ namespace PressureCalibration.View
         public Test()
         {
             InitializeComponent();
-            DeviceCount = Acquisition.Instance.CardAmount;
-            InitialzeTempPicture(DeviceCount);
+            //DeviceCount = Acquisition.Instance.CardAmount;
+            //BOE2520TPicture(DeviceCount);
+            ZXW7570TPicture();
             Bindings();
             BGW温度.WorkerSupportsCancellation = true;
             BGW压力.WorkerSupportsCancellation = true;
@@ -169,25 +171,24 @@ namespace PressureCalibration.View
 
         }
 
-        public void InitialzeTempPicture(int cardCount = 8, int tempCount = 4)
+        public void BOE2520TPicture(int cardCount = 8, int tempCountPre = 4)
         {
             PN温度分布.Controls.Clear();
             //控件属性
             int offset = 56;
-            Size size = new(55, 55);
             //变量点
             int x = IniPoint.X;
             int y = IniPoint.Y;
             bool isSwitch = false;
             for (int i = 0; i < cardCount; i++)
             {
-                for (int j = 0; j < tempCount; j++)
+                for (int j = 0; j < tempCountPre; j++)
                 {
                     Color color = Color.LightGray;
 
                     int m = Convert.ToInt32(BytesTool.GetBit((byte)j, 0));
                     int n = Convert.ToInt32(BytesTool.GetBit((byte)j, 1));
-                    var tLabel = FormKit.ControlFactory<Label>(new Point(x + offset * n, y - offset * m), $"[LB{i}{j}]温度分布", $"[{j + 1}]{Environment.NewLine}0", size, color, Color.White);
+                    var tLabel = FormKit.ControlFactory<Label>(new Point(x + offset * n, y - offset * m), $"[LB{i}{j}]温度分布", $"[{j + 1}]{Environment.NewLine}0", LBSize, color, Color.White);
                     FormKit.AddControl(PN温度分布, tLabel);
                     labelsDic.Add($"D{i + 1}T{j + 1}", tLabel);
                 }
@@ -202,6 +203,67 @@ namespace PressureCalibration.View
                 }
                 FormKit.GetRowPosition2(ref x, ref y, IniPoint.Y, Interval.X, Interval.Y, i, RowCount, isSwitch);
             }
+        }
+
+        public void ZXW7570TPicture(int cardCount = 3, int tempCountPre = 2)
+        {
+            PN温度分布.Controls.Clear();
+            //九宫格位置
+            int x = IniPoint.X;
+            int y = IniPoint.Y;
+
+            foreach (GroupZXW7570 group in Acquisition.Instance.GroupDic.Values.Cast<GroupZXW7570>())
+            {
+                //group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray);
+                //decimal[] t = group.ReadTemperature();
+                List<Point> points1 = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
+                for (int i = 0; i < points1.Count; i++)
+                {
+                    if (i < 4)
+                        group.SensorDataGroup[i].SetLabelLoc(points1[i]);
+                    if (i == 4)
+                        group.SetLabelLoc(points1[i], 0);
+                    if (i > 4)
+                    {
+                        group.SensorDataGroup[i - 1].SetLabelLoc(points1[i]);
+                    }
+                }
+                x += Interval.X;
+                List<Point> points2 = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
+                for (int i = 0; i < points2.Count; i++)
+                {
+                    if (i < 4)
+                        group.SensorDataGroup[i + 8].SetLabelLoc(points2[i]);
+                    if (i == 4)
+                        group.SetLabelLoc(points2[i], 1);
+                    if (i > 4)
+                    {
+                        group.SensorDataGroup[i + 7].SetLabelLoc(points2[i]);
+                    }
+                }
+                FormKit.AddControl(PN温度分布, group.TInfo[0]);
+                FormKit.AddControl(PN温度分布, group.TInfo[1]);
+                foreach (var sensor in group.SensorDataGroup.Values)
+                {
+                    FormKit.AddControl(PN温度分布, sensor.SensorInfo);
+                }
+            }
+
+            //for (int c = 0; c < cardCount; c++)
+            //{
+            //    List<Point> points = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
+            //    for (int i = 0; i < points.Count; i++)
+            //    {
+            //        var tLabel = FormKit.ControlFactory<Label>(points[i], $"LB[{i}]温度分布", $"[{i + 1}]{Environment.NewLine}25℃{Environment.NewLine}80000", LBSize, Color.Gray, Color.White);
+            //        tLabel.Font = new Font("Segoe UI", 9);
+            //        tLabel.TextAlign = ContentAlignment.TopCenter;
+            //        labelsDic.Add($"D{c + 1}T{i + 1}", tLabel);
+
+            //        FormKit.AddControl(PN温度分布, tLabel);
+                    
+            //    }
+            //    x += Interval.X;
+            //}
         }
 
         public void UpdateTempPicture(Dictionary<string, double> data)
@@ -260,6 +322,19 @@ namespace PressureCalibration.View
             TempTest tempTest = Acquisition.Instance.GetTemperatureList();
             UpdateTempPicture(tempTest);//显示数据
             temperatureList.Add(tempTest);//添加数据到收集的数据
+        }
+
+        public void UpdateZXW7570T()
+        {
+            foreach (var group in Acquisition.Instance.GroupDic.Values)
+            {
+                group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray);
+                decimal[] t = group.ReadTemperature();
+
+            }
+
+            //UpdateTempPicture(tempTest);//显示数据
+            //temperatureList.Add(tempTest);//添加数据到收集的数据
         }
 
         private void TMI采集温度_Click(object sender, EventArgs e)
