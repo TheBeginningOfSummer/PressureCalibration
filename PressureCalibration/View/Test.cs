@@ -205,7 +205,7 @@ namespace PressureCalibration.View
             }
         }
 
-        public void ZXW7570TPicture(int cardCount = 3, int tempCountPre = 2)
+        public void ZXW7570TPicture()
         {
             PN温度分布.Controls.Clear();
             //九宫格位置
@@ -217,12 +217,13 @@ namespace PressureCalibration.View
                 //group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray);
                 //decimal[] t = group.ReadTemperature();
                 List<Point> points1 = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
+                //设置前8个传感器的信息显示位置
                 for (int i = 0; i < points1.Count; i++)
                 {
                     if (i < 4)
                         group.SensorDataGroup[i].SetLabelLoc(points1[i]);
                     if (i == 4)
-                        group.SetLabelLoc(points1[i], 0);
+                        group.SetLabelLoc(points1[i], 0);//TMP117[0]位置设置
                     if (i > 4)
                     {
                         group.SensorDataGroup[i - 1].SetLabelLoc(points1[i]);
@@ -230,40 +231,25 @@ namespace PressureCalibration.View
                 }
                 x += Interval.X;
                 List<Point> points2 = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
+                //设置后8个传感器的信息显示位置
                 for (int i = 0; i < points2.Count; i++)
                 {
                     if (i < 4)
                         group.SensorDataGroup[i + 8].SetLabelLoc(points2[i]);
                     if (i == 4)
-                        group.SetLabelLoc(points2[i], 1);
+                        group.SetLabelLoc(points2[i], 1);//TMP117[1]位置设置
                     if (i > 4)
                     {
                         group.SensorDataGroup[i + 7].SetLabelLoc(points2[i]);
                     }
                 }
+                x += Interval.X;
+                //将标签添加到界面上
                 FormKit.AddControl(PN温度分布, group.TInfo[0]);
                 FormKit.AddControl(PN温度分布, group.TInfo[1]);
                 foreach (var sensor in group.SensorDataGroup.Values)
-                {
                     FormKit.AddControl(PN温度分布, sensor.SensorInfo);
-                }
             }
-
-            //for (int c = 0; c < cardCount; c++)
-            //{
-            //    List<Point> points = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
-            //    for (int i = 0; i < points.Count; i++)
-            //    {
-            //        var tLabel = FormKit.ControlFactory<Label>(points[i], $"LB[{i}]温度分布", $"[{i + 1}]{Environment.NewLine}25℃{Environment.NewLine}80000", LBSize, Color.Gray, Color.White);
-            //        tLabel.Font = new Font("Segoe UI", 9);
-            //        tLabel.TextAlign = ContentAlignment.TopCenter;
-            //        labelsDic.Add($"D{c + 1}T{i + 1}", tLabel);
-
-            //        FormKit.AddControl(PN温度分布, tLabel);
-                    
-            //    }
-            //    x += Interval.X;
-            //}
         }
 
         public void UpdateTempPicture(Dictionary<string, double> data)

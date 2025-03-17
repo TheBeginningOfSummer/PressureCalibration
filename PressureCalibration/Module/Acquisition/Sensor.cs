@@ -145,6 +145,21 @@ namespace Module
                 SensorInfo.Text = $"[{SensorIndex + 1}]{Environment.NewLine}{t:N2}℃{Environment.NewLine}{p:N2}";
         }
 
+        public void SetSensorColor(decimal t, decimal targetT = 15, decimal offset = 1)
+        {
+            Color color;
+            if (t > targetT + Math.Abs(offset))
+                color = Color.Red;
+            else if (t < targetT - Math.Abs(offset))
+                color = Color.LightSkyBlue;
+            else
+                color = Color.Orange;
+            if (SensorInfo.IsHandleCreated)
+                SensorInfo.Invoke(() => SensorInfo.BackColor = color);
+            else
+                SensorInfo.BackColor = color;
+        }
+
         public Sensor()
         {
 

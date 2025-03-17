@@ -3,8 +3,6 @@ using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using Data;
 using System.Collections.Concurrent;
-using UIKit;
-using static OfficeOpenXml.ExcelErrorValue;
 
 namespace Module
 {
@@ -152,20 +150,43 @@ namespace Module
         #endregion
 
         public Label[] TInfo = new Label[4];
-
+        /// <summary>
+        /// 设置四路温度标签位置
+        /// </summary>
+        /// <param name="point">位置</param>
+        /// <param name="index">第几路</param>
         public void SetLabelLoc(Point point, int index)
         {
             TInfo[index].Location = point;
         }
-        private void SetTInfo(decimal[] value)
+        /// <summary>
+        /// 设置标签显示信息
+        /// </summary>
+        /// <param name="value">四路温度值</param>
+        /// <param name="targetT">目标温度</param>
+        /// <param name="offsetT">温度最大偏移</param>
+        private void SetTInfo(decimal[] value, decimal targetT = 15, decimal offsetT = 1)
         {
             if (value.Length != TInfo.Length) return;
             for (int i = 0; i < TInfo.Length; i++)
             {
-                if (TInfo[i].IsHandleCreated)
-                    TInfo[i].Invoke(() => TInfo[i].Text = $"{value[i]:N2}℃");
+                Color color;
+                if (value[i] > targetT + Math.Abs(offsetT))
+                    color = Color.Red;
+                else if (value[i] < targetT - Math.Abs(offsetT))
+                    color = Color.LightSkyBlue;
                 else
+                    color = Color.Orange;
+                if (TInfo[i].IsHandleCreated)
+                {
+                    TInfo[i].Invoke(() => TInfo[i].Text = $"{value[i]:N2}℃");
+                    TInfo[i].BackColor = color;
+                }
+                else
+                {
                     TInfo[i].Text = $"{value[i]:N2}℃";
+                    TInfo[i].BackColor = color;
+                }
             }
         }
         /// <summary>
@@ -221,6 +242,7 @@ namespace Module
             }
             return 0;
         }
+
         public abstract Sensor GetSensor(int sensorIndex);
         public abstract byte[] WriteAllFuseData(byte address = 0x34, byte length = 28);
         public abstract byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00);
