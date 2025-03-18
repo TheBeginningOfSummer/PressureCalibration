@@ -6,10 +6,6 @@ namespace Module
     public class CalibrationParameter : Loader
     {
         /// <summary>
-        /// 每个数据采集时的重复次数
-        /// </summary>
-        public int AcquisitionCount { get; set; } = 1;
-        /// <summary>
         /// 压力采集时的延时时间
         /// </summary>
         public int PressDelay { get; set; } = 10;
@@ -53,10 +49,16 @@ namespace Module
         /// 烧录时的最大差值
         /// </summary>
         public double FusePDiff { get; set; } = 30;
+
+        private bool isFuse = false;
         /// <summary>
         /// 是否烧录
         /// </summary>
-        public bool IsFuse { get; set; } = false;
+        public bool IsFuse
+        {
+            get { return isFuse; }
+            set { isFuse = value; OnPpChanged(nameof(IsFuse)); }
+        }
 
         /// <summary>
         /// 检测温度
@@ -75,11 +77,19 @@ namespace Module
         /// </summary>
         public decimal CheckPressureDiff { get; set; } = 80;
 
-        public bool IsTestVer { get; set; } = true;
+        private bool method = true;
+        public bool Method
+        {
+            get { return method; }
+            set { method = value; OnPpChanged(nameof(Method)); }
+        }
 
-        public bool Method { get; set; } = true;
-
-        public bool IsSave { get; set; } = false;
+        private bool isSave = false;
+        public bool IsSave
+        {
+            get { return isSave; }
+            set { isSave = value; OnPpChanged(nameof(IsSave)); }
+        }
 
         public CalibrationParameter()
         {
@@ -90,7 +100,6 @@ namespace Module
         {
             return name switch
             {
-                nameof(AcquisitionCount) => "采集次数",
                 nameof(PressDelay) => "压力延时(S)",
                 nameof(TempaturePoints) => "采集温度(℃)",
                 nameof(SetTPoints) => "设置温度(℃)",
@@ -108,15 +117,12 @@ namespace Module
                 nameof(CheckPressures) => "检测压力",
                 nameof(CheckPressureDiff) => "检测压力差",
                 nameof(CheckTemperatureDiff) => "检测温度差",
-
-                nameof(IsTestVer) => "测试版本",
+                //nameof(IsTestVer) => "测试版本",
                 nameof(Method) => "计算方法",
                 nameof(IsSave) => "数据保存",
                 _ => name,
             };
         }
-
-
     }
 
     public class MotionParameter : Loader

@@ -7,7 +7,7 @@ namespace Module
     public class Calculation
     {
         #region BOE2520
-        private readonly static BOECalibration.BOE2520 calculator = new();
+        private readonly static BOECalibration.BOE2520 boe = new();
         private static void B12mapper(int b12Val, ref int b40prog, ref int b12prog)
         {
             if (b12Val > -513 && b12Val < 510)
@@ -55,7 +55,7 @@ namespace Module
                 MWNumericArray tens = aT;
                 MWNumericArray tProbe = mT;
 
-                MWArray tResult = calculator.TemperatureCalibrationV02(tens, tProbe);
+                MWArray tResult = boe.TemperatureCalibrationV02(tens, tProbe);
                 data.alpha = Convert.ToInt32(tResult.ToArray().GetValue(0, 0)!);
                 data.A = Convert.ToInt32(tResult.ToArray().GetValue(0, 1)!);
             }
@@ -77,13 +77,13 @@ namespace Module
                 }
 
                 MWNumericArray para11 = new(15, 1, digT);
-                MWArray T = calculator.Raw2Temp(calculator.Temp2Raw(para11, 0, 0), data.alpha, data.A);
+                MWArray T = boe.Raw2Temp(boe.Temp2Raw(para11, 0, 0), data.alpha, data.A);
 
                 MWNumericArray P = new(15, 1, P_ref);
                 
                 MWNumericArray C = new(15, 1, digC);
 
-                MWArray pResult = calculator.PresCalCode_V0(P, T, C);
+                MWArray pResult = boe.PresCalCode_V0(P, T, C);
 
                 data.b40 = Convert.ToInt32(pResult.ToArray().GetValue(0, 0)!);
                 data.b31 = Convert.ToInt32(pResult.ToArray().GetValue(0, 1)!);
@@ -148,7 +148,7 @@ namespace Module
                 //alpha_OTP A_OTP b40 b31 b30 b22 b21 b20 b12 b11 b10 b02 b01 b00
                 MWNumericArray nbs = new int[] { 13, 14, 9, 10, 15, 7, 11, 18, 9, 13, 19, 11, 14, 20 };
                 MWNumericArray ab = new int[] { data.alpha, data.A, b40, b31, b30, b22, b21, b20, b12, b11, b10, b02, b01, b00 };
-                MWArray rr = calculator.ResisterCode(ab, nbs);
+                MWArray rr = boe.ResisterCode(ab, nbs);
 
                 string[] ss = rr.ToString().Split('\n');
 
@@ -186,7 +186,7 @@ namespace Module
                 MWNumericArray tens = aT;
                 MWNumericArray tProbe = mT;
 
-                MWArray tResult = calculator.TemperatureCalibrationV02(tens, tProbe);
+                MWArray tResult = boe.TemperatureCalibrationV02(tens, tProbe);
                 data.alpha = Convert.ToInt32(tResult.ToArray().GetValue(0, 0)!);
                 data.A = Convert.ToInt32(tResult.ToArray().GetValue(0, 1)!);
             }
@@ -208,13 +208,13 @@ namespace Module
                 }
 
                 MWNumericArray para11 = new(15, 1, digT);
-                MWArray T = calculator.Raw2Temp(calculator.Temp2Raw(para11, 0, 0), data.alpha, data.A);
+                MWArray T = boe.Raw2Temp(boe.Temp2Raw(para11, 0, 0), data.alpha, data.A);
 
                 MWNumericArray P = new(15, 1, P_ref);
 
                 MWNumericArray C = new(15, 1, digC);
 
-                MWArray pResult = calculator.PresCalCode_V1(P, T, C);
+                MWArray pResult = boe.PresCalCode_V1(P, T, C);
 
                 data.b40 = Convert.ToInt32(pResult.ToArray().GetValue(0, 0)!);
                 data.b31 = Convert.ToInt32(pResult.ToArray().GetValue(0, 1)!);
@@ -279,7 +279,7 @@ namespace Module
                 //alpha_OTP A_OTP b40 b31 b30 b22 b21 b20 b12 b11 b10 b02 b01 b00
                 MWNumericArray nbs = new int[] { 13, 14, 9, 10, 15, 7, 11, 18, 9, 13, 19, 11, 14, 20 };
                 MWNumericArray ab = new int[] { data.alpha, data.A, b40, b31, b30, b22, b21, b20, b12, b11, b10, b02, b01, b00 };
-                MWArray rr = calculator.ResisterCode(ab, nbs);
+                MWArray rr = boe.ResisterCode(ab, nbs);
 
                 string[] ss = rr.ToString().Split('\n');
 
@@ -305,7 +305,7 @@ namespace Module
         {
             double[] digT = [t];
             MWNumericArray para11 = new MWNumericArray(1, 1, digT);
-            MWArray digT1 = calculator.Raw2Temp(calculator.Temp2Raw(para11, 0, 0), calibPara.alpha, calibPara.A);
+            MWArray digT1 = boe.Raw2Temp(boe.Temp2Raw(para11, 0, 0), calibPara.alpha, calibPara.A);
 
             y = (-4682800 + Math.Pow(2, 43) / ((y - 349526) / 2)) / Math.Pow(2, 21);
             t = ((double)digT1.ToArray().GetValue(0, 0)! - 30145) / Math.Pow(2, 12);
@@ -333,7 +333,7 @@ namespace Module
         public static void StartValidation(CalibrationBOE2520 calibPara, double raw_C, double uncalTempCodes, out double pCal, out double tCal)
         {
             MWNumericArray para11 = new(1, 1, [uncalTempCodes]);
-            MWArray digT = calculator.Raw2Temp(calculator.Temp2Raw(para11, 0, 0), calibPara.alpha, calibPara.A);
+            MWArray digT = boe.Raw2Temp(boe.Temp2Raw(para11, 0, 0), calibPara.alpha, calibPara.A);
 
             double C_poly = (-4682800 + Math.Pow(2, 43) / ((raw_C - 349526) / 2)) / Math.Pow(2, 21);
             double T_poly = ((double)digT.ToArray().GetValue(0, 0)! - 30145) / Math.Pow(2, 12);
@@ -359,13 +359,45 @@ namespace Module
         {
             double[] digT = [t];
             MWNumericArray para11 = new MWNumericArray(1, 1, digT);
-            MWArray digT1 = calculator.Raw2Temp(calculator.Temp2Raw(para11, 0, 0), alpha, A);
+            MWArray digT1 = boe.Raw2Temp(boe.Temp2Raw(para11, 0, 0), alpha, A);
             double T = (double)digT1.ToArray().GetValue(0, 0)!;
             return T / 128 - 273.15;
         }
         #endregion
 
         private readonly static ZXCalibration.ZXP zx = new();
+
+        public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData)
+        {
+            if (oriData == null || oriData.Count == 0) return null;
+            CalibrationZXC6862 data = new() { uid = oriData[0].uid };
+
+            double[] pRefArray = new double[oriData.Count];
+            double[] tRefArray = new double[oriData.Count];
+            double[] pRawArray = new double[oriData.Count];
+            double[] tRawArray = new double[oriData.Count];
+            for (int i = 0; i < oriData.Count; i++)
+            {
+                pRefArray[i] = Convert.ToDouble(oriData[i].PRef);
+                tRefArray[i] = Convert.ToDouble(oriData[i].TRef);
+                pRawArray[i] = Convert.ToDouble(oriData[i].PRaw);
+                tRawArray[i] = Convert.ToDouble(oriData[i].TRaw);
+            }
+
+            MWNumericArray kp = new(1, 1, new double[] { 1040384 });
+            MWNumericArray kt = new(1, 1, new double[] { 524288 });
+            MWNumericArray pRef = new(pRefArray);
+            MWNumericArray tRef = new(tRefArray);
+            MWNumericArray pRaw = pRawArray;
+            MWNumericArray tRaw = tRawArray;
+            var r = zx.PTCalibration(kp, kt, pRef, tRef, pRaw, tRaw).ToArray();
+            List<int> paraList = [];
+            foreach (double i in r)
+            {
+                paraList.Add((int)i);
+            }
+            return data;
+        }
 
         public static void Test()
         {

@@ -84,6 +84,20 @@ namespace Module
         /// 传感器类型
         /// </summary>
         public string SensorType { get; set; } = "7570";
+
+        private bool isTestVer = false;
+        /// <summary>
+        /// 测试版本
+        /// </summary>
+        public bool IsTestVer
+        {
+            get { return isTestVer; }
+            set
+            {
+                isTestVer = value;
+                OnPpChanged(nameof(IsTestVer));
+            }
+        }
         /// <summary>
         /// 整体良率
         /// </summary>
@@ -111,14 +125,33 @@ namespace Module
         #endregion
 
         #region 控制变量
+        private bool isCalibrate = true;
         /// <summary>
         /// 是否标定
         /// </summary>
-        public bool IsCalibrate { get; set; } = true;
+        public bool IsCalibrate
+        {
+            get { return isCalibrate; }
+            set
+            {
+                isCalibrate = value;
+                OnPpChanged(nameof(IsCalibrate));
+            }
+        }
+
+        private bool isShowData = false;
         /// <summary>
         /// 控制数据显示
         /// </summary>
-        public bool IsShowData { get; set; } = false;
+        public bool IsShowData
+        {
+            get { return isShowData; }
+            set
+            {
+                isShowData = value;
+                OnPpChanged(nameof(IsShowData));
+            }
+        }
         /// <summary>
         /// 当前温度索引
         /// </summary>
@@ -162,6 +195,7 @@ namespace Module
                 nameof(CardAmount) => "采集卡数",
                 nameof(SensorCount) => "传感器数",
                 nameof(SensorType) => "类型",
+                nameof(IsTestVer) => "测试版本",
                 nameof(OverallYield) => "总良率",
                 nameof(MinYield) => "最小良率",
                 nameof(Connection) => "连接",
@@ -245,7 +279,6 @@ namespace Module
                 WorkProcess?.Invoke("连接控制卡失败！");
             #endregion
 
-
         }
 
         #region 数据采集
@@ -295,16 +328,21 @@ namespace Module
             return receivedData;
         }
 
-        public TempTest GetTemperatureList()
+        public TempTest GetTestData(out SensorTest sensorTest, decimal targetT = 15, decimal offsetT = 1)
         {
             TempTest tempData = new();
+            sensorTest = new();
             if (IsRunning) return tempData;
             for (int i = 1; i <= GroupDic.Count; i++)
             {
                 try
                 {
-                    tempData.TempList.Add(GroupDic[i].ReadTemperature());
-                    //FormKit.UpdateMessage(RTB温度测试信息, $"设备{i}：{Environment.NewLine}[第1路温度为]{r[0]}℃ [第2路温度为]{r[1]}℃ [第3路温度为]{r[2]}℃ [第4路温度为]{r[3]}℃");
+                    GroupDic[i].SetTargetT(targetT, offsetT);
+                    decimal[] t = GroupDic[i].ReadTemperature(IsTestVer);
+                    tempData.TempList.Add(t);
+                    GroupDic[i].GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
+                    sensorTest.Temperature.Add(tArray);
+                    sensorTest.Pressure.Add(pArray);
                 }
                 catch (Exception)
                 {
@@ -329,12 +367,12 @@ namespace Module
                 monitorData["Time"] = DateTime.Now.ToOADate();
                 //采集压力
                 if (press == null)
-                    monitorData["P1"] = (double)Pace.GetPress(isTest: CalPara.IsTestVer);
+                    monitorData["P1"] = (double)Pace.GetPress(isTest: IsTestVer);
                 else
                     monitorData["P1"] = (double)press;
             }
             //采集温度
-            temp ??= group.ReadTemperature(isTest: CalPara.IsTestVer);
+            temp ??= group.ReadTemperature(IsTestVer);
             for (int j = 0; j < temp.Length; j++)
             {
                 if (monitorData.ContainsKey($"D{group.DeviceAddress}T{j + 1}"))
@@ -352,7 +390,7 @@ namespace Module
             foreach (var group in GroupDic.Values)
             {
                 //采集数据
-                var temp = group.GetData(setP, setT, out decimal pressure, CalPara.IsTestVer);
+                var temp = group.GetData(setP, setT, out decimal pressure, IsTestVer);
                 //采集监视数据
                 MonitoringData(monitorData, group, temp, pressure);
                 //暂停
@@ -390,7 +428,7 @@ namespace Module
                         else
                         {
                             //采集数据
-                            var temp = acq.GetData((decimal)setP, (decimal)setT, out decimal pressure, CalPara.IsTestVer);
+                            var temp = acq.GetData((decimal)setP, (decimal)setT, out decimal pressure, IsTestVer);
                             //采集监视数据
                             MonitoringData(monitorData, acq, temp, pressure);
                         }
@@ -424,7 +462,7 @@ namespace Module
         /// <returns></returns>
         public bool WaitTemperature(decimal targetT)
         {
-            if (!CalPara.IsTestVer)
+            if (!IsTestVer)
             {
                 //设置温度
                 Tec.TECOnOff(true);
@@ -442,7 +480,7 @@ namespace Module
                 //温度数据检测，找到最小最大温度
                 foreach (var tempData in monitorData)
                 {
-                    if (CalPara.IsTestVer) break;//跳过检测
+                    if (IsTestVer) break;//跳过检测
                     if (tempData.Key == "Time" || tempData.Key == "P1" || tempData.Key == "P2") continue;
                     if (minT > tempData.Value) minT = tempData.Value;
                     if (maxT < tempData.Value) maxT = tempData.Value;
@@ -524,7 +562,7 @@ namespace Module
         public bool WaitPressure(decimal targetP)
         {
             //设置压力
-            Pace.SetPress(targetP, CalPara.IsTestVer);
+            Pace.SetPress(targetP, IsTestVer);
             //等待压力(5S)
             for (int j = 0; j < CalPara.PTimeout; j++)
             {
@@ -532,7 +570,7 @@ namespace Module
                 //采集监视数据
                 GetDataByTask(double.NaN, double.NaN);
                 //得到压力
-                decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
+                decimal result = Pace.GetPress(isTest: IsTestVer);
                 //检测压力差值
                 if (Math.Abs(result - targetP) > CalPara.MaxPressureDiff)
                 {
@@ -546,7 +584,7 @@ namespace Module
                 Thread.Sleep(900);
             }
             Warning($"采集压力时间超时。请检查后重新启动。");
-            Pace.Vent(CalPara.IsTestVer);
+            Pace.Vent(IsTestVer);
             return false;
         }
         /// <summary>
@@ -599,10 +637,10 @@ namespace Module
                 WorkProcess?.Invoke($"开始采集检测压力{checkPArray[i]}");
                 if (WaitPressure(checkPArray[i]))
                 {
-                    decimal result = Pace.GetPress(isTest: CalPara.IsTestVer);
+                    decimal result = Pace.GetPress(isTest: IsTestVer);
                     foreach (var group in GroupDic.Values)
                     {
-                        var temp = group.ReadTemperature(CalPara.IsTestVer);
+                        var temp = group.ReadTemperature(IsTestVer);
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int j = 0; j < tempArray.Length; j++)
                         {
@@ -770,7 +808,7 @@ namespace Module
     {
         public void Process(Acquisition context)
         {
-            if (context.CalPara.IsTestVer)
+            if (context.IsTestVer)
             {
                 if (context.IsCalibrate)
                     context.SetState(new WaitT());

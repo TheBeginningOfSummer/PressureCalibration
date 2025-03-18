@@ -655,6 +655,7 @@
             Name = "Test";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "测试";
+            FormClosing += Test_FormClosing;
             HTP测试.ResumeLayout(false);
             TP温度测试.ResumeLayout(false);
             TP温度测试.PerformLayout();

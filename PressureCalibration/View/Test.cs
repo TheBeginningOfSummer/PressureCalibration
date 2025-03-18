@@ -23,6 +23,8 @@ namespace PressureCalibration.View
         readonly List<TempTest> temperatureList = [];
         //压力测试数据
         readonly List<PressureTest> pressureList = [];
+        //传感器数据
+        readonly List<SensorTest> sensorTestList = [];
         #endregion
 
         #region 控件绑定值
@@ -115,8 +117,7 @@ namespace PressureCalibration.View
             BGW温度.WorkerSupportsCancellation = true;
             BGW压力.WorkerSupportsCancellation = true;
             BGW运动.WorkerSupportsCancellation = true;
-            DataMonitor.UpdataData += UpdateTempPicture;
-
+            //DataMonitor.UpdataData += UpdateTempPicture;
         }
 
         private void Bindings()
@@ -276,51 +277,12 @@ namespace PressureCalibration.View
             }
         }
 
-        public void UpdateTempPicture(TempTest testData)
-        {
-            //FormKit.UpdateMessage(GB温度分布, $"温度分布（℃）{testData.Date}", false, true);
-            for (int i = 0; i < testData.TempList.Count; i++)
-            {
-                for (int j = 0; j < testData.TempList[i].Length; j++)
-                {
-                    FormKit.OnThread(this, () =>
-                    {
-                        Color color;
-                        if (testData.TempList[i][j] > (decimal)Temperature + decimal.Parse(TTB偏差温度.Text))
-                            color = Color.Red;
-                        else if (testData.TempList[i][j] < (decimal)Temperature - decimal.Parse(TTB偏差温度.Text))
-                            color = Color.LightSkyBlue;
-                        else
-                            color = Color.Orange;
-
-                        if (labelsDic.TryGetValue($"D{i + 1}T{j + 1}", out var label))
-                        {
-                            label.Text = $"[{j + 1}]{Environment.NewLine}{testData.TempList[i][j]:N2}";
-                            label.BackColor = color;
-                        }
-                    });
-                }
-            }
-        }
-
         public void AcquisitionT()
         {
-            TempTest tempTest = Acquisition.Instance.GetTemperatureList();
-            UpdateTempPicture(tempTest);//显示数据
+            TempTest tempTest = Acquisition.Instance.
+                GetTestData(out SensorTest sensorTest, (decimal)Temperature, decimal.Parse(TTB偏差温度.Text));
             temperatureList.Add(tempTest);//添加数据到收集的数据
-        }
-
-        public void UpdateZXW7570T()
-        {
-            foreach (var group in Acquisition.Instance.GroupDic.Values)
-            {
-                group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray);
-                decimal[] t = group.ReadTemperature();
-
-            }
-
-            //UpdateTempPicture(tempTest);//显示数据
-            //temperatureList.Add(tempTest);//添加数据到收集的数据
+            sensorTestList.Add(sensorTest);
         }
 
         private void TMI采集温度_Click(object sender, EventArgs e)
@@ -551,5 +513,9 @@ namespace PressureCalibration.View
         #endregion
 
 
+        private void Test_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            PN温度分布.Controls.Clear();
+        }
     }
 }

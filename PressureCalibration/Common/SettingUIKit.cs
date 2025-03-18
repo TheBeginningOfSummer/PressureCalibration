@@ -67,7 +67,7 @@ namespace UIKit
                 {
                     var checkBox = FormKit.AddSettingBox<CheckBox>(parent, new Point(x, y), $"{property.Name}",
                         instance.Translate($"{property.Name}"), "", xOffset: Offset);
-                    checkBox.DataBindings.Add("Checked", source, property.Name);
+                    checkBox.DataBindings.Add("Checked", instance, property.Name, false, DataSourceUpdateMode.OnPropertyChanged);
                 }
                 else if (property.GetValue(instance) is BindingList<decimal> decimalList)
                 {
@@ -129,7 +129,7 @@ namespace UIKit
                     if (propertyValue != null) value = propertyValue.ToString()!;
                     var textBox = FormKit.AddSettingBox<TextBox>(parent, new Point(x, y), $"{property.Name}",
                         instance.Translate($"{property.Name}"), value, xOffset: Offset);
-                    textBox.DataBindings.Add("Text", source, property.Name);
+                    textBox.DataBindings.Add("Text", instance, property.Name);
                     if (property.Name == "Ip") textBox.Width = 100;
                 }
                 //列变化

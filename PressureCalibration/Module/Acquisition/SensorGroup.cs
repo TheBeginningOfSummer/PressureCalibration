@@ -25,6 +25,15 @@ namespace Module
         /// 传感器选择数组
         /// </summary>
         public bool[] SelectedSensor = [];
+
+        /// <summary>
+        /// 当前目标温度
+        /// </summary>
+        public decimal TargetT = 15;
+        /// <summary>
+        /// 目标温度上下限
+        /// </summary>
+        public decimal OffsetT = 1;
         #endregion
 
         #region 组件
@@ -159,13 +168,19 @@ namespace Module
         {
             TInfo[index].Location = point;
         }
+
+        public void SetTargetT(decimal targetT = 15, decimal offsetT = 1)
+        {
+            TargetT = targetT;
+            OffsetT = offsetT;
+        }
         /// <summary>
         /// 设置标签显示信息
         /// </summary>
         /// <param name="value">四路温度值</param>
         /// <param name="targetT">目标温度</param>
         /// <param name="offsetT">温度最大偏移</param>
-        private void SetTInfo(decimal[] value, decimal targetT = 15, decimal offsetT = 1)
+        public void SetTInfo(decimal[] value, decimal targetT = 15, decimal offsetT = 1)
         {
             if (value.Length != TInfo.Length) return;
             for (int i = 0; i < TInfo.Length; i++)
@@ -202,7 +217,7 @@ namespace Module
                 var v3 = random.NextDouble() * 100;
                 var v4 = random.NextDouble() * 100;
                 decimal[] value = [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
-                SetTInfo(value);
+                SetTInfo(value, TargetT, OffsetT);
                 return value;
             }
             else
@@ -218,7 +233,7 @@ namespace Module
                     v4 = BitConverter.ToInt16([result[11], result[10]]);
                 }
                 decimal[] value = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
-                SetTInfo(value);
+                SetTInfo(value, TargetT, OffsetT);
                 return value;
             }
         }
@@ -248,7 +263,7 @@ namespace Module
         public abstract byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00);
         public abstract int[] GetSensorsUID();
         public abstract void GetSensorsData(out int[] tRawArray, out int[] pRawArray);
-        public abstract void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray);
+        public abstract void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false);
         public abstract decimal[] GetData(decimal setP, decimal setT, out decimal press, bool isTest = false);
         public abstract void ReinitializeData();
         public abstract void Calculate();
@@ -453,7 +468,7 @@ namespace Module
         /// </summary>
         /// <param name="tArray">温度值</param>
         /// <param name="pArray">压力值</param>
-        public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray)
+        public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false)
         {
             ReceivedData[] tempResult;
             ReceivedData[] pressResult;
@@ -509,7 +524,7 @@ namespace Module
                     ori.uid = uidArray[i];
                 }
                 //采集温度压力实时数据
-                press = config.PACE.GetPress();
+                press = config.PACE.GetPress(isTest: isTest);
                 decimal[] currentTemp = ReadTemperature(isTest);
                 //平均数存储列表
                 List<RawDataBOE2520[]> averageList = [];
@@ -752,7 +767,7 @@ namespace Module
         /// </summary>
         /// <param name="tArray">温度值</param>
         /// <param name="pArray">压力值</param>
-        public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray)
+        public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false)
         {
             //ReceivedData[] tempResult;
             //ReceivedData[] pressResult;
@@ -760,6 +775,16 @@ namespace Module
             pArray = new decimal[SensorCount];
             //byte[] tempBytes = new byte[2];
             //byte[] pressBytes = new byte[4];
+            if (isTest)
+            {
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    tArray[i] = (decimal)random.NextDouble() * 100;
+                    pArray[i] = (decimal)random.NextDouble() * 100;
+                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
+                }
+                return;
+            }
 
         }
         /// <summary>
@@ -948,12 +973,24 @@ namespace Module
         /// </summary>
         /// <param name="tArray">温度值</param>
         /// <param name="pArray">压力值</param>
-        public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray)
+        public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false)
         {
             ReceivedData[] tempResult;
             ReceivedData[] pressResult;
             tArray = new decimal[SensorCount];
             pArray = new decimal[SensorCount];
+
+            if (isTest)
+            {
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    tArray[i] = (decimal)random.NextDouble() * 100;
+                    pArray[i] = (decimal)random.NextDouble() * 100;
+                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
+                }
+                return;
+            }
+
             byte[] tempBytes = new byte[2];
             byte[] pressBytes = new byte[4];
 

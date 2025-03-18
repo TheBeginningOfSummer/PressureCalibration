@@ -3,7 +3,6 @@ using Module;
 using System.ComponentModel;
 using WinformKit;
 using ReaLTaiizor.Controls;
-using CSharpKit.FileManagement;
 
 namespace PressureCalibration
 {

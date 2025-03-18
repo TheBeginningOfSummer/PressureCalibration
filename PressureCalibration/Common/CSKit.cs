@@ -2239,7 +2239,7 @@ namespace CSharpKit
             }
         }
 
-        public class Loader
+        public class Loader : INotifyPropertyChanged
         {
             /// <summary>
             /// 存放子类实例的集合，可以通过继承来访问这个全局变量
@@ -2257,6 +2257,12 @@ namespace CSharpKit
             /// </summary>
             [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
             public SocketTool? SocketPort { get; set; }
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+            protected void OnPpChanged(string propertyName)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
 
             /// <summary>
             /// 存储路径
