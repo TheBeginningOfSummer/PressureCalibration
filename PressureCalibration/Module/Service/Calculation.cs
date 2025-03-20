@@ -365,6 +365,7 @@ namespace Module
         }
         #endregion
 
+        #region ZXC6862
         private readonly static ZXCalibration.ZXP zx = new();
 
         public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData)
@@ -393,36 +394,29 @@ namespace Module
             var r = zx.PTCalibration(kp, kt, pRef, tRef, pRaw, tRaw).ToArray();
             List<int> paraList = [];
             foreach (double i in r)
-            {
                 paraList.Add((int)i);
-            }
+            data.C00 = paraList[0];
+            data.C10 = paraList[1];
+            data.C20 = paraList[2];
+            data.C30 = paraList[3];
+            data.C01 = paraList[4];
+            data.C11 = paraList[5];
+            data.C21 = paraList[6];
+            data.C1 = paraList[7];
+            data.C0 = paraList[8];
+            //data.registerData = 
             return data;
         }
 
-        public static void Test()
+        public static void StartValidation(CalibrationZXC6862 cal, double pRaw, double tRaw, out double pCal, out double tCal, double kp = 1040384, double kt = 524288)
         {
-            double[] p = [872639, 43879, -171863, -402066, 874956, 48653, -166100];
-            double[] t = [153638, 153704, 153510, 153460, 86508, 86726, 86300];
-            double[] pr = [40000, 85000, 95000, 105000, 40000, 85000, 95000];
-            double[] tr = [24.632812, 24.640625, 24.687500, 24.703125, 58.007812, 57.906250, 58.140625];
+            double pRawsc = pRaw / kp;
+            double tRawsc = tRaw / kt;
 
-            MWNumericArray kp = new(1, 1, new double[] { 1040384 });
-            MWNumericArray kt = new(1, 1, new double[] { 524288 });
-            
-            MWNumericArray pRef = new(pr);
-            MWNumericArray tRef = new(tr);
-            MWNumericArray pRaw = p;
-            MWNumericArray tRaw = new(t);
-
-            var r = zx.PTCalibration(kp, kt, pRef, tRef, pRaw, tRaw).ToArray();
-            List<int> data = [];
-            foreach(double i in r)
-            {
-                string t1111 = i.GetType().Name;
-                data.Add((int)i);
-            }
-
+            pCal = cal.C00 + pRawsc * (cal.C10 + pRawsc * (cal.C20 + pRawsc * cal.C30)) +
+                tRawsc * cal.C01 + tRawsc * pRawsc * (cal.C11 + pRawsc * cal.C21);
+            tCal = cal.C0 * 0.5 + cal.C1 * tRawsc;
         }
-
+        #endregion
     }
 }

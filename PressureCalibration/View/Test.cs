@@ -1,6 +1,7 @@
 ﻿using CSharpKit.DataManagement;
 using Data;
 using Module;
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using WinformKit;
 
@@ -112,11 +113,8 @@ namespace PressureCalibration.View
             InitializeComponent();
             //DeviceCount = Acquisition.Instance.CardAmount;
             //BOE2520TPicture(DeviceCount);
-            ZXW7570TPicture();
+            ZXW7570TPicture(Acquisition.Instance.GroupDic);
             Bindings();
-            BGW温度.WorkerSupportsCancellation = true;
-            BGW压力.WorkerSupportsCancellation = true;
-            BGW运动.WorkerSupportsCancellation = true;
             //DataMonitor.UpdataData += UpdateTempPicture;
         }
 
@@ -128,6 +126,9 @@ namespace PressureCalibration.View
             BGW压力.RunWorkerCompleted += BGW压力测试_RunWorkerCompleted;
             BGW运动.DoWork += BGW运动_DoWork;
             BGW运动.RunWorkerCompleted += BGW运动_RunWorkerCompleted;
+            BGW温度.WorkerSupportsCancellation = true;
+            BGW压力.WorkerSupportsCancellation = true;
+            BGW运动.WorkerSupportsCancellation = true;
             //温度
             TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature)));
             TTB温度采集间隔.DataBindings.Add(new Binding("Text", this, nameof(TInterval)));
@@ -140,6 +141,11 @@ namespace PressureCalibration.View
             CMB轴列表.DataSource = config.Zmotion.AxesName;
         }
 
+        private void Test_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            PN温度分布.Controls.Clear();//防止标签被销毁
+        }
+
         #region 温度测试
         private void BGW温度测试_DoWork(object? sender, DoWorkEventArgs e)
         {
@@ -149,12 +155,20 @@ namespace PressureCalibration.View
                 {
                     do
                     {
-                        AcquisitionT();
+                        TempTest tempTest = Acquisition.Instance.
+                            GetTestData(out SensorTest sensorTest, (decimal)Temperature, decimal.Parse(TTB偏差温度.Text));
+                        temperatureList.Add(tempTest);//添加数据到收集的数据
+                        sensorTestList.Add(sensorTest);
                         Thread.Sleep(1000 * TInterval);
-                        if (e.Argument is "a1") break;
+                        if (e.Argument is "a1")
+                        {
+                            e.Result = "采集完成";
+                            break;
+                        }
                         if (worker.CancellationPending)
                         {
                             e.Cancel = true;
+                            e.Result = "采集中止";
                             break;
                         }
                     }
@@ -163,13 +177,16 @@ namespace PressureCalibration.View
             }
             catch (Exception ex)
             {
-                FormKit.UpdateMessage(RTB温度信息, ex.Message);
+                e.Result = ex.Message;
             }
         }
 
         private void BGW温度测试_RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
         {
-
+            if (e.Cancelled)
+                FormKit.UpdateMessage(RTB温度信息, "运行已中止");
+            else if (e.Result is string message)
+                FormKit.UpdateMessage(RTB温度信息, message);
         }
 
         public void BOE2520TPicture(int cardCount = 8, int tempCountPre = 4)
@@ -206,17 +223,16 @@ namespace PressureCalibration.View
             }
         }
 
-        public void ZXW7570TPicture()
+        public void ZXW7570TPicture(ConcurrentDictionary<int, Group> groupCollection)
         {
             PN温度分布.Controls.Clear();
-            //九宫格位置
+            //九宫格左上角初始位置
             int x = IniPoint.X;
             int y = IniPoint.Y;
 
-            foreach (GroupZXW7570 group in Acquisition.Instance.GroupDic.Values.Cast<GroupZXW7570>())
+            foreach (GroupZXW7570 group in groupCollection.Values.Cast<GroupZXW7570>())
             {
-                //group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray);
-                //decimal[] t = group.ReadTemperature();
+                //计算前9个传感器位置
                 List<Point> points1 = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
                 //设置前8个传感器的信息显示位置
                 for (int i = 0; i < points1.Count; i++)
@@ -231,6 +247,7 @@ namespace PressureCalibration.View
                     }
                 }
                 x += Interval.X;
+                //计算后9个传感器位置
                 List<Point> points2 = FormKit.GetLBPos9(x, y, Offset, Offset, direction: false);
                 //设置后8个传感器的信息显示位置
                 for (int i = 0; i < points2.Count; i++)
@@ -251,38 +268,6 @@ namespace PressureCalibration.View
                 foreach (var sensor in group.SensorDataGroup.Values)
                     FormKit.AddControl(PN温度分布, sensor.SensorInfo);
             }
-        }
-
-        public void UpdateTempPicture(Dictionary<string, double> data)
-        {
-            //FormKit.UpdateMessage(GPB温度分布, $"温度分布（℃）{testData.Date}", false, true);
-            foreach (var item in data)
-            {
-                FormKit.OnThread(this, () =>
-                {
-                    Color color;
-                    if (item.Value > Temperature + double.Parse(TTB偏差温度.Text))
-                        color = Color.Red;
-                    else if (item.Value < Temperature - double.Parse(TTB偏差温度.Text))
-                        color = Color.LightSkyBlue;
-                    else
-                        color = Color.Orange;
-
-                    if (labelsDic.TryGetValue(item.Key, out var label))
-                    {
-                        label.Text = $"[{item.Key}]{Environment.NewLine}{item.Value:N2}";
-                        label.BackColor = color;
-                    }
-                });
-            }
-        }
-
-        public void AcquisitionT()
-        {
-            TempTest tempTest = Acquisition.Instance.
-                GetTestData(out SensorTest sensorTest, (decimal)Temperature, decimal.Parse(TTB偏差温度.Text));
-            temperatureList.Add(tempTest);//添加数据到收集的数据
-            sensorTestList.Add(sensorTest);
         }
 
         private void TMI采集温度_Click(object sender, EventArgs e)
@@ -512,10 +497,5 @@ namespace PressureCalibration.View
         }
         #endregion
 
-
-        private void Test_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            PN温度分布.Controls.Clear();
-        }
     }
 }

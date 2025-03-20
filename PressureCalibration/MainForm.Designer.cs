@@ -38,6 +38,7 @@
             LBN切换 = new ReaLTaiizor.Controls.LostButton();
             LBN运行 = new ReaLTaiizor.Controls.LostButton();
             TP查看 = new TabPage();
+            BTN测试 = new Button();
             GB结果 = new GroupBox();
             BGWRun = new System.ComponentModel.BackgroundWorker();
             HF压力标定 = new ReaLTaiizor.Forms.HopeForm();
@@ -194,6 +195,7 @@
             // TP查看
             // 
             TP查看.BackColor = Color.White;
+            TP查看.Controls.Add(BTN测试);
             TP查看.Controls.Add(GB结果);
             TP查看.Location = new Point(124, 4);
             TP查看.Name = "TP查看";
@@ -202,12 +204,22 @@
             TP查看.TabIndex = 1;
             TP查看.Text = "查看";
             // 
+            // BTN测试
+            // 
+            BTN测试.Location = new Point(473, 507);
+            BTN测试.Name = "BTN测试";
+            BTN测试.Size = new Size(75, 26);
+            BTN测试.TabIndex = 1;
+            BTN测试.Text = "测试";
+            BTN测试.UseVisualStyleBackColor = true;
+            BTN测试.Click += BTN测试_Click;
+            // 
             // GB结果
             // 
             GB结果.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             GB结果.Location = new Point(220, 6);
             GB结果.Name = "GB结果";
-            GB结果.Size = new Size(430, 386);
+            GB结果.Size = new Size(577, 459);
             GB结果.TabIndex = 0;
             GB结果.TabStop = false;
             GB结果.Text = "Result";
@@ -371,5 +383,6 @@
         private ToolStripMenuItem TMI导出数据;
         private ToolStripMenuItem TMI芯片;
         private ToolStripButton TSB清除;
+        private Button BTN测试;
     }
 }

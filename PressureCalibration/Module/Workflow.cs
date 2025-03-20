@@ -327,7 +327,13 @@ namespace Module
             }
             return receivedData;
         }
-
+        /// <summary>
+        /// 得到温度和传感器输出的数据
+        /// </summary>
+        /// <param name="sensorTest">传感器的数据（一次采集的所有数据）</param>
+        /// <param name="targetT">目标温度</param>
+        /// <param name="offsetT">最大温度偏移</param>
+        /// <returns>温度数据（一次采集的所有数据）</returns>
         public TempTest GetTestData(out SensorTest sensorTest, decimal targetT = 15, decimal offsetT = 1)
         {
             TempTest tempData = new();

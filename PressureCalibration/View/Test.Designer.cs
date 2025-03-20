@@ -144,7 +144,7 @@
             // 
             // GPB温度分布
             // 
-            GPB温度分布.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            GPB温度分布.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             GPB温度分布.Controls.Add(PN温度分布);
             GPB温度分布.Location = new Point(421, 33);
             GPB温度分布.Name = "GPB温度分布";
@@ -164,7 +164,7 @@
             // 
             // RTB温度信息
             // 
-            RTB温度信息.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            RTB温度信息.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             RTB温度信息.BackColor = Color.Silver;
             RTB温度信息.BorderStyle = BorderStyle.None;
             RTB温度信息.Location = new Point(4, 31);
