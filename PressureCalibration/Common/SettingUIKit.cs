@@ -131,6 +131,7 @@ namespace UIKit
                         instance.Translate($"{property.Name}"), value, xOffset: Offset);
                     textBox.DataBindings.Add("Text", instance, property.Name);
                     if (property.Name == "Ip") textBox.Width = 100;
+                    if (property.Name == "SensorCount") textBox.ReadOnly = true;
                 }
                 //列变化
                 y += Interval.Y; rowCount++;

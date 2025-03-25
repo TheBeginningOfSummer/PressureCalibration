@@ -431,7 +431,8 @@ namespace Module
         /// <param name="method">计算方法，false为9系数计算</param>
         public void Calculate(bool method = true)
         {
-
+            CalibrationZXC6862? calibration = Calculation.StartCalibration(CurrentRawData);
+            if (calibration != null) CurrentCalibrationData = calibration;
             CurrentCalibrationData.Date = DateTime.Now.ToString("G");
         }
         /// <summary>

@@ -165,9 +165,10 @@ namespace PressureCalibration
                 oriData.Add(rawData);
             }
             var r = Calculation.StartCalibration(oriData);
-
+            if (r == null) return;
             Calculation.StartValidation(r, 872639, 153638, out double pcal, out double tcal);
             UpdateMessage($"pcal:{pcal}  tcal:{tcal}");
+            UpdateMessage(r.Display());
         }
     }
 }

@@ -156,6 +156,16 @@ namespace Module
                 bytes.AddRange(data[i]);
             return WriteAll(address, count, bytes.ToArray(), speed);
         }
+        /// <summary>
+        /// 向所有传感器指定地址写入一个字节
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <param name="speed">速度</param>
+        public void Write(byte address, byte value, byte speed = 0x07)
+        {
+            Connection.WriteRead(WriteAll(address, 1, GetArray(value, SensorCount), speed));
+        }
         #endregion
 
         public Label[] TInfo = new Label[4];
@@ -316,6 +326,25 @@ namespace Module
             }
         }
 
+        public override int GetTempIndex(int sensorIndex, int tempCount = 4)
+        {
+            if (tempCount == 4)
+            {
+                if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
+                if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
+                if (sensorIndex >= 12 && sensorIndex <= 15) return 3;
+            }
+            else if (tempCount == 2)
+            {
+                if (sensorIndex > 7) return 1;
+            }
+            return 0;
+        }
+        public override Sensor GetSensor(int sensorIndex)
+        {
+            return SensorDataGroup[sensorIndex];
+        }
+
         #region BOE2520
         /// <summary>
         /// 读取uid初始化
@@ -364,25 +393,6 @@ namespace Module
             Thread.Sleep(20);
         }
         #endregion
-
-        public override int GetTempIndex(int sensorIndex, int tempCount = 4)
-        {
-            if (tempCount == 4)
-            {
-                if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
-                if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
-                if (sensorIndex >= 12 && sensorIndex <= 15) return 3;
-            }
-            else if (tempCount == 2)
-            {
-                if (sensorIndex > 7) return 1;
-            }
-            return 0;
-        }
-        public override Sensor GetSensor(int sensorIndex)
-        {
-            return SensorDataGroup[sensorIndex];
-        }
 
         #region 烧录操作
         public override byte[] WriteAllFuseData(byte address = 0x34, byte length = 28)
@@ -666,6 +676,55 @@ namespace Module
 
     }
 
+    public class MinBridgeOffset
+    {
+        public int SensorIndex { get; private set; } = 0;
+        public byte BridgeOffset { get; set; } = 0x00;
+        public int MinPressure { get; set; } = 0;
+
+        public MinBridgeOffset(int index, byte bridgeOffset, int minPress)
+        {
+            SensorIndex = index;
+            BridgeOffset = bridgeOffset;
+            MinPressure = minPress;
+        }
+
+        public void SetValue(byte bridgeOffset, int minPress)
+        {
+            if (Math.Abs(minPress) < Math.Abs(MinPressure))
+            {
+                MinPressure = minPress;
+                BridgeOffset = bridgeOffset;
+            }
+        }
+
+    }
+
+    public class TargetGain
+    {
+        public int SensorIndex { get; private set; } = 0;
+        public byte AMPGain { get; set; } = 0x00;
+        public int Pressure { get; set; } = 0;
+
+        public TargetGain(int index, byte gain, int press)
+        {
+            SensorIndex = index;
+            AMPGain = gain;
+            Pressure = press;
+        }
+
+        public void SetValue(byte ampGain, int pressure, int targetP = 700000)
+        {
+            int dP1 = Math.Abs(Pressure - targetP);
+            int dP2 = Math.Abs(pressure - targetP);
+            if (dP2 < dP1)
+            {
+                AMPGain = ampGain;
+                Pressure = pressure;
+            }
+        }
+    }
+
     public class GroupZXC6862 : Group
     {
         /// <summary>
@@ -673,13 +732,18 @@ namespace Module
         /// </summary>
         public readonly ConcurrentDictionary<int, SensorZXC6862> SensorDataGroup = [];
 
+        public MinBridgeOffset[] BridgeOffset;
+        public TargetGain[] AMPGain;
+
         public GroupZXC6862(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
             I2CAddress = 0x77;
-            
+            BridgeOffset = new MinBridgeOffset[SensorCount];
+            AMPGain = new TargetGain[SensorCount];
+
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
             {
@@ -709,10 +773,255 @@ namespace Module
             return SensorDataGroup[sensorIndex];
         }
 
+        #region ZXC6862
+        /// <summary>
+        /// 签名
+        /// </summary>
+        public void WriteSignature()
+        {
+            Connection.WriteRead(WriteAll(0x0E, 2, GetArray([0xA5, 0x96], SensorCount), 0x07));
+        }
+        /// <summary>
+        /// 压力配置设置
+        /// </summary>
+        public void PressureConfig()
+        {
+            //压力测量速率、过采样率设置
+            Write(0x06, 0x36);
+            //测量数据位移，FIFO 使能
+            Write(0x09, 0x04);
+            //设置压力温度增益
+            Write(0x62, 0x02);
+        }
+        /// <summary>
+        /// 检查芯片读写
+        /// </summary>
+        public void CheckChip()
+        {
+            WriteSignature();
+            //检测芯片读写
+            byte[] testData = Enumerable.Repeat<byte>(0xAA, 17).ToArray();
+            Connection.WriteRead(WriteAll(0x40, 17, GetArray(testData, SensorCount), 0x07));
+            Thread.Sleep(50);
+            ReceivedData[] result;
+            result = ReceivedData.ParseData(ReadAll(0x40, 17, 0x07), SensorCount);
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (!BytesTool.CheckEquals(testData, result[i].Data))
+                    SensorDataGroup[i].Result = "NG";
+            }
+
+            testData = Enumerable.Repeat<byte>(0x55, 17).ToArray();
+            Connection.WriteRead(WriteAll(0x40, 17, GetArray(testData, SensorCount), 0x07));
+            Thread.Sleep(50);
+            result = ReceivedData.ParseData(ReadAll(0x40, 17, 0x07), SensorCount);
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (!BytesTool.CheckEquals(testData, result[i].Data))
+                    SensorDataGroup[i].Result = "NG";
+            }
+
+            testData = Enumerable.Repeat<byte>(0x00, 17).ToArray();
+            Connection.WriteRead(WriteAll(0x40, 17, GetArray(testData, SensorCount), 0x07));
+            Thread.Sleep(50);
+            result = ReceivedData.ParseData(ReadAll(0x40, 17, 0x07), SensorCount);
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (!BytesTool.CheckEquals(testData, result[i].Data))
+                    SensorDataGroup[i].Result = "NG";
+            }
+        }
+        /// <summary>
+        /// 检测传感器初始化完成和系数是否可读取
+        /// </summary>
+        public bool CheckOperating(byte status = 0xC0)
+        {
+            bool isOK = true;
+            for (int n = 0; n < 3; n++)
+            {
+                isOK = true;
+                ReceivedData[] result = ReceivedData.ParseData(ReadAll(0x08, 1, 0x07), SensorCount);
+                //遍历读取结果
+                for (int i = 0; i < result.Length; i++)
+                {
+                    if (result[i].Data.FirstOrDefault() != status)
+                    {
+                        if (n >= 2)
+                        {
+                            SensorDataGroup[i].Result = "NG";
+                            isOK = false;
+                        }
+                        else
+                        {
+                            Thread.Sleep(100);
+                            isOK = false;
+                            break;
+                        }
+                    }
+                }
+                if (isOK) return isOK;
+            }
+            return isOK;
+        }
+
+        public void SetBridgeOffset(MinBridgeOffset[] minBridgeOffset)
+        {
+            List<byte> bridgeOffset = [];
+            for (int i = 0; i < minBridgeOffset.Length; i++)
+            {
+                bridgeOffset.Add(minBridgeOffset[i].BridgeOffset);
+            }
+            //设置电桥偏移
+            Connection.WriteRead(WriteAll(0x65, 1, bridgeOffset.ToArray(), 0x07));
+        }
+
+        public void SetAMPGain(TargetGain[] gain)
+        {
+            List<byte> ampGain = [];
+            for (int i = 0; i < gain.Length; i++)
+            {
+                ampGain.Add(gain[i].AMPGain);
+            }
+            //默认放大器增益和UI微调
+            Connection.WriteRead(WriteAll(0x64, 1, ampGain.ToArray(), 0x07));
+        }
+
+        public MinBridgeOffset[] GetMinBridgeOffset()
+        {
+            //压力参数配置
+            PressureConfig();
+            //默认放大器增益和UI微调
+            Connection.WriteRead(WriteAll(0x64, 1, GetArray(0x67, SensorCount), 0x07));
+            //压力连续测量
+            Connection.WriteRead(WriteAll(0x08, 1, GetArray(0x05, SensorCount), 0x07));
+            //默认电桥偏移
+            Connection.WriteRead(WriteAll(0x65, 1, GetArray(0x00, SensorCount), 0x07));
+            Thread.Sleep(105);
+            ReceivedData[] result;
+            //read P result (clear P-readybit)
+            result = ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 3, 0x07)));
+
+            //创建存储最小压力偏移的数组
+            MinBridgeOffset[] offsetPx = new MinBridgeOffset[result.Length];
+            for (int i = 0; i < offsetPx.Length; i++)
+            {
+                offsetPx[i] = new MinBridgeOffset(i, 0x00, int.MaxValue);
+            }
+            //遍历偏移量，找到最小值
+            for (int j = 0; j <= 31; j++)
+            {
+
+                Thread.Sleep(110);
+                //判断采集的压力是否可用，不可用会标记为NG
+                CheckOperating(0xD5);
+                //读取压力原值
+                result = ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 3, 0x07)));
+                //设置电桥偏移
+                Write(0x65, (byte)j);
+                byte[] data = new byte[4];
+                //遍历采集组采集的结果
+                for (int i = 0; i < result.Length; i++)
+                {
+                    Array.Clear(data);
+                    result[i].Data.CopyTo(data, 1);
+                    Array.Reverse(data);//转换小端
+                    int press = BitConverter.ToInt32(data, 0);//转为整数
+                    offsetPx[i].SetValue((byte)j, press);
+                }
+            }
+            //设置偏移量
+            SetBridgeOffset(offsetPx);
+            //停止压力测量
+            Write(0x08, 0x00);
+            //read P result (clear P-readybit)
+            ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 3, 0x07)));
+            //检测传感器初始化是否完成
+            CheckOperating();
+            BridgeOffset = offsetPx;
+            return offsetPx;
+        }
+
+        public TargetGain[] GetTargetAMPGain()
+        {
+            //压力参数配置
+            PressureConfig();
+            //默认放大器增益和UI微调
+            Write(0x64, 0x07);
+            //设置偏移量
+            SetBridgeOffset(BridgeOffset);
+            //压力连续测量
+            Write(0x08, 0x05);
+            Thread.Sleep(105);
+            ReceivedData[] result;
+            //read P result (clear P-readybit)
+            result = ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 3, 0x07)));
+
+            //创建存储amp增益的数组
+            TargetGain[] targetGains = new TargetGain[result.Length];
+            for (int i = 0; i < targetGains.Length; i++)
+            {
+                targetGains[i] = new TargetGain(i, 0x07, 0);
+            }
+            //遍历，找到目标增益
+            for (int j = 0; j <= 15; j++)
+            {
+                byte b1 = (byte)j;
+                byte varyGain = (byte)(b1 << 4 | 0x07);
+                Thread.Sleep(110);
+                //判断采集的压力是否可用，不可用会标记为NG
+                CheckOperating(0xD5);
+                //读取压力原值
+                result = ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 3, 0x07)));
+                //设置AMPGain
+                Write(0x64, varyGain);
+                byte[] data = new byte[4];
+                //遍历采集组采集的结果
+                for (int i = 0; i < result.Length; i++)
+                {
+                    Array.Clear(data);
+                    result[i].Data.CopyTo(data, 1);
+                    Array.Reverse(data);//转换小端
+                    int press = BitConverter.ToInt32(data, 0);//转为整数
+                    targetGains[i].SetValue(varyGain, press);
+                }
+            }
+            //设置增益
+            SetAMPGain(targetGains);
+            //停止压力测量
+            Write(0x08, 0x00);
+            //read P result (clear P-readybit)
+            ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 3, 0x07)));
+            //检测传感器初始化是否完成
+            CheckOperating();
+            AMPGain = targetGains;
+            return targetGains;
+        }
+
+        public void ZXC6862RawData()
+        {
+            //设置偏移量
+            SetBridgeOffset(BridgeOffset);
+            //设置增益
+            SetAMPGain(AMPGain);
+            //签名
+            WriteSignature();
+            //压力测量速率、过采样率设置
+            Write(0x06, 0x36);
+            //测量数据位移，FIFO 使能
+            Write(0x09, 0x04);
+            //配置温度测量速率和分辨率
+            Write(0x07, 0xB0);
+            //设置压力温度增益
+            Write(0x62, 0x02);
+            //开始压力温度测量
+            Write(0x08, 0x07);
+            Thread.Sleep(200);
+        }
+        #endregion
+
         #region 烧录操作
         public override byte[] WriteAllFuseData(byte address = 0x34, byte length = 28)
         {
-            
             List<byte> bytes = [];
             for (int i = SensorDataGroup.Count - 1; i >= 0; i--)
                 bytes.AddRange(SensorDataGroup[i].CurrentCalibrationData.registerData);
@@ -720,7 +1029,6 @@ namespace Module
         }
         public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00)
         {
-            
             byte[] sensorAddressBytes = [0x00, 0x00];
 
             int j = 0;
@@ -748,7 +1056,42 @@ namespace Module
         public override int[] GetSensorsUID()
         {
             int[] uidArray = new int[SensorCount];
+            ReceivedData[] result;
             
+            for (int n = 0; n < 3; n++)
+            {
+                bool isOK = true;
+                result = ReceivedData.ParseData(ReadAll(0x08, 1, 0x07), SensorCount);
+                for (int i = 0; i < result.Length; i++)
+                {
+                    if (result[i].Data[0] != 0xC0)
+                    {
+                        if (n >= 2)
+                        {
+                            SensorDataGroup[i].Result = "NG";
+                            isOK = false;
+                        }
+                        else
+                        {
+                            Thread.Sleep(50);
+                            isOK = false;
+                            break;
+                        }
+                    }
+                }
+                if (isOK) break;
+            }
+
+            result = ReceivedData.ParseData(ReadAll(0x25, 4, 0x07), SensorCount);
+            byte[] uidBytes = new byte[4];
+            for (int i = 0; i < result.Length; i++)
+            {
+                byte v = result[i].Data[3];
+                result[i].Data[3] = BytesTool.SetBit(v, 7, false);
+                result[i].Data.CopyTo(uidBytes, 0);
+                uidArray[i] = BitConverter.ToInt32(uidBytes);
+                SensorDataGroup[i].Uid = uidArray[i];
+            }
             return uidArray;
         }
         /// <summary>
@@ -816,9 +1159,7 @@ namespace Module
         public override void Calculate()
         {
             foreach (var sensorData in SensorDataGroup.Values)
-            {
-                
-            }
+                sensorData.Calculate();
         }
 
         public override void Verify(decimal setP = 0, decimal setT = 0, bool isTest = false)
