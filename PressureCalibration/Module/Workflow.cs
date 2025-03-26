@@ -413,7 +413,7 @@ namespace Module
         /// <param name="setP">设置压力，用于寻找目标数据</param>
         /// <param name="setT">设置温度，用于寻找目标数据</param>
         /// <returns>监视数据</returns>
-        public ConcurrentDictionary<string, double> GetDataByTask(double setP, double setT)
+        public ConcurrentDictionary<string, double> GetAllDataByTask(double setP, double setT)
         {
             //数据容器，采集监视数据
             ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1, [.. DisplayedKeys]);
@@ -482,7 +482,7 @@ namespace Module
                 double minT = 90;
                 double maxT = -20;
                 //采集监视数据
-                var monitorData = GetDataByTask(double.NaN, double.NaN);
+                var monitorData = GetAllDataByTask(double.NaN, double.NaN);
                 //温度数据检测，找到最小最大温度
                 foreach (var tempData in monitorData)
                 {
@@ -574,7 +574,7 @@ namespace Module
             {
                 bool isOK = true;
                 //采集监视数据
-                GetDataByTask(double.NaN, double.NaN);
+                GetAllDataByTask(double.NaN, double.NaN);
                 //得到压力
                 decimal result = Pace.GetPress(isTest: IsTestVer);
                 //检测压力差值
@@ -606,7 +606,7 @@ namespace Module
             {
                 WorkProcess?.Invoke($"开始采集压力{setPPara[i]}");
                 if (WaitPressure(setPPara[i]))
-                    GetDataByTask((double)setPPara[i], (double)targetT);
+                    GetAllDataByTask((double)setPPara[i], (double)targetT);
                 else
                     return false;
                 WorkProcess?.Invoke($"完成采集压力{setPPara[i]}");

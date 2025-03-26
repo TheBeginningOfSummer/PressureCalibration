@@ -111,9 +111,20 @@ namespace PressureCalibration.View
         public Test()
         {
             InitializeComponent();
-            //DeviceCount = Acquisition.Instance.CardAmount;
-            //BOE2520TPicture(DeviceCount);
-            ZXW7570TPicture(Acquisition.Instance.GroupDic);
+            DeviceCount = Acquisition.Instance.CardAmount;
+            switch (Acquisition.Instance.SensorType)
+            {
+                case "BOE2520":
+                    BOE2520TPicture(DeviceCount);
+                    break;
+                case "7570":
+                    ZXW7570TPicture(Acquisition.Instance.GroupDic);
+                    break;
+                case "6862":
+                    ZXC6862TPicture(Acquisition.Instance.GroupDic);
+                    break;
+                default:break;
+            }
             Bindings();
             //DataMonitor.UpdataData += UpdateTempPicture;
         }
@@ -143,7 +154,7 @@ namespace PressureCalibration.View
 
         private void Test_FormClosing(object sender, FormClosingEventArgs e)
         {
-            PN温度分布.Controls.Clear();//防止标签被销毁
+            PN温度分布.Controls.Clear();//清除控件，防止信息标签被销毁
         }
 
         #region 温度测试
@@ -267,6 +278,56 @@ namespace PressureCalibration.View
                 FormKit.AddControl(PN温度分布, group.TInfo[1]);
                 foreach (var sensor in group.SensorDataGroup.Values)
                     FormKit.AddControl(PN温度分布, sensor.SensorInfo);
+            }
+        }
+
+        public void Ini6862Pos(GroupZXC6862 group, ref int x, ref int y, int indexOffset = 0, int indexTemp = 0)
+        {
+            //计算前9个传感器位置
+            List<Point> points1 = FormKit.GetLBPos2_4(x, y, Offset, Offset, direction: false);
+            //设置前8个传感器的信息显示位置
+            for (int i = 0; i < points1.Count; i++)
+            {
+                if (i < 2)
+                    group.SensorDataGroup[i + indexOffset].SetLabelLoc(points1[i]);
+                else if (i == 2)
+                    group.SetLabelLoc(points1[i], indexTemp);//TMP117[0]位置设置
+                else if (i > 2 && i < 5)
+                    group.SensorDataGroup[i - 1 + indexOffset].SetLabelLoc(points1[i]);
+                else if (i == 5)
+                    group.SetLabelLoc(points1[i], indexTemp + 1);//TMP117[1]位置设置
+                else if (i < 8)
+                    group.SensorDataGroup[i - 2 + indexOffset].SetLabelLoc(points1[i]);
+            }
+        }
+
+        public void ZXC6862TPicture(ConcurrentDictionary<int, Group> groupCollection)
+        {
+            PN温度分布.Controls.Clear();
+            //九宫格左上角初始位置
+            int x = IniPoint.X;
+            int y = IniPoint.Y;
+            Interval.X = 250;
+
+            foreach (GroupZXC6862 group in groupCollection.Values.Cast<GroupZXC6862>())
+            {
+                Ini6862Pos(group, ref x, ref y);
+                x += Interval.X;
+                Ini6862Pos(group, ref x, ref y, 8, 2);
+                x += Interval.X;
+                //将标签添加到界面上
+                //FormKit.AddControl(PN温度分布, group.TInfo[0]);
+                //FormKit.AddControl(PN温度分布, group.TInfo[1]);
+                foreach (var tLabel in group.TInfo)
+                    FormKit.AddControl(PN温度分布, tLabel);
+                for (int i = 0; i < 6; i++)
+                {
+                    FormKit.AddControl(PN温度分布, group.SensorDataGroup[i].SensorInfo);
+                }
+                for (int i = 8; i < 14; i++)
+                {
+                    FormKit.AddControl(PN温度分布, group.SensorDataGroup[i].SensorInfo);
+                }
             }
         }
 

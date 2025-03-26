@@ -85,6 +85,11 @@ namespace PressureCalibration.View
             BGW采集卡.DoWork += BGW采集卡_DoWork;
             BGW采集卡.RunWorkerCompleted += BGW采集卡_RunWorkerCompleted;
 
+            CB设备地址.Items.Clear();
+            for (int i = 1; i <= Acquisition.Instance.CardAmount; i++)
+            {
+                CB设备地址.Items.Add(i.ToString());
+            }
             CB设备地址.DataBindings.Add(new Binding("Text", this, nameof(DeviceAddress)));
             CB传感器地址.DataBindings.Add(new Binding("Text", this, nameof(SensorIndex)));
             CB寄存器地址.DataBindings.Add(new Binding("Text", this, nameof(RegisterAddress)));
@@ -122,6 +127,9 @@ namespace PressureCalibration.View
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int i = 0; i < group.SensorCount; i++)
                             e.Result += $"{Environment.NewLine}芯片{i.ToString().PadLeft(2, '0')}  温度值：{tempArray[i]:F2}℃  压力值：{pressArray[i]:N6}MPa";
+                        break;
+                    case "readData":
+                        e.Result = group.Show();
                         break;
 
                     case "off":

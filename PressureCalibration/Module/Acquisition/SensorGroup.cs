@@ -2,6 +2,7 @@
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using Data;
+using SQLitePCL;
 using System.Collections.Concurrent;
 
 namespace Module
@@ -748,7 +749,7 @@ namespace Module
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorZXC6862 sensor = new(deviceAddress, i);
-                sensor.ClearData(config.CP);
+                sensor.ReinitializeData(config.CP);
                 SensorDataGroup.TryAdd(i, sensor);
                 SelectedSensor[i] = false;
             }
@@ -1091,6 +1092,7 @@ namespace Module
                 result[i].Data.CopyTo(uidBytes, 0);
                 uidArray[i] = BitConverter.ToInt32(uidBytes);
                 SensorDataGroup[i].Uid = uidArray[i];
+                SensorDataGroup[i].SetUID();
             }
             return uidArray;
         }
@@ -1103,7 +1105,17 @@ namespace Module
         {
             tRawArray = new int[SensorCount];
             pRawArray = new int[SensorCount];
-            
+            ReceivedData[] result;
+            result = ReceivedData.ParseData(Connection.WriteRead(ReadAll(0x00, 6, 0x07)));
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (result[i].IsEffective)
+                {
+                    byte[] bytes = result[i].Data;
+                    pRawArray[i] = BitConverter.ToInt32([bytes[2], bytes[1], bytes[0], 0x00]);
+                    tRawArray[i] = BitConverter.ToInt32([bytes[5], bytes[4], bytes[3], 0x00]);
+                }
+            }
         }
         /// <summary>
         /// 得到采集卡所有芯片输出
@@ -1140,8 +1152,26 @@ namespace Module
         {
             lock (Connection)
             {
-                press = 0;
-                return [];
+                if (isTest)
+                {
+                    //采集温度压力实时数据
+                    press = (decimal)random.NextDouble() * 1000000;
+                    return ReadTemperature(isTest);
+                }
+                //采集温度压力实时数据
+                press = config.PACE.GetPress(isTest: isTest);
+                decimal[] currentTemp = ReadTemperature(isTest);
+                GetSensorsData(out int[] tempArray, out int[] pressArray);
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    var ori = SensorDataGroup[i].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
+                    ori.Date = DateTime.Now.ToString("G");
+                    ori.PRaw = pressArray[i];
+                    ori.TRaw = tempArray[i];
+                    ori.PRef = press;
+                    ori.TRef = currentTemp[GetTempIndex(i)];
+                }
+                return currentTemp;
             }
         }
         #endregion
@@ -1153,7 +1183,7 @@ namespace Module
         {
             //初始化每个传感器数据
             for (int i = 0; i < SensorCount; i++)
-                SensorDataGroup[i].ClearData(config.CP);
+                SensorDataGroup[i].ReinitializeData(config.CP);
         }
 
         public override void Calculate()

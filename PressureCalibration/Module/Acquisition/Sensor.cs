@@ -404,7 +404,7 @@ namespace Module
         }
 
         #region 数据处理
-        public void ClearData(CalibrationParameter parameter)
+        public void ReinitializeData(CalibrationParameter parameter)
         {
             Result = "Default";
             IsFused = false;
@@ -414,6 +414,7 @@ namespace Module
             {
                 for (int j = 0; j < parameter.PressurePoints.Count; j++)
                 {
+                    if (i == 1 && parameter.PressurePoints.Count - 1 == j) continue;
                     RawDataZXC6862 data = new()
                     {
                         T_idx = i + 1,
@@ -423,6 +424,14 @@ namespace Module
                     };
                     CurrentRawData.Add(data);
                 }
+            }
+        }
+
+        public void SetUID()
+        {
+            foreach (var data in CurrentRawData)
+            {
+                data.uid = Uid;
             }
         }
         /// <summary>

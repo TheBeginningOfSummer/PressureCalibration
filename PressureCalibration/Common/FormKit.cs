@@ -102,6 +102,45 @@ namespace WinformKit
             }
             return points;
         }
+
+        public static List<Point> GetLBPos2_4(int xIni, int yIni, int xIv, int yIv, int count = 8, bool direction = true)
+        {
+            int x = xIni; int y = yIni;
+            List<Point> points = [];
+            points.Add(new Point(x, y));
+
+            for (int i = 0; i < count; i++)
+            {
+                if (i == 0) continue;
+                if (direction)
+                {
+                    if (i % 2 == 0)
+                    {
+                        x = xIni;
+                        y += yIv;
+                    }
+                    else
+                    {
+                        x += xIv;
+                    }
+                }
+                else
+                {
+                    if (i % 2 == 0)
+                    {
+                        y = yIni;
+                        x += xIv;
+                    }
+                    else
+                    {
+                        y += yIv;
+                    }
+                }
+                points.Add(new Point(x, y));
+            }
+            return points;
+        }
+
         #region 控件添加
         /// <summary>
         /// 生成一个控件

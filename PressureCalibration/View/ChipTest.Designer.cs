@@ -49,6 +49,7 @@
             BTN关闭电源 = new Button();
             BTN读取芯片数据 = new Button();
             BTN读取 = new Button();
+            BTN查看数据 = new Button();
             CMS信息.SuspendLayout();
             GB电源控制.SuspendLayout();
             SuspendLayout();
@@ -269,11 +270,25 @@
             BTN读取.UseVisualStyleBackColor = true;
             BTN读取.Click += BTN采集卡_Click;
             // 
+            // BTN查看数据
+            // 
+            BTN查看数据.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            BTN查看数据.Font = new Font("Microsoft YaHei UI", 9F);
+            BTN查看数据.Location = new Point(566, 88);
+            BTN查看数据.Name = "BTN查看数据";
+            BTN查看数据.Size = new Size(70, 23);
+            BTN查看数据.TabIndex = 34;
+            BTN查看数据.Tag = "readData";
+            BTN查看数据.Text = "查看数据";
+            BTN查看数据.UseVisualStyleBackColor = true;
+            BTN查看数据.Click += BTN采集卡_Click;
+            // 
             // ChipTest
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(BTN查看数据);
             Controls.Add(BTN读取);
             Controls.Add(BTN读取芯片数据);
             Controls.Add(GB电源控制);
@@ -319,5 +334,6 @@
         private Button BTN读取;
         private ContextMenuStrip CMS信息;
         private ToolStripMenuItem TMI清除;
+        private Button BTN查看数据;
     }
 }
