@@ -169,7 +169,17 @@ namespace Module
         }
         #endregion
 
+        public virtual void InitializeACQ()
+        {
+
+        }
+
         public Label[] TInfo = new Label[4];
+        public void SetTargetT(decimal targetT = 15, decimal offsetT = 1)
+        {
+            TargetT = targetT;
+            OffsetT = offsetT;
+        }
         /// <summary>
         /// 设置四路温度标签位置
         /// </summary>
@@ -179,27 +189,21 @@ namespace Module
         {
             TInfo[index].Location = point;
         }
-
-        public void SetTargetT(decimal targetT = 15, decimal offsetT = 1)
-        {
-            TargetT = targetT;
-            OffsetT = offsetT;
-        }
         /// <summary>
         /// 设置标签显示信息
         /// </summary>
         /// <param name="value">四路温度值</param>
         /// <param name="targetT">目标温度</param>
         /// <param name="offsetT">温度最大偏移</param>
-        public void SetTInfo(decimal[] value, decimal targetT = 15, decimal offsetT = 1)
+        public void SetTLabelInfo(decimal[] value)
         {
             if (value.Length != TInfo.Length) return;
             for (int i = 0; i < TInfo.Length; i++)
             {
                 Color color;
-                if (value[i] > targetT + Math.Abs(offsetT))
+                if (value[i] > TargetT + Math.Abs(OffsetT))
                     color = Color.Red;
-                else if (value[i] < targetT - Math.Abs(offsetT))
+                else if (value[i] < TargetT - Math.Abs(OffsetT))
                     color = Color.LightSkyBlue;
                 else
                     color = Color.Orange;
@@ -228,7 +232,7 @@ namespace Module
                 var v3 = random.NextDouble() * 100;
                 var v4 = random.NextDouble() * 100;
                 decimal[] value = [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
-                SetTInfo(value, TargetT, OffsetT);
+                SetTLabelInfo(value);
                 return value;
             }
             else
@@ -244,7 +248,7 @@ namespace Module
                     v4 = BitConverter.ToInt16([result[11], result[10]]);
                 }
                 decimal[] value = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
-                SetTInfo(value, TargetT, OffsetT);
+                SetTLabelInfo(value);
                 return value;
             }
         }
@@ -774,6 +778,20 @@ namespace Module
             return SensorDataGroup[sensorIndex];
         }
 
+        public override void InitializeACQ()
+        {
+            base.InitializeACQ();
+            ReinitializeData();
+            Thread.Sleep(40);
+            CheckOperating();//检测芯片初始化
+            GetSensorsUID();//采集芯片ID
+            WriteSignature();//签名
+            CheckChipRW();//检测芯片读写
+            GetMinBridgeOffset();//得到电桥偏移
+            GetTargetAMPGain();//得到AMP增益
+            RawDataACQ();//采集准备
+        }
+
         #region ZXC6862
         /// <summary>
         /// 签名
@@ -795,44 +813,6 @@ namespace Module
             Write(0x62, 0x02);
         }
         /// <summary>
-        /// 检查芯片读写
-        /// </summary>
-        public void CheckChip()
-        {
-            WriteSignature();
-            //检测芯片读写
-            byte[] testData = Enumerable.Repeat<byte>(0xAA, 17).ToArray();
-            Connection.WriteRead(WriteAll(0x40, 17, GetArray(testData, SensorCount), 0x07));
-            Thread.Sleep(50);
-            ReceivedData[] result;
-            result = ReceivedData.ParseData(ReadAll(0x40, 17, 0x07), SensorCount);
-            for (int i = 0; i < result.Length; i++)
-            {
-                if (!BytesTool.CheckEquals(testData, result[i].Data))
-                    SensorDataGroup[i].Result = "NG";
-            }
-
-            testData = Enumerable.Repeat<byte>(0x55, 17).ToArray();
-            Connection.WriteRead(WriteAll(0x40, 17, GetArray(testData, SensorCount), 0x07));
-            Thread.Sleep(50);
-            result = ReceivedData.ParseData(ReadAll(0x40, 17, 0x07), SensorCount);
-            for (int i = 0; i < result.Length; i++)
-            {
-                if (!BytesTool.CheckEquals(testData, result[i].Data))
-                    SensorDataGroup[i].Result = "NG";
-            }
-
-            testData = Enumerable.Repeat<byte>(0x00, 17).ToArray();
-            Connection.WriteRead(WriteAll(0x40, 17, GetArray(testData, SensorCount), 0x07));
-            Thread.Sleep(50);
-            result = ReceivedData.ParseData(ReadAll(0x40, 17, 0x07), SensorCount);
-            for (int i = 0; i < result.Length; i++)
-            {
-                if (!BytesTool.CheckEquals(testData, result[i].Data))
-                    SensorDataGroup[i].Result = "NG";
-            }
-        }
-        /// <summary>
         /// 检测传感器初始化完成和系数是否可读取
         /// </summary>
         public bool CheckOperating(byte status = 0xC0)
@@ -849,7 +829,7 @@ namespace Module
                     {
                         if (n >= 2)
                         {
-                            SensorDataGroup[i].Result = "NG";
+                            SensorDataGroup[i].Result = $"0x08不等于{status}|";
                             isOK = false;
                         }
                         else
@@ -863,6 +843,43 @@ namespace Module
                 if (isOK) return isOK;
             }
             return isOK;
+        }
+        /// <summary>
+        /// 检查芯片读写
+        /// </summary>
+        public void CheckChipRW()
+        {
+            //检测芯片读写
+            byte[] testData = Enumerable.Repeat<byte>(0xAA, 18).ToArray();
+            Connection.WriteRead(WriteAll(0x40, 18, GetArray(testData, SensorCount), 0x07));
+            Thread.Sleep(50);
+            ReceivedData[] result;
+            result = ReceivedData.ParseData(ReadAll(0x40, 18, 0x07), SensorCount);
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (!BytesTool.CheckEquals(testData, result[i].Data))
+                    SensorDataGroup[i].Result = "读写测试失败|";
+            }
+
+            testData = Enumerable.Repeat<byte>(0x55, 18).ToArray();
+            Connection.WriteRead(WriteAll(0x40, 18, GetArray(testData, SensorCount), 0x07));
+            Thread.Sleep(50);
+            result = ReceivedData.ParseData(ReadAll(0x40, 18, 0x07), SensorCount);
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (!BytesTool.CheckEquals(testData, result[i].Data))
+                    SensorDataGroup[i].Result = "读写测试失败|";
+            }
+
+            testData = Enumerable.Repeat<byte>(0x00, 18).ToArray();
+            Connection.WriteRead(WriteAll(0x40, 18, GetArray(testData, SensorCount), 0x07));
+            Thread.Sleep(50);
+            result = ReceivedData.ParseData(ReadAll(0x40, 18, 0x07), SensorCount);
+            for (int i = 0; i < result.Length; i++)
+            {
+                if (!BytesTool.CheckEquals(testData, result[i].Data))
+                    SensorDataGroup[i].Result = "读写测试失败|";
+            }
         }
 
         public void SetBridgeOffset(MinBridgeOffset[] minBridgeOffset)
@@ -998,7 +1015,7 @@ namespace Module
             return targetGains;
         }
 
-        public void ZXC6862RawData()
+        public void RawDataACQ()
         {
             //设置偏移量
             SetBridgeOffset(BridgeOffset);
@@ -1057,33 +1074,10 @@ namespace Module
         public override int[] GetSensorsUID()
         {
             int[] uidArray = new int[SensorCount];
-            ReceivedData[] result;
-            
-            for (int n = 0; n < 3; n++)
-            {
-                bool isOK = true;
-                result = ReceivedData.ParseData(ReadAll(0x08, 1, 0x07), SensorCount);
-                for (int i = 0; i < result.Length; i++)
-                {
-                    if (result[i].Data[0] != 0xC0)
-                    {
-                        if (n >= 2)
-                        {
-                            SensorDataGroup[i].Result = "NG";
-                            isOK = false;
-                        }
-                        else
-                        {
-                            Thread.Sleep(50);
-                            isOK = false;
-                            break;
-                        }
-                    }
-                }
-                if (isOK) break;
-            }
 
-            result = ReceivedData.ParseData(ReadAll(0x25, 4, 0x07), SensorCount);
+            CheckOperating(0xC0);
+
+            ReceivedData[] result = ReceivedData.ParseData(ReadAll(0x25, 4, 0x07), SensorCount);
             byte[] uidBytes = new byte[4];
             for (int i = 0; i < result.Length; i++)
             {
@@ -1188,6 +1182,7 @@ namespace Module
 
         public override void Calculate()
         {
+            Write(0x08, 0x00);
             foreach (var sensorData in SensorDataGroup.Values)
                 sensorData.Calculate();
         }
@@ -1371,7 +1366,7 @@ namespace Module
             tempResult = ReceivedData.ParseData(ReadAll(0x09, 2), SensorCount);
             for (int i = 0; i < SensorCount; i++)
             {
-                if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                if (pressResult[i].IsEffective || tempResult[i].IsEffective)
                 {
                     Array.Clear(tempBytes);
                     Array.Clear(pressBytes);

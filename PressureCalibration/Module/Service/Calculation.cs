@@ -368,16 +368,16 @@ namespace Module
         #region ZXC6862
         private readonly static ZXCalibration.ZXP zx = new();
 
-        public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData)
+        public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData, int usedDataLen = 7)
         {
             if (oriData == null || oriData.Count == 0) return null;
             CalibrationZXC6862 data = new() { uid = oriData[0].uid };
 
-            double[] pRefArray = new double[oriData.Count];
-            double[] tRefArray = new double[oriData.Count];
-            double[] pRawArray = new double[oriData.Count];
-            double[] tRawArray = new double[oriData.Count];
-            for (int i = 0; i < oriData.Count; i++)
+            double[] pRefArray = new double[usedDataLen];
+            double[] tRefArray = new double[usedDataLen];
+            double[] pRawArray = new double[usedDataLen];
+            double[] tRawArray = new double[usedDataLen];
+            for (int i = 0; i < usedDataLen; i++)
             {
                 pRefArray[i] = Convert.ToDouble(oriData[i].PRef);
                 tRefArray[i] = Convert.ToDouble(oriData[i].TRef);

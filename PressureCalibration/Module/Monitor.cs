@@ -21,14 +21,16 @@ namespace Module
             DisplayedData.TryAdd("Time", []);
             //初始化采集压力数据
             for (int i = 0; i < keys.Length; i++)
+            {
                 DisplayedData.TryAdd(keys[i], []);
+            }
             Task.Run(RefreshData);
         }
 
-        public static ConcurrentDictionary<string, double> GetDataContainer(double defaultData = double.NaN, params string[] keys)
+        public static ConcurrentDictionary<string, double> GetDataContainer(double defaultData = double.NaN)
         {
             ConcurrentDictionary<string, double> data = [];
-            data.TryAdd("Time", defaultData);
+            string[] keys = [.. DisplayedData.Keys];
             for (int i = 0; i < keys.Length; i++)
                 data.TryAdd(keys[i], defaultData);
             return data;
@@ -37,7 +39,7 @@ namespace Module
         /// 更新字典数据
         /// </summary>
         /// <param name="data">数据</param>
-        public static void AddData(Dictionary<string, double> data)
+        public static void UpdateData(Dictionary<string, double> data)
         {
             foreach (var item in data)
             {
@@ -67,7 +69,7 @@ namespace Module
                 {
                     if (data != null)
                     {
-                        AddData(data);
+                        UpdateData(data);
                         UpdataData?.Invoke(data);
                     }
                 }

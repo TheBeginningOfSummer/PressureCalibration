@@ -20,7 +20,7 @@ namespace PressureCalibration
             BGWRun.RunWorkerCompleted += BGWRun_RunWorkerCompleted;
 
             ACQ.WorkProcess += UpdateMessage;
-            ACQ.Initialize();
+            ACQ.InitializeDevice();
 
         }
 

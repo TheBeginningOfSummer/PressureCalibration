@@ -228,8 +228,18 @@ namespace Data
 
         public byte[] registerData = new byte[36];
 
+        public byte[] uidRegister = new byte[25];
+
         public string Date { get; set; } = DateTime.Now.ToString("G");
 
+        public void SetUIDRegister()
+        {
+            List<byte> list = [];
+            byte[] bytes = new byte[21];
+            list.AddRange(bytes);
+            list.AddRange(BitConverter.GetBytes(uid));
+            uidRegister = [.. list];
+        }
         public string Display()
         {
             return $"[uid:{uid}] C00:{C00}  C01:{C01}  C10:{C10}  C11:{C11}  C20:{C20}  C21:{C21}  C30:{C30}" +

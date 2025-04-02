@@ -16,19 +16,31 @@ namespace Module
             get { return result; }
             set
             {
-                if (value == "NG" && result != "NG")
+                if (value == "Default")
                 {
-                    SingleYield = SingleYield * 100 / 101;
+                    //结果初始化
+                    result = value;
                 }
-                if (value == "GOOD" && result != "GOOD")
+                else if (value == "NG")
                 {
-                    SingleYield = (SingleYield * 100 + 1) / 101;
+                    if (result == "Default")
+                    {
+                        SingleYield = SingleYield * 100 / 101;
+                        result = value;
+                    }
                 }
-                if (value == "Check" && result != "Check")
+                else if (value == "GOOD")
                 {
-                    SingleYield = SingleYield * 100 / 101;
+                    if (result == "Default")
+                    {
+                        SingleYield = (SingleYield * 100 + 1) / 101;
+                        result = value;
+                    }
                 }
-                result = value;
+                else
+                {
+                    result += value;
+                }
             }
         }//测试结果
         public bool IsFused { get; set; } = false;//是否烧录过
@@ -358,7 +370,7 @@ namespace Module
                 else if (Math.Abs(verifyItem.TResidual) > maxTDiff) Result = "NG";
                 else
                 {
-                    if (Result != "NG") Result = "GOOD";
+                    Result = "GOOD";
                 }
             }
         }
@@ -414,7 +426,6 @@ namespace Module
             {
                 for (int j = 0; j < parameter.PressurePoints.Count; j++)
                 {
-                    if (i == 1 && parameter.PressurePoints.Count - 1 == j) continue;
                     RawDataZXC6862 data = new()
                     {
                         T_idx = i + 1,
@@ -460,7 +471,7 @@ namespace Module
                 else if (Math.Abs(verifyItem.TResidual) > maxTDiff) Result = "NG";
                 else
                 {
-                    if (Result != "NG") Result = "GOOD";
+                    Result = "GOOD";
                 }
             }
         }

@@ -1858,6 +1858,21 @@ namespace CSharpKit
                 return (int)(0xFFFFFFFF >> (32 - bitLength)) & value;
             }
 
+            public byte SetValueByBit(int value, int startBit, int endBit, int move)
+            {
+                if (startBit < 0) startBit = 0;
+                if (startBit > 32) startBit = 32;
+                if (endBit < 0) endBit = 0;
+                if (endBit > 32) endBit = 32;
+
+                int mask1 = (int)(0xFFFFFFFF >> (32 - startBit));
+                int mask2 = (int)(0xFFFFFFFF << endBit);
+                int mask = mask1 & mask2;
+                int result = mask & value;
+                result >>= move;
+                return (byte)result;
+            }
+
         }
     }
 

@@ -254,7 +254,7 @@ namespace Module
             DataMonitor.Initialize([.. DisplayedKeys]);
         }
 
-        public void Initialize()
+        public void InitializeDevice()
         {
             #region 设备连接
             Open();
@@ -282,10 +282,13 @@ namespace Module
         }
 
         #region 数据采集
-        public void ClearData()
+        public void InitializeACQ()
         {
+            WorkProcess?.Invoke("芯片初始化中……");
+            CurrentTempIndex = 0;//温度索引
             foreach (var group in GroupDic.Values)
-                group.ReinitializeData();
+                group.InitializeACQ();
+            WorkProcess?.Invoke("芯片初始化完成");
         }
 
         public void Open()
@@ -308,24 +311,55 @@ namespace Module
             }
         }
 
-        public ReceivedData[] PowerOn()
+        public bool PowerOn()
         {
             ReceivedData[] receivedData = new ReceivedData[CardAmount];
             for (int i = 0; i < CardAmount; i++)
-            {
                 receivedData[i] = ReceivedData.ParseData(GroupDic[i + 1].PowerOn())[0];
+            foreach (var item in receivedData)
+            {
+                if (item == null)
+                {
+                    WorkProcess?.Invoke($"采集卡数量错误");
+                    return false;
+                }
+                if (item.DataType == ReceivedType.Timeout)
+                {
+                    WorkProcess?.Invoke($"采集卡{item.DeviceAddress}通信超时");
+                    return false;
+                }
+                if (item.IsFault)
+                {
+                    WorkProcess?.Invoke($"采集卡{item.DeviceAddress}短路");
+                    return false;
+                }
             }
-            return receivedData;
+            return true;
         }
 
-        public ReceivedData[] PowerOff()
+        public void PowerOff()
         {
             ReceivedData[] receivedData = new ReceivedData[CardAmount];
             for (int i = 0; i < CardAmount; i++)
-            {
                 receivedData[i] = ReceivedData.ParseData(GroupDic[i + 1].PowerOff())[0];
+            foreach (var item in receivedData)
+            {
+                if (item == null)
+                {
+                    WorkProcess?.Invoke($"采集卡数量错误");
+                    return;
+                }
+                if (item.DataType == ReceivedType.Timeout)
+                {
+                    WorkProcess?.Invoke($"采集卡{item.DeviceAddress}通信超时");
+                    return;
+                }
+                if (item.IsFault)
+                {
+                    WorkProcess?.Invoke($"采集卡{item.DeviceAddress}短路");
+                    return;
+                }
             }
-            return receivedData;
         }
         /// <summary>
         /// 得到温度和传感器输出的数据
@@ -388,35 +422,13 @@ namespace Module
         /// <summary>
         /// 采集所有采集卡的标定数据（单温度单压力）
         /// </summary>
-        /// <param name="setP">设置压力，用于寻找目标数据</param>
-        /// <param name="setT">设置温度，用于寻找目标数据</param>
-        public ConcurrentDictionary<string, double> GetData(decimal setP, decimal setT)
-        {
-            ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1, [.. DisplayedKeys]);
-            foreach (var group in GroupDic.Values)
-            {
-                //采集数据
-                var temp = group.GetData(setP, setT, out decimal pressure, IsTestVer);
-                //采集监视数据
-                MonitoringData(monitorData, group, temp, pressure);
-                //暂停
-                if (IsSuspend) WorkProcess?.Invoke($"暂停");
-            }
-            //检测数据是否完成，并加入缓存
-            if (DataMonitor.IsFilled(monitorData) && IsShowData)
-                DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());
-            return monitorData;
-        }
-        /// <summary>
-        /// 采集所有采集卡的标定数据（单温度单压力）
-        /// </summary>
-        /// <param name="setP">设置压力，用于寻找目标数据</param>
-        /// <param name="setT">设置温度，用于寻找目标数据</param>
+        /// <param name="setP">设置压力，用于寻找目标数据,设为NaN时只采集监视数据</param>
+        /// <param name="setT">设置温度，用于寻找目标数据,设为NaN时只采集监视数据</param>
         /// <returns>监视数据</returns>
-        public ConcurrentDictionary<string, double> GetAllDataByTask(double setP, double setT)
+        public ConcurrentDictionary<string, double> GetDataByTask(double setP, double setT)
         {
             //数据容器，采集监视数据
-            ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1, [.. DisplayedKeys]);
+            ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1);
             //采集线程列表
             List<Task> taskList = [];
             //按分组采集
@@ -433,7 +445,7 @@ namespace Module
                         }
                         else
                         {
-                            //采集数据
+                            //采集计算数据
                             var temp = acq.GetData((decimal)setP, (decimal)setT, out decimal pressure, IsTestVer);
                             //采集监视数据
                             MonitoringData(monitorData, acq, temp, pressure);
@@ -445,7 +457,7 @@ namespace Module
             //等待所有采集完成
             Task.WaitAll([.. taskList]);
             //检测数据是否完成，并加入缓存
-            if (DataMonitor.IsFilled(monitorData) && IsShowData)
+            if (IsShowData)
                 DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());
             return monitorData;
         }
@@ -482,7 +494,7 @@ namespace Module
                 double minT = 90;
                 double maxT = -20;
                 //采集监视数据
-                var monitorData = GetAllDataByTask(double.NaN, double.NaN);
+                var monitorData = GetDataByTask(double.NaN, double.NaN);
                 //温度数据检测，找到最小最大温度
                 foreach (var tempData in monitorData)
                 {
@@ -574,7 +586,7 @@ namespace Module
             {
                 bool isOK = true;
                 //采集监视数据
-                GetAllDataByTask(double.NaN, double.NaN);
+                GetDataByTask(double.NaN, double.NaN);
                 //得到压力
                 decimal result = Pace.GetPress(isTest: IsTestVer);
                 //检测压力差值
@@ -606,7 +618,7 @@ namespace Module
             {
                 WorkProcess?.Invoke($"开始采集压力{setPPara[i]}");
                 if (WaitPressure(setPPara[i]))
-                    GetAllDataByTask((double)setPPara[i], (double)targetT);
+                    GetDataByTask((double)setPPara[i], (double)targetT);
                 else
                     return false;
                 WorkProcess?.Invoke($"完成采集压力{setPPara[i]}");
@@ -823,28 +835,10 @@ namespace Module
                 context.Run();
                 return;
             }
-            context.ClearData();//初始化采集数据
-            context.CurrentTempIndex = 0;//温度索引
-            var result = context.PowerOn();
-            foreach (var item in result)
-            {
-                if (item == null)
-                {
-                    context.WorkProcess?.Invoke($"采集卡数量错误");
-                    return;
-                }
-                if (item.DataType == ReceivedType.Timeout)
-                {
-                    context.WorkProcess?.Invoke($"采集卡{item.DeviceAddress}通信超时");
-                    return;
-                }
-                if (item.IsFault)
-                {
-                    context.WorkProcess?.Invoke($"采集卡{item.DeviceAddress}短路");
-                    return;
-                }
-            }
 
+            if (!context.PowerOn()) return;//打开电源
+            context.InitializeACQ();//初始化采集数据
+            
             if (context.IsCalibrate)
                 context.SetState(new WaitT());
             else
