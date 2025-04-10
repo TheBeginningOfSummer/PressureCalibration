@@ -226,20 +226,33 @@ namespace Data
             }
         }
 
-        public byte[] registerData = new byte[36];
+        public byte[] registerData = new byte[25];
 
-        public byte[] uidRegister = new byte[25];
+        public void SetRegisterData()
+        {
+            registerData[0] = BytesTool.SetValueByBit(C0, 11, 4);
+            registerData[1] = (byte)((BytesTool.SetValueByBit(C0, 3, 0) << 4) | BytesTool.SetValueByBit(C1, 11, 8));
+            registerData[2] = BytesTool.SetValueByBit(C1, 7, 0);
+            registerData[3] = BytesTool.SetValueByBit(C00, 19, 12);
+            registerData[4] = BytesTool.SetValueByBit(C00, 11, 4);
+            registerData[5] = (byte)((BytesTool.SetValueByBit(C00, 3, 0) << 4) | BytesTool.SetValueByBit(C10, 19, 16));
+            registerData[6] = BytesTool.SetValueByBit(C10, 15, 8);
+            registerData[7] = BytesTool.SetValueByBit(C10, 7, 0);
+            registerData[8] = BytesTool.SetValueByBit(C01, 15, 8);
+            registerData[9] = BytesTool.SetValueByBit(C01, 7, 0);
+            registerData[10] = BytesTool.SetValueByBit(C11, 15, 8);
+            registerData[11] = BytesTool.SetValueByBit(C11, 7, 0);
+            registerData[12] = BytesTool.SetValueByBit(C20, 15, 8);
+            registerData[13] = BytesTool.SetValueByBit(C20, 7, 0);
+            registerData[14] = BytesTool.SetValueByBit(C21, 15, 8);
+            registerData[15] = BytesTool.SetValueByBit(C21, 7, 0);
+            registerData[16] = BytesTool.SetValueByBit(C30, 15, 8);
+            registerData[17] = BytesTool.SetValueByBit(C30, 7, 0);
+            registerData[24] = 0x80;
+        }
 
         public string Date { get; set; } = DateTime.Now.ToString("G");
 
-        public void SetUIDRegister()
-        {
-            List<byte> list = [];
-            byte[] bytes = new byte[21];
-            list.AddRange(bytes);
-            list.AddRange(BitConverter.GetBytes(uid));
-            uidRegister = [.. list];
-        }
         public string Display()
         {
             return $"[uid:{uid}] C00:{C00}  C01:{C01}  C10:{C10}  C11:{C11}  C20:{C20}  C21:{C21}  C30:{C30}" +
@@ -287,11 +300,11 @@ namespace Data
 
         public void Verify(CalibrationZXC6862 calibrationData)
         {
-            //Calculation.StartValidation(calibrationData, RAW_C, UNCALTempCodes, out double pCal, out double tCal);
-            //PCal = pCal;
-            //TCal = tCal;
-            //PResidual = PCal - (double)PACERef;
-            //TResidual = TCal - (double)TProbe;
+            Calculation.StartValidation(calibrationData, PRaw, TRaw, out double pCal, out double tCal);
+            PCal = pCal;
+            TCal = tCal;
+            PResidual = PCal - (double)PRef;
+            TResidual = TCal - (double)TRef;
         }
 
     }

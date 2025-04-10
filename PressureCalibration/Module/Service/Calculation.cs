@@ -368,7 +368,7 @@ namespace Module
         #region ZXC6862
         private readonly static ZXCalibration.ZXP zx = new();
 
-        public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData, int usedDataLen = 7)
+        public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData, int usedDataLen = 7, double kp = 1040384, double kt = 524288)
         {
             if (oriData == null || oriData.Count == 0) return null;
             CalibrationZXC6862 data = new() { uid = oriData[0].uid };
@@ -385,13 +385,13 @@ namespace Module
                 tRawArray[i] = Convert.ToDouble(oriData[i].TRaw);
             }
 
-            MWNumericArray kp = new(1, 1, new double[] { 1040384 });
-            MWNumericArray kt = new(1, 1, new double[] { 524288 });
+            MWNumericArray kpArray = new(1, 1, new double[] { kp });
+            MWNumericArray ktArray = new(1, 1, new double[] { kt });
             MWNumericArray pRef = new(pRefArray);
             MWNumericArray tRef = new(tRefArray);
             MWNumericArray pRaw = pRawArray;
             MWNumericArray tRaw = tRawArray;
-            var r = zx.PTCalibration(kp, kt, pRef, tRef, pRaw, tRaw).ToArray();
+            var r = zx.PTCalibration(kpArray, ktArray, pRef, tRef, pRaw, tRaw).ToArray();
             List<int> paraList = [];
             foreach (double i in r)
                 paraList.Add((int)i);
@@ -404,7 +404,7 @@ namespace Module
             data.C21 = paraList[6];
             data.C1 = paraList[7];
             data.C0 = paraList[8];
-            //data.registerData = 
+            data.SetRegisterData();
             return data;
         }
 

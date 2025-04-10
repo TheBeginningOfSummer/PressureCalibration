@@ -2,7 +2,6 @@
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using Data;
-using SQLitePCL;
 using System.Collections.Concurrent;
 
 namespace Module
@@ -928,7 +927,6 @@ namespace Module
             //遍历偏移量，找到最小值
             for (int j = 0; j <= 31; j++)
             {
-
                 Thread.Sleep(110);
                 //判断采集的压力是否可用，不可用会标记为NG
                 CheckOperating(0xD5);
@@ -1038,12 +1036,27 @@ namespace Module
         #endregion
 
         #region 烧录操作
-        public override byte[] WriteAllFuseData(byte address = 0x34, byte length = 28)
+        public override byte[] WriteAllFuseData(byte address = 0x40, byte length = 25)
         {
             List<byte> bytes = [];
             for (int i = SensorDataGroup.Count - 1; i >= 0; i--)
                 bytes.AddRange(SensorDataGroup[i].CurrentCalibrationData.registerData);
-            return Connection.WriteRead(WriteAll(address, length, [.. bytes]));
+
+            List<byte> bytes2 = [];
+            byte[] gainAndOffset = new byte[10];
+            for (int i = BridgeOffset.Length - 1; i >= 0; i--)
+            {
+                gainAndOffset[4] = AMPGain[i].AMPGain;
+                gainAndOffset[5] = BridgeOffset[i].BridgeOffset;
+                bytes2.AddRange(gainAndOffset);
+            }
+
+            byte[] bytes3 = new byte[SensorDataGroup.Count];
+
+            var r1 = Connection.WriteRead(WriteAll(address, length, [.. bytes]));
+            var r2 = Connection.WriteRead(WriteAll(0x60, 10, [.. bytes2]));
+            var r3 = Connection.WriteRead(WriteAll(0x6F, 1, bytes3));
+            return r1;
         }
         public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00)
         {
@@ -1182,7 +1195,7 @@ namespace Module
 
         public override void Calculate()
         {
-            Write(0x08, 0x00);
+            Write(0x08, 0x00);//停止采集
             foreach (var sensorData in SensorDataGroup.Values)
                 sensorData.Calculate();
         }
@@ -1310,15 +1323,14 @@ namespace Module
         {
             int[] uidArray = new int[SensorCount];
             //采集UID
-            var uidResult = ReceivedData.ParseData(ReadAll(0x01, 1), SensorCount);//读取所有传感器的uid数据
-            byte[] uidBytes = new byte[2];
+            var uidResult = ReceivedData.ParseData(ReadAll(0x02, 1, 0x07), SensorCount);//读取所有传感器的uid数据
+            //byte[] uidBytes = new byte[2];
             for (int i = 0; i < SensorCount; i++)
             {
                 if (uidResult[i].IsEffective)
                 {
-                    uidResult[i].Data.CopyTo(uidBytes, 1);
-                    Array.Reverse(uidBytes);
-                    uidArray[i] = BitConverter.ToInt16(uidBytes);
+                    //uidResult[i].Data.CopyTo(uidBytes, 1);
+                    uidArray[i] = (int)uidResult[i].Data[0];
                 }
             }
             return uidArray;
@@ -1360,10 +1372,11 @@ namespace Module
             byte[] tempBytes = new byte[2];
             byte[] pressBytes = new byte[4];
 
-            Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount)));
-            Thread.Sleep(10);
-            pressResult = ReceivedData.ParseData(ReadAll(0x06, 3), SensorCount);
-            tempResult = ReceivedData.ParseData(ReadAll(0x09, 2), SensorCount);
+            Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount),0x07));
+            Thread.Sleep(100);
+            pressResult = ReceivedData.ParseData(ReadAll(0x06, 3, 0x07), SensorCount);
+            Thread.Sleep(100);
+            tempResult = ReceivedData.ParseData(ReadAll(0x09, 2, 0x07), SensorCount);
             for (int i = 0; i < SensorCount; i++)
             {
                 if (pressResult[i].IsEffective || tempResult[i].IsEffective)

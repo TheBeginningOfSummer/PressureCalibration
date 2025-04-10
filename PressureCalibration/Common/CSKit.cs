@@ -1857,19 +1857,25 @@ namespace CSharpKit
                 if (bitLength > 32) return value;
                 return (int)(0xFFFFFFFF >> (32 - bitLength)) & value;
             }
-
-            public byte SetValueByBit(int value, int startBit, int endBit, int move)
+            /// <summary>
+            /// 截取startBit到endBit的位，从左向右
+            /// </summary>
+            /// <param name="value">要截取的值</param>
+            /// <param name="endBit">结束截取位</param>
+            /// <param name="startBit">起始截取位，从左向右</param>
+            /// <returns></returns>
+            public static byte SetValueByBit(int value, int endBit, int startBit)
             {
+                if (endBit < 0) endBit = 0;
+                if (endBit > 31) endBit = 31;
                 if (startBit < 0) startBit = 0;
                 if (startBit > 32) startBit = 32;
-                if (endBit < 0) endBit = 0;
-                if (endBit > 32) endBit = 32;
 
-                int mask1 = (int)(0xFFFFFFFF >> (32 - startBit));
-                int mask2 = (int)(0xFFFFFFFF << endBit);
+                int mask1 = (int)(0xFFFFFFFF >> (31 - endBit));
+                int mask2 = (int)(0xFFFFFFFF << startBit);
                 int mask = mask1 & mask2;
                 int result = mask & value;
-                result >>= move;
+                result >>= startBit;
                 return (byte)result;
             }
 
