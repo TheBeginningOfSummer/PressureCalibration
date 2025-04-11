@@ -1,8 +1,9 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
-using Data;
 using System.Collections.Concurrent;
+using System.ComponentModel;
+using static Module.SensorZXC6862;
 
 namespace Module
 {
@@ -10,22 +11,61 @@ namespace Module
     {
         #region 参数
         /// <summary>
+        /// 采集的温度点
+        /// </summary>
+        public BindingList<decimal> TempaturePoints { get; set; } = [15, 30, 50];
+        /// <summary>
+        /// 采集的压力点
+        /// </summary>
+        public BindingList<decimal> PressurePoints { get; set; } = [55000, 65000, 80000, 90000, 105000];
+        /// <summary>
+        /// 验证的压力点
+        /// </summary>
+        public BindingList<decimal> ValidatePressures { get; set; } = [50000, 100000, 110000];
+
+        private bool isFuse = false;
+        /// <summary>
+        /// 是否烧录
+        /// </summary>
+        public bool IsFuse
+        {
+            get { return isFuse; }
+            set { isFuse = value; }
+        }
+        /// <summary>
+        /// 烧录的最大温差
+        /// </summary>
+        public double FuseTDiff { get; set; } = 0.5;
+        /// <summary>
+        /// 烧录时的最大差值
+        /// </summary>
+        public double FusePDiff { get; set; } = 30;
+
+        /// <summary>
         /// I2C地址
         /// </summary>
-        public byte I2CAddress = 0x7F;
+        public byte I2CAddress { get; set; } = 0x7F;
+        /// <summary>
+        /// I2C速度
+        /// </summary>
+        public byte I2CSpeed { get; set; } = 0x00;
         /// <summary>
         /// 采集地址
         /// </summary>
-        public byte DeviceAddress;
+        public byte DeviceAddress { get; set; }
         /// <summary>
         /// 每组采集传感器的数量
         /// </summary>
-        public int SensorCount = 16;
+        public int SensorCount { get; set; } = 16;
+        /// <summary>
+        /// 采集卡连接
+        /// </summary>
+        public SerialPortTool Connection { get; set; } = new();
+
         /// <summary>
         /// 传感器选择数组
         /// </summary>
         public bool[] SelectedSensor = [];
-
         /// <summary>
         /// 当前目标温度
         /// </summary>
@@ -38,15 +78,113 @@ namespace Module
 
         #region 组件
         protected readonly Random random = new();
-        /// <summary>
-        /// 参数和设备配置
-        /// </summary>
-        public readonly Config config = Config.Instance;
-        /// <summary>
-        /// 采集卡连接
-        /// </summary>
-        public SerialPortTool Connection = new();
+        public readonly PressController PACE;
+        public readonly Database DB;
         #endregion
+
+        public readonly ConcurrentDictionary<int, Sensor> Sensors = [];
+        public Sensor GetSensor(int sensorIndex)
+        {
+            return Sensors[sensorIndex];
+        }
+        public Label[] TInfo = new Label[4];
+        public void SetTargetT(decimal targetT = 15, decimal offsetT = 1)
+        {
+            TargetT = targetT;
+            OffsetT = offsetT;
+        }
+        /// <summary>
+        /// 设置四路温度标签位置
+        /// </summary>
+        /// <param name="point">位置</param>
+        /// <param name="index">第几路</param>
+        public void SetLabelLoc(Point point, int index)
+        {
+            TInfo[index].Location = point;
+        }
+        /// <summary>
+        /// 设置标签显示信息
+        /// </summary>
+        /// <param name="value">四路温度值</param>
+        /// <param name="targetT">目标温度</param>
+        /// <param name="offsetT">温度最大偏移</param>
+        public void SetTLabelInfo(decimal[] value)
+        {
+            if (value.Length != TInfo.Length) return;
+            for (int i = 0; i < TInfo.Length; i++)
+            {
+                Color color;
+                if (value[i] > TargetT + Math.Abs(OffsetT))
+                    color = Color.Red;
+                else if (value[i] < TargetT - Math.Abs(OffsetT))
+                    color = Color.LightSkyBlue;
+                else
+                    color = Color.Orange;
+                if (TInfo[i].IsHandleCreated)
+                {
+                    TInfo[i].Invoke(() => TInfo[i].Text = $"{value[i]:N2}℃");
+                    TInfo[i].BackColor = color;
+                }
+                else
+                {
+                    TInfo[i].Text = $"{value[i]:N2}℃";
+                    TInfo[i].BackColor = color;
+                }
+            }
+        }
+        /// <summary>
+        /// 读取四路温度值
+        /// </summary>
+        /// <returns>读取的温度值</returns>
+        public decimal[] ReadTemperature(bool isTest = false)
+        {
+            if (isTest)
+            {
+                var v1 = random.NextDouble() * 100;
+                var v2 = random.NextDouble() * 100;
+                var v3 = random.NextDouble() * 100;
+                var v4 = random.NextDouble() * 100;
+                decimal[] value = [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
+                SetTLabelInfo(value);
+                return value;
+            }
+            else
+            {
+                short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
+                byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
+                var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
+                if (result.Length >= 18)
+                {
+                    v1 = BitConverter.ToInt16([result[17], result[16]]);
+                    v2 = BitConverter.ToInt16([result[15], result[14]]);
+                    v3 = BitConverter.ToInt16([result[13], result[12]]);
+                    v4 = BitConverter.ToInt16([result[11], result[10]]);
+                }
+                decimal[] value = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
+                SetTLabelInfo(value);
+                return value;
+            }
+        }
+        /// <summary>
+        /// 找到传感器对应的温度索引值
+        /// </summary>
+        /// <param name="sensorIndex"></param>
+        /// <param name="tempCount"></param>
+        /// <returns></returns>
+        public virtual int GetTempIndex(int sensorIndex, int tempCount = 2)
+        {
+            if (tempCount == 4)
+            {
+                if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
+                if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
+                if (sensorIndex >= 12 && sensorIndex <= 15) return 3;
+            }
+            else if (tempCount == 2)
+            {
+                if (sensorIndex > 7) return 1;
+            }
+            return 0;
+        }
 
         #region 电源操作
         public byte[] Header(byte controlCode = 0x80, byte functionCode = 0x20)
@@ -168,127 +306,25 @@ namespace Module
         }
         #endregion
 
-        public virtual void InitializeACQ()
-        {
-
-        }
-
-        public Label[] TInfo = new Label[4];
-        public void SetTargetT(decimal targetT = 15, decimal offsetT = 1)
-        {
-            TargetT = targetT;
-            OffsetT = offsetT;
-        }
-        /// <summary>
-        /// 设置四路温度标签位置
-        /// </summary>
-        /// <param name="point">位置</param>
-        /// <param name="index">第几路</param>
-        public void SetLabelLoc(Point point, int index)
-        {
-            TInfo[index].Location = point;
-        }
-        /// <summary>
-        /// 设置标签显示信息
-        /// </summary>
-        /// <param name="value">四路温度值</param>
-        /// <param name="targetT">目标温度</param>
-        /// <param name="offsetT">温度最大偏移</param>
-        public void SetTLabelInfo(decimal[] value)
-        {
-            if (value.Length != TInfo.Length) return;
-            for (int i = 0; i < TInfo.Length; i++)
-            {
-                Color color;
-                if (value[i] > TargetT + Math.Abs(OffsetT))
-                    color = Color.Red;
-                else if (value[i] < TargetT - Math.Abs(OffsetT))
-                    color = Color.LightSkyBlue;
-                else
-                    color = Color.Orange;
-                if (TInfo[i].IsHandleCreated)
-                {
-                    TInfo[i].Invoke(() => TInfo[i].Text = $"{value[i]:N2}℃");
-                    TInfo[i].BackColor = color;
-                }
-                else
-                {
-                    TInfo[i].Text = $"{value[i]:N2}℃";
-                    TInfo[i].BackColor = color;
-                }
-            }
-        }
-        /// <summary>
-        /// 读取四路温度值
-        /// </summary>
-        /// <returns>读取的温度值</returns>
-        public decimal[] ReadTemperature(bool isTest = false)
-        {
-            if (isTest)
-            {
-                var v1 = random.NextDouble() * 100;
-                var v2 = random.NextDouble() * 100;
-                var v3 = random.NextDouble() * 100;
-                var v4 = random.NextDouble() * 100;
-                decimal[] value = [(decimal)v1, (decimal)v2, (decimal)v3, (decimal)v4];
-                SetTLabelInfo(value);
-                return value;
-            }
-            else
-            {
-                short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
-                byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
-                var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
-                if (result.Length >= 18)
-                {
-                    v1 = BitConverter.ToInt16([result[17], result[16]]);
-                    v2 = BitConverter.ToInt16([result[15], result[14]]);
-                    v3 = BitConverter.ToInt16([result[13], result[12]]);
-                    v4 = BitConverter.ToInt16([result[11], result[10]]);
-                }
-                decimal[] value = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
-                SetTLabelInfo(value);
-                return value;
-            }
-        }
-        /// <summary>
-        /// 找到传感器对应的温度索引值
-        /// </summary>
-        /// <param name="sensorIndex"></param>
-        /// <param name="tempCount"></param>
-        /// <returns></returns>
-        public virtual int GetTempIndex(int sensorIndex, int tempCount = 2)
-        {
-            if (tempCount == 4)
-            {
-                if (sensorIndex >= 4 && sensorIndex <= 7) return 1;
-                if (sensorIndex >= 8 && sensorIndex <= 11) return 2;
-                if (sensorIndex >= 12 && sensorIndex <= 15) return 3;
-            }
-            else if (tempCount == 2)
-            {
-                if (sensorIndex > 7) return 1;
-            }
-            return 0;
-        }
-
-        public abstract Sensor GetSensor(int sensorIndex);
-        public abstract byte[] WriteAllFuseData(byte address = 0x34, byte length = 28);
-        public abstract byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00);
+        #region 公共方法
+        public abstract void InitializeData();
+        public abstract void InitializeACQ();
         public abstract int[] GetSensorsUID();
         public abstract void GetSensorsData(out int[] tRawArray, out int[] pRawArray);
         public abstract void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false);
         public abstract decimal[] GetData(decimal setP, decimal setT, out decimal press, bool isTest = false);
-        public abstract void ReinitializeData();
         public abstract void Calculate();
-        public abstract void Verify(decimal setP = 0, decimal setT = 0, bool isTest = false);
+        public abstract void Validate(decimal setP = 0, decimal setT = 0, bool isTest = false);
+        public abstract byte[] WriteAllFuseData(byte address = 0x34, byte length = 28);
+        public abstract byte[] Fuse(byte address = 0x34, byte count = 28);
         public abstract void SelectSensor();
         public abstract bool SaveData(string path = "Data\\SensorData\\");
         public abstract void LoadData(string fileName, string path = "Data\\SensorData\\");
         public abstract Task SaveDatabase();
         public abstract string Show();
+        #endregion
 
-        public Group()
+        public Group(PressController pace, Database db)
         {
             for (int i = 0; i < TInfo.Length; i++)
             {
@@ -303,29 +339,42 @@ namespace Module
                     Text = "0℃"
                 };
             }
+            PACE = pace;
+            DB = db;
         }
     }
 
     public class GroupBOE2520 : Group
     {
-        /// <summary>
-        /// 每个采集组采集16个传感器，序号0-15
-        /// </summary>
-        public readonly ConcurrentDictionary<int, SensorBOE2520> SensorDataGroup = [];
-
-        public GroupBOE2520(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
+        public GroupBOE2520(SerialPortTool serialPort, PressController pace, Database db, byte deviceAddress, int sensorCount = 16) : base(pace, db)
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
             I2CAddress = 0x20;
-
+            I2CSpeed = 0x00;
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorBOE2520 sensor = new(deviceAddress, i);
-                sensor.ReinitializeData(config.CP);
-                SensorDataGroup.TryAdd(i, sensor);
+                sensor.InitializeData([.. TempaturePoints], [.. PressurePoints]);
+                Sensors.TryAdd(i, sensor);
+                SelectedSensor[i] = false;
+            }
+        }
+
+        public GroupBOE2520(PressController pace, Database db, byte deviceAddress, int sensorCount = 16) : base(pace, db)
+        {
+            DeviceAddress = deviceAddress;
+            SensorCount = sensorCount;
+            I2CAddress = 0x20;
+            I2CSpeed = 0x00;
+            SelectedSensor = new bool[SensorCount];
+            for (int i = 0; i < SensorCount; i++)
+            {
+                SensorBOE2520 sensor = new(deviceAddress, i);
+                sensor.InitializeData([.. TempaturePoints], [.. PressurePoints]);
+                Sensors.TryAdd(i, sensor);
                 SelectedSensor[i] = false;
             }
         }
@@ -344,10 +393,7 @@ namespace Module
             }
             return 0;
         }
-        public override Sensor GetSensor(int sensorIndex)
-        {
-            return SensorDataGroup[sensorIndex];
-        }
+        
 
         #region BOE2520
         /// <summary>
@@ -403,11 +449,14 @@ namespace Module
         {
             BOE2520UID();
             List<byte> bytes = [];
-            for (int i = SensorDataGroup.Count - 1; i >= 0; i--)
-                bytes.AddRange(SensorDataGroup[i].CurrentCalibrationData.registerData);
-            return Connection.WriteRead(WriteAll(address, length, [.. bytes]));
+            for (int i = Sensors.Count - 1; i >= 0; i--)
+            {
+                if (Sensors[i] is SensorBOE2520 sensor)
+                    bytes.AddRange(sensor.CoefficientData.RegisterData);
+            }
+            return Connection.WriteRead(WriteAll(address, length, [.. bytes], I2CSpeed));
         }
-        public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00)
+        public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28)
         {
             BOE2520Fuse();
             byte[] sensorAddressBytes = [0x00, 0x00];
@@ -419,13 +468,13 @@ namespace Module
                 sensorAddressBytes[j] = BytesTool.SetBit(sensorAddressBytes[j], (ushort)(i - j * 8), selectedSensor[i]);
             }
 
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], speed, I2CAddress, address, count];
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], I2CSpeed, I2CAddress, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
             return Connection.WriteRead(sendData);
         }
-        public override byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00)
+        public override byte[] Fuse(byte address = 0x34, byte count = 28)
         {
-            return Fuse(SelectedSensor, address, count, speed);
+            return Fuse(SelectedSensor, address, count);
         }
         #endregion
 
@@ -502,13 +551,13 @@ namespace Module
 
                     tempResult[i].Data.CopyTo(tempBytes, 0);
                     tArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
-                    SensorDataGroup[i].OutputT.Add(tArray[i]);
+                    Sensors[i].OutputT.Add(tArray[i]);
                     
                     pressResult[i].Data.CopyTo(tempBytes, 0);
                     pArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
-                    SensorDataGroup[i].OutputP.Add(pArray[i]);
+                    Sensors[i].OutputP.Add(pArray[i]);
 
-                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
+                    Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
             }
         }
@@ -533,26 +582,26 @@ namespace Module
                 int[] uidArray = GetSensorsUID();
                 for (int i = 0; i < SensorCount; i++)
                 {
-                    var ori = SensorDataGroup[i].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
-                    SensorDataGroup[i].Uid = uidArray[i];
-                    ori.uid = uidArray[i];
+                    var ori = Sensors[i].RawDataList.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
+                    Sensors[i].Uid = uidArray[i];
+                    ori.Uid = uidArray[i];
                 }
                 //采集温度压力实时数据
-                press = config.PACE.GetPress(isTest: isTest);
+                press = PACE.GetPress(isTest: isTest);
                 decimal[] currentTemp = ReadTemperature(isTest);
                 //平均数存储列表
-                List<RawDataBOE2520[]> averageList = [];
+                List<RawData[]> averageList = [];
                 //采集平均数据
                 for (int j = 0; j < acquisitionTimes; j++)
                 {
-                    RawDataBOE2520[] averageArray = new RawDataBOE2520[SensorCount];
+                    RawData[] averageArray = new RawData[SensorCount];
                     GetSensorsData(out int[] tempArray, out int[] pressArray);
                     for (int i = 0; i < SensorCount; i++)
                     {
                         averageArray[i] = new()
                         {
-                            RAW_C = pressArray[i],
-                            UNCALTempCodes = tempArray[i]
+                            PRaw = pressArray[i],
+                            TRaw = tempArray[i]
                         };
                     }
                     averageList.Add(averageArray);
@@ -564,15 +613,15 @@ namespace Module
                     int traw = 0;
                     for (int i = 0; i < acquisitionTimes; i++)
                     {
-                        praw += averageList[i][j].RAW_C;
-                        traw += averageList[i][j].UNCALTempCodes;
+                        praw += averageList[i][j].PRaw;
+                        traw += averageList[i][j].TRaw;
                     }
-                    var ori = SensorDataGroup[j].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
+                    var ori = Sensors[j].RawDataList.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
                     ori.Date = DateTime.Now.ToString("G");
-                    ori.RAW_C = praw / acquisitionTimes;
-                    ori.UNCALTempCodes = traw / acquisitionTimes;
-                    ori.PACERef = press;
-                    ori.TProbe = currentTemp[GetTempIndex(j)];
+                    ori.PRaw = praw / acquisitionTimes;
+                    ori.TRaw = traw / acquisitionTimes;
+                    ori.PRef = press;
+                    ori.TRef = currentTemp[GetTempIndex(j)];
                 }
                 return currentTemp;
             }
@@ -582,48 +631,48 @@ namespace Module
         /// <summary>
         /// 初始化测试数据容器，清除数据并添加新的测试数据容器
         /// </summary>
-        public override void ReinitializeData()
+        public override void InitializeData()
         {
             //初始化每个传感器数据
             for (int i = 0; i < SensorCount; i++)
-                SensorDataGroup[i].ReinitializeData(config.CP);
+                Sensors[i].InitializeData([.. TempaturePoints], [.. PressurePoints]);
         }
 
         public override void Calculate()
         {
-            foreach (var sensorData in SensorDataGroup.Values)
-                sensorData.Calculate(true);
+            foreach (SensorBOE2520 sensorData in Sensors.Values.Cast<SensorBOE2520>())
+                sensorData.Calculate();
         }
 
-        public override void Verify(decimal setP = 0, decimal setT = 0, bool isTest = false)
+        public override void Validate(decimal setP = 0, decimal setT = 0, bool isTest = false)
         {
-            decimal press = config.PACE.GetPress(isTest: isTest);
+            decimal press = PACE.GetPress(isTest: isTest);
             decimal[] currentTemp = ReadTemperature(isTest);
             if (isTest)
             {
-                foreach (var sensorData in SensorDataGroup.Values)
-                    sensorData.Verify(config.CP.FusePDiff, config.CP.FuseTDiff);
+                foreach (Sensor sensorData in Sensors.Values)
+                    sensorData.Validate(FusePDiff, FuseTDiff);
                 return;
             }
             GetSensorsData(out int[] tempArray, out int[] pressArray);
             for (int i = 0; i < SensorCount; i++)
             {
-                ValidationBOE2520 validationData = new(SensorDataGroup[i].Uid, setP, setT, press, currentTemp[GetTempIndex(i)], pressArray[i], tempArray[i])
+                Validation validationData = new(Sensors[i].Uid, setP, setT, press, currentTemp[GetTempIndex(i)], pressArray[i], tempArray[i])
                 {
                     Date = DateTime.Now.ToString("G")
                 };
-                SensorDataGroup[i].CurrentValidationData.Add(validationData);
-                SensorDataGroup[i].Verify(config.CP.FusePDiff, config.CP.FuseTDiff);
+                Sensors[i].ValidationDataList.Add(validationData);
+                Sensors[i].Validate(FusePDiff, FuseTDiff);
             }
         }
 
         public override void SelectSensor()
         {
             SelectedSensor = new bool[SensorCount];
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                if (SensorDataGroup[i].Result == "GOOD") SelectedSensor[i] = true;
-                if (SensorDataGroup[i].IsFused) SelectedSensor[i] = false;
+                if (Sensors[i].Result == "GOOD") SelectedSensor[i] = true;
+                if (Sensors[i].IsFused) SelectedSensor[i] = false;
             }
         }
 
@@ -636,7 +685,7 @@ namespace Module
             string fileName = currentTime + ".json";
             try
             {
-                JsonManager.SaveJsonString(dataDirectory, fileName, SensorDataGroup);
+                JsonManager.SaveJsonString(dataDirectory, fileName, Sensors);
                 return true;
             }
             catch (Exception)
@@ -651,17 +700,17 @@ namespace Module
             if (loadData == null) return;
             foreach (var item in loadData)
             {
-                SensorDataGroup.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
+                Sensors.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
             }
         }
 
         public override async Task SaveDatabase()
         {
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                await config.DB.AddAllDataAsync<RawDataBOE2520>(SensorDataGroup[i].CurrentRawData);
-                await config.DB.AddDataAsync(SensorDataGroup[i].CurrentCalibrationData);
-                await config.DB.AddAllDataAsync<ValidationBOE2520>(SensorDataGroup[i].CurrentValidationData);
+                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
+                await DB.AddDataAsync(((SensorBOE2520)Sensors[i]).CoefficientData);
+                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
             }
         }
         /// <summary>
@@ -671,75 +720,25 @@ namespace Module
         public override string Show()
         {
             string message = "";
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                message += $"[{i}]{SensorDataGroup[i].ShowData()}{Environment.NewLine}";
+                message += $"[{i}]{Sensors[i].ShowData()}{Environment.NewLine}";
             }
             return $"设备地址：{DeviceAddress}  传感器数量：{SensorCount}{Environment.NewLine}{message}";
         }
 
-    }
-
-    public class MinBridgeOffset
-    {
-        public int SensorIndex { get; private set; } = 0;
-        public byte BridgeOffset { get; set; } = 0x00;
-        public int MinPressure { get; set; } = 0;
-
-        public MinBridgeOffset(int index, byte bridgeOffset, int minPress)
+        public override void InitializeACQ()
         {
-            SensorIndex = index;
-            BridgeOffset = bridgeOffset;
-            MinPressure = minPress;
-        }
-
-        public void SetValue(byte bridgeOffset, int minPress)
-        {
-            if (Math.Abs(minPress) < Math.Abs(MinPressure))
-            {
-                MinPressure = minPress;
-                BridgeOffset = bridgeOffset;
-            }
-        }
-
-    }
-
-    public class TargetGain
-    {
-        public int SensorIndex { get; private set; } = 0;
-        public byte AMPGain { get; set; } = 0x00;
-        public int Pressure { get; set; } = 0;
-
-        public TargetGain(int index, byte gain, int press)
-        {
-            SensorIndex = index;
-            AMPGain = gain;
-            Pressure = press;
-        }
-
-        public void SetValue(byte ampGain, int pressure, int targetP = 700000)
-        {
-            int dP1 = Math.Abs(Pressure - targetP);
-            int dP2 = Math.Abs(pressure - targetP);
-            if (dP2 < dP1)
-            {
-                AMPGain = ampGain;
-                Pressure = pressure;
-            }
+            throw new NotImplementedException();
         }
     }
 
     public class GroupZXC6862 : Group
     {
-        /// <summary>
-        /// 每个采集组采集16个传感器，序号0-15
-        /// </summary>
-        public readonly ConcurrentDictionary<int, SensorZXC6862> SensorDataGroup = [];
-
         public MinBridgeOffset[] BridgeOffset;
         public TargetGain[] AMPGain;
 
-        public GroupZXC6862(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
+        public GroupZXC6862(SerialPortTool serialPort, PressController pace, Database db, byte deviceAddress, int sensorCount = 16) : base(pace, db)
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
@@ -752,8 +751,8 @@ namespace Module
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorZXC6862 sensor = new(deviceAddress, i);
-                sensor.ReinitializeData(config.CP);
-                SensorDataGroup.TryAdd(i, sensor);
+                sensor.InitializeData(TempaturePoints.ToArray(), PressurePoints.ToArray());
+                Sensors.TryAdd(i, sensor);
                 SelectedSensor[i] = false;
             }
         }
@@ -772,15 +771,10 @@ namespace Module
             }
             return 0;
         }
-        public override Sensor GetSensor(int sensorIndex)
-        {
-            return SensorDataGroup[sensorIndex];
-        }
 
         public override void InitializeACQ()
         {
-            base.InitializeACQ();
-            ReinitializeData();
+            InitializeData();
             Thread.Sleep(40);
             CheckOperating();//检测芯片初始化
             GetSensorsUID();//采集芯片ID
@@ -828,7 +822,7 @@ namespace Module
                     {
                         if (n >= 2)
                         {
-                            SensorDataGroup[i].Result = $"0x08不等于{status}|";
+                            Sensors[i].Result = $"0x08不等于{status}|";
                             isOK = false;
                         }
                         else
@@ -857,7 +851,7 @@ namespace Module
             for (int i = 0; i < result.Length; i++)
             {
                 if (!BytesTool.CheckEquals(testData, result[i].Data))
-                    SensorDataGroup[i].Result = "读写测试失败|";
+                    Sensors[i].Result = "读写测试失败|";
             }
 
             testData = Enumerable.Repeat<byte>(0x55, 18).ToArray();
@@ -867,7 +861,7 @@ namespace Module
             for (int i = 0; i < result.Length; i++)
             {
                 if (!BytesTool.CheckEquals(testData, result[i].Data))
-                    SensorDataGroup[i].Result = "读写测试失败|";
+                    Sensors[i].Result = "读写测试失败|";
             }
 
             testData = Enumerable.Repeat<byte>(0x00, 18).ToArray();
@@ -877,7 +871,7 @@ namespace Module
             for (int i = 0; i < result.Length; i++)
             {
                 if (!BytesTool.CheckEquals(testData, result[i].Data))
-                    SensorDataGroup[i].Result = "读写测试失败|";
+                    Sensors[i].Result = "读写测试失败|";
             }
         }
 
@@ -1039,8 +1033,11 @@ namespace Module
         public override byte[] WriteAllFuseData(byte address = 0x40, byte length = 25)
         {
             List<byte> bytes = [];
-            for (int i = SensorDataGroup.Count - 1; i >= 0; i--)
-                bytes.AddRange(SensorDataGroup[i].CurrentCalibrationData.registerData);
+            for (int i = Sensors.Count - 1; i >= 0; i--)
+            {
+                if (Sensors[i] is SensorZXC6862 sensor)
+                    bytes.AddRange(sensor.CoefficientData.RegisterData);
+            }
 
             List<byte> bytes2 = [];
             byte[] gainAndOffset = new byte[10];
@@ -1051,14 +1048,21 @@ namespace Module
                 bytes2.AddRange(gainAndOffset);
             }
 
-            byte[] bytes3 = new byte[SensorDataGroup.Count];
+            byte[] bytes3 = new byte[Sensors.Count];
 
             var r1 = Connection.WriteRead(WriteAll(address, length, [.. bytes]));
             var r2 = Connection.WriteRead(WriteAll(0x60, 10, [.. bytes2]));
             var r3 = Connection.WriteRead(WriteAll(0x6F, 1, bytes3));
             return r1;
         }
-        public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28, byte speed = 0x00)
+        /// <summary>
+        /// 待修改
+        /// </summary>
+        /// <param name="selectedSensor"></param>
+        /// <param name="address"></param>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public byte[] Fuse(bool[] selectedSensor, byte address = 0x34, byte count = 28)
         {
             byte[] sensorAddressBytes = [0x00, 0x00];
 
@@ -1069,13 +1073,13 @@ namespace Module
                 sensorAddressBytes[j] = BytesTool.SetBit(sensorAddressBytes[j], (ushort)(i - j * 8), selectedSensor[i]);
             }
 
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], speed, I2CAddress, address, count];
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, sensorAddressBytes[1], sensorAddressBytes[0], I2CSpeed, I2CAddress, address, count];
             SendData sendData = new(CRC16.CRC16_1(sendBytes), 12);
             return Connection.WriteRead(sendData);
         }
-        public override byte[] Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00)
+        public override byte[] Fuse(byte address = 0x34, byte count = 28)
         {
-            return Fuse(SelectedSensor, address, count, speed);
+            return Fuse(SelectedSensor, address, count);
         }
         #endregion
 
@@ -1098,8 +1102,8 @@ namespace Module
                 result[i].Data[3] = BytesTool.SetBit(v, 7, false);
                 result[i].Data.CopyTo(uidBytes, 0);
                 uidArray[i] = BitConverter.ToInt32(uidBytes);
-                SensorDataGroup[i].Uid = uidArray[i];
-                SensorDataGroup[i].SetUID();
+                Sensors[i].Uid = uidArray[i];
+                Sensors[i].SetUID();
             }
             return uidArray;
         }
@@ -1143,7 +1147,7 @@ namespace Module
                 {
                     tArray[i] = (decimal)random.NextDouble() * 100;
                     pArray[i] = (decimal)random.NextDouble() * 100;
-                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
+                    Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
                 return;
             }
@@ -1166,12 +1170,12 @@ namespace Module
                     return ReadTemperature(isTest);
                 }
                 //采集温度压力实时数据
-                press = config.PACE.GetPress(isTest: isTest);
+                press = PACE.GetPress(isTest: isTest);
                 decimal[] currentTemp = ReadTemperature(isTest);
                 GetSensorsData(out int[] tempArray, out int[] pressArray);
                 for (int i = 0; i < SensorCount; i++)
                 {
-                    var ori = SensorDataGroup[i].CurrentRawData.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
+                    var ori = Sensors[i].RawDataList.Where((arg) => (arg.SetP == setP) && (arg.SetT == setT)).First();
                     ori.Date = DateTime.Now.ToString("G");
                     ori.PRaw = pressArray[i];
                     ori.TRaw = tempArray[i];
@@ -1186,49 +1190,49 @@ namespace Module
         /// <summary>
         /// 初始化测试数据容器，清除数据并添加新的测试数据容器
         /// </summary>
-        public override void ReinitializeData()
+        public override void InitializeData()
         {
             //初始化每个传感器数据
             for (int i = 0; i < SensorCount; i++)
-                SensorDataGroup[i].ReinitializeData(config.CP);
+                Sensors[i].InitializeData(TempaturePoints.ToArray(), PressurePoints.ToArray());
         }
 
         public override void Calculate()
         {
             Write(0x08, 0x00);//停止采集
-            foreach (var sensorData in SensorDataGroup.Values)
+            foreach (SensorZXC6862 sensorData in Sensors.Values.Cast<SensorZXC6862>())
                 sensorData.Calculate();
         }
 
-        public override void Verify(decimal setP = 0, decimal setT = 0, bool isTest = false)
+        public override void Validate(decimal setP = 0, decimal setT = 0, bool isTest = false)
         {
-            decimal press = config.PACE.GetPress(isTest: isTest);
+            decimal press = PACE.GetPress(isTest: isTest);
             decimal[] currentTemp = ReadTemperature(isTest);
             if (isTest)
             {
-                foreach (var sensorData in SensorDataGroup.Values)
-                    sensorData.Verify(config.CP.FusePDiff, config.CP.FuseTDiff);
+                foreach (Sensor sensorData in Sensors.Values)
+                    sensorData.Validate(FusePDiff, FuseTDiff);
                 return;
             }
             GetSensorsData(out int[] tempArray, out int[] pressArray);
             for (int i = 0; i < SensorCount; i++)
             {
-                ValidationZXC6862 validationData = new(SensorDataGroup[i].Uid, setP, setT, press, currentTemp[GetTempIndex(i)], pressArray[i], tempArray[i])
+                Validation validationData = new(Sensors[i].Uid, setP, setT, press, currentTemp[GetTempIndex(i)], pressArray[i], tempArray[i])
                 {
                     Date = DateTime.Now.ToString("G")
                 };
-                SensorDataGroup[i].CurrentValidationData.Add(validationData);
-                SensorDataGroup[i].Verify(config.CP.FusePDiff, config.CP.FuseTDiff);
+                Sensors[i].ValidationDataList.Add(validationData);
+                Sensors[i].Validate(FusePDiff, FuseTDiff);
             }
         }
 
         public override void SelectSensor()
         {
             SelectedSensor = new bool[SensorCount];
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                if (SensorDataGroup[i].Result == "GOOD") SelectedSensor[i] = true;
-                if (SensorDataGroup[i].IsFused) SelectedSensor[i] = false;
+                if (Sensors[i].Result == "GOOD") SelectedSensor[i] = true;
+                if (Sensors[i].IsFused) SelectedSensor[i] = false;
             }
         }
 
@@ -1241,7 +1245,7 @@ namespace Module
             string fileName = currentTime + ".json";
             try
             {
-                JsonManager.SaveJsonString(dataDirectory, fileName, SensorDataGroup);
+                JsonManager.SaveJsonString(dataDirectory, fileName, Sensors);
                 return true;
             }
             catch (Exception)
@@ -1256,17 +1260,17 @@ namespace Module
             if (loadData == null) return;
             foreach (var item in loadData)
             {
-                SensorDataGroup.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
+                Sensors.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
             }
         }
 
         public override async Task SaveDatabase()
         {
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                await config.DB.AddAllDataAsync<RawDataZXC6862>(SensorDataGroup[i].CurrentRawData);
-                await config.DB.AddDataAsync(SensorDataGroup[i].CurrentCalibrationData);
-                await config.DB.AddAllDataAsync<ValidationZXC6862>(SensorDataGroup[i].CurrentValidationData);
+                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
+                await DB.AddDataAsync(((SensorZXC6862)Sensors[i]).CoefficientData);
+                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
             }
         }
         /// <summary>
@@ -1276,9 +1280,9 @@ namespace Module
         public override string Show()
         {
             string message = "";
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                message += $"[{i}]{SensorDataGroup[i].ShowData()}{Environment.NewLine}";
+                message += $"[{i}]{Sensors[i].ShowData()}{Environment.NewLine}";
             }
             return $"设备地址：{DeviceAddress}  传感器数量：{SensorCount}{Environment.NewLine}{message}";
         }
@@ -1287,12 +1291,7 @@ namespace Module
 
     public class GroupZXW7570 : Group
     {
-        /// <summary>
-        /// 每个采集组采集16个传感器，序号0-15
-        /// </summary>
-        public readonly ConcurrentDictionary<int, SensorZXW7570> SensorDataGroup = [];
-
-        public GroupZXW7570(SerialPortTool serialPort, byte deviceAddress, int sensorCount = 16) : base()
+        public GroupZXW7570(SerialPortTool serialPort, PressController pace, Database db, byte deviceAddress, int sensorCount = 16) : base(pace, db)
         {
             Connection = serialPort;
             DeviceAddress = deviceAddress;
@@ -1303,15 +1302,9 @@ namespace Module
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorZXW7570 sensor = new(deviceAddress, i);
-                sensor.ClearData(config.CP);
-                SensorDataGroup.TryAdd(i, sensor);
+                Sensors.TryAdd(i, sensor);
                 SelectedSensor[i] = false;
             }
-        }
-
-        public override Sensor GetSensor(int sensorIndex)
-        {
-            return SensorDataGroup[sensorIndex];
         }
 
         #region 数据采集
@@ -1364,7 +1357,7 @@ namespace Module
                 {
                     tArray[i] = (decimal)random.NextDouble() * 100;
                     pArray[i] = (decimal)random.NextDouble() * 100;
-                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
+                    Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
                 return;
             }
@@ -1394,7 +1387,7 @@ namespace Module
                     pArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
                     //SensorDataGroup[i].OutputP.Add(pArray[i]);
 
-                    SensorDataGroup[i].SetSensorInfo(tArray[i], pArray[i]);
+                    Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
             }
         }
@@ -1403,10 +1396,10 @@ namespace Module
         public override void SelectSensor()
         {
             SelectedSensor = new bool[SensorCount];
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                if (SensorDataGroup[i].Result == "GOOD") SelectedSensor[i] = true;
-                if (SensorDataGroup[i].IsFused) SelectedSensor[i] = false;
+                if (Sensors[i].Result == "GOOD") SelectedSensor[i] = true;
+                if (Sensors[i].IsFused) SelectedSensor[i] = false;
             }
         }
 
@@ -1419,7 +1412,7 @@ namespace Module
             string fileName = currentTime + ".json";
             try
             {
-                JsonManager.SaveJsonString(dataDirectory, fileName, SensorDataGroup);
+                JsonManager.SaveJsonString(dataDirectory, fileName, Sensors);
                 return true;
             }
             catch (Exception)
@@ -1434,17 +1427,17 @@ namespace Module
             if (loadData == null) return;
             foreach (var item in loadData)
             {
-                SensorDataGroup.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
+                Sensors.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
             }
         }
 
         public override async Task SaveDatabase()
         {
-            for (int i = 0; i < SensorDataGroup.Count; i++)
+            for (int i = 0; i < Sensors.Count; i++)
             {
-                await config.DB.AddAllDataAsync<RawDataZXW7570>(SensorDataGroup[i].CurrentRawData);
-                await config.DB.AddDataAsync(SensorDataGroup[i].CurrentCalibrationData);
-                await config.DB.AddAllDataAsync<ValidationZXW7570>(SensorDataGroup[i].CurrentValidationData);
+                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
+                //await DB.AddDataAsync(Sensors[i].CoefficientData);
+                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
             }
         }
         /// <summary>
@@ -1463,7 +1456,7 @@ namespace Module
             throw new NotImplementedException();
         }
 
-        public override byte[] Fuse(byte address = 52, byte count = 28, byte speed = 0)
+        public override byte[] Fuse(byte address = 52, byte count = 28)
         {
             throw new NotImplementedException();
         }
@@ -1473,7 +1466,7 @@ namespace Module
             throw new NotImplementedException();
         }
 
-        public override void ReinitializeData()
+        public override void InitializeData()
         {
             throw new NotImplementedException();
         }
@@ -1483,7 +1476,12 @@ namespace Module
             throw new NotImplementedException();
         }
 
-        public override void Verify(decimal setP = 0, decimal setT = 0, bool isTest = false)
+        public override void Validate(decimal setP = 0, decimal setT = 0, bool isTest = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void InitializeACQ()
         {
             throw new NotImplementedException();
         }

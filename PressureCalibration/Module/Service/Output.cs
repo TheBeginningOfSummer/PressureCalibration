@@ -81,15 +81,15 @@ namespace Module
                 int index1 = 1;
                 //创建ExcelWorkSheet对象，这个对象就是面对表的，是工作簿中单个表
                 ExcelWorksheet worksheet1 = myExcelPackage.Workbook.Worksheets.Add("Sheet1");
-                AddData(sensorData.CurrentRawData, worksheet1, ref index1);
+                AddData(sensorData.RawDataList, worksheet1, ref index1);
                 int index2 = 1;
                 ExcelWorksheet worksheet2 = myExcelPackage.Workbook.Worksheets.Add("Sheet2");
-                AddData(sensorData.CurrentValidationData, worksheet2, ref index2);
+                AddData(sensorData.ValidationDataList, worksheet2, ref index2);
                 ExcelWorksheet worksheet3 = myExcelPackage.Workbook.Worksheets.Add("Sheet3");
                 int index3 = 1;
-                AddData(sensorData.CurrentCalibrationData, worksheet3, ref index3);
+                AddData(sensorData.CoefficientData, worksheet3, ref index3);
                 worksheet3.Cells[1, 18].Value = "Register";
-                worksheet3.Cells[index3, 18].Value = sensorData.CurrentCalibrationData.RegisterString;//index3已在AddData方法+1此处不用+1
+                worksheet3.Cells[index3, 18].Value = sensorData.CoefficientData.RegisterString;//index3已在AddData方法+1此处不用+1
                 //save方法就保存我们这个对象，他就会去执行我们刚刚赋值的那些东西
                 myExcelPackage.Save();
                 Thread.Sleep(500);
@@ -117,13 +117,13 @@ namespace Module
                 worksheet3.Cells[1, 18].Value = "Register";
                 foreach (var group in allSensorData.Values)
                 {
-                    for (int i = 0; i < group.SensorDataGroup.Count; i++)
+                    for (int i = 0; i < group.Sensors.Count; i++)
                     {
-                        SensorBOE2520 sensorData = group.SensorDataGroup[i];
-                        AddData(sensorData.CurrentRawData, worksheet1, ref index1);
-                        AddData(sensorData.CurrentValidationData, worksheet2, ref index2);
-                        worksheet3.Cells[index3 + 1, 18].Value = sensorData.CurrentCalibrationData.RegisterString;
-                        AddData(sensorData.CurrentCalibrationData, worksheet3, ref index3);
+                        SensorBOE2520 sensorData = (SensorBOE2520)group.Sensors[i];
+                        AddData(sensorData.RawDataList, worksheet1, ref index1);
+                        AddData(sensorData.ValidationDataList, worksheet2, ref index2);
+                        worksheet3.Cells[index3 + 1, 18].Value = sensorData.CoefficientData.RegisterString;
+                        AddData(sensorData.CoefficientData, worksheet3, ref index3);
                     }
                 }
                 myExcelPackage.Save();

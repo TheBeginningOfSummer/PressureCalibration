@@ -77,13 +77,6 @@ namespace Module
         /// </summary>
         public decimal CheckPressureDiff { get; set; } = 80;
 
-        private bool method = true;
-        public bool Method
-        {
-            get { return method; }
-            set { method = value; OnPpChanged(nameof(Method)); }
-        }
-
         private bool isSave = false;
         public bool IsSave
         {
@@ -118,7 +111,7 @@ namespace Module
                 nameof(CheckPressureDiff) => "检测压力差",
                 nameof(CheckTemperatureDiff) => "检测温度差",
                 //nameof(IsTestVer) => "测试版本",
-                nameof(Method) => "计算方法",
+                //nameof(Method) => "计算方法",
                 nameof(IsSave) => "数据保存",
                 _ => name,
             };

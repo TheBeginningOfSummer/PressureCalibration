@@ -221,18 +221,18 @@ namespace Module
             //初始化采集组
             for (int i = 1; i <= CardAmount; i++)
             {
-                Group group = new GroupBOE2520(Connection[i - 1], (byte)i, SensorCount);
+                Group group = new GroupBOE2520(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
                 //初始化采集组
                 switch (SensorType)
                 {
                     case "BOE2520":
-                        group = new GroupBOE2520(Connection[i - 1], (byte)i, SensorCount);
+                        group = new GroupBOE2520(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
                         break;
                     case "6862":
-                        group = new GroupZXC6862(Connection[i - 1], (byte)i, SensorCount);
+                        group = new GroupZXC6862(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
                         break;
                     case "7570":
-                        group = new GroupZXW7570(Connection[i - 1], (byte)i, SensorCount);
+                        group = new GroupZXW7570(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
                         break;
                     default: break;
                 }
@@ -362,36 +362,6 @@ namespace Module
             }
         }
         /// <summary>
-        /// 得到温度和传感器输出的数据
-        /// </summary>
-        /// <param name="sensorTest">传感器的数据（一次采集的所有数据）</param>
-        /// <param name="targetT">目标温度</param>
-        /// <param name="offsetT">最大温度偏移</param>
-        /// <returns>温度数据（一次采集的所有数据）</returns>
-        public TempTest GetTestData(out SensorTest sensorTest, decimal targetT = 15, decimal offsetT = 1)
-        {
-            TempTest tempData = new();
-            sensorTest = new();
-            if (IsRunning) return tempData;
-            for (int i = 1; i <= GroupDic.Count; i++)
-            {
-                try
-                {
-                    GroupDic[i].SetTargetT(targetT, offsetT);
-                    decimal[] t = GroupDic[i].ReadTemperature(IsTestVer);
-                    tempData.TempList.Add(t);
-                    GroupDic[i].GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
-                    sensorTest.Temperature.Add(tArray);
-                    sensorTest.Pressure.Add(pArray);
-                }
-                catch (Exception)
-                {
-                    return tempData;
-                }
-            }
-            return tempData;
-        }
-        /// <summary>
         /// 得到监视数据
         /// </summary>
         /// <param name="monitorData">数据容器</param>
@@ -418,6 +388,42 @@ namespace Module
                 if (monitorData.ContainsKey($"D{group.DeviceAddress}T{j + 1}"))
                     monitorData[$"D{group.DeviceAddress}T{j + 1}"] = (double)temp[j];
             }
+        }
+        /// <summary>
+        /// 得到温度和传感器输出的数据
+        /// </summary>
+        /// <param name="sensorTest">传感器的数据（一次采集的所有数据）</param>
+        /// <param name="targetT">目标温度</param>
+        /// <param name="offsetT">最大温度偏移</param>
+        /// <returns>温度数据（一次采集的所有数据）</returns>
+        public TempTest GetTestData(out SensorTest sensorTest, decimal targetT = 15, decimal offsetT = 1)
+        {
+            //数据容器，采集监视数据
+            ConcurrentDictionary<string, double> monitorData = DataMonitor.GetDataContainer(-1);
+            TempTest tempData = new();
+            sensorTest = new();
+            if (IsRunning) return tempData;
+            for (int i = 1; i <= GroupDic.Count; i++)
+            {
+                try
+                {
+                    GroupDic[i].SetTargetT(targetT, offsetT);
+                    decimal[] t = GroupDic[i].ReadTemperature(IsTestVer);
+                    tempData.TempList.Add(t);
+                    GroupDic[i].GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
+                    sensorTest.Temperature.Add(tArray);
+                    sensorTest.Pressure.Add(pArray);
+                    //采集监视数据
+                    MonitoringData(monitorData, GroupDic[i], t, null);
+                }
+                catch (Exception)
+                {
+                    return tempData;
+                }
+            }
+            if (IsShowData)
+                DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());
+            return tempData;
         }
         /// <summary>
         /// 采集所有采集卡的标定数据（单温度单压力）
@@ -468,7 +474,7 @@ namespace Module
             foreach (var sensorGroup in GroupDic.Values)
             {
                 //采集验证数据
-                sensorGroup.Verify();
+                sensorGroup.Validate();
                 //选择芯片
                 sensorGroup.SelectSensor();
             }

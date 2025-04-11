@@ -1,14 +1,19 @@
 ﻿using CSharpKit.Communication;
 using CSharpKit.DataManagement;
-using Data;
 
 namespace Module
 {
-    public class Sensor
+    public abstract class Sensor
     {
-        #region 标定参数
+        #region 数据
+        public virtual List<RawData> RawDataList { get; set; } = [];
+        public virtual List<Validation> ValidationDataList { get; set; } = [];
+        #endregion
+
+        #region 参数
         public byte DeviceAddress { get; set; }//所在采集卡的地址
         public int SensorIndex { get; set; }//采集卡中的哪一路
+        public int Uid { get; set; } = 0;
 
         private string result = "Default";
         public string Result
@@ -25,7 +30,7 @@ namespace Module
                 {
                     if (result == "Default")
                     {
-                        SingleYield = SingleYield * 100 / 101;
+                        //SingleYield = SingleYield * 100 / 101;
                         result = value;
                     }
                 }
@@ -33,7 +38,7 @@ namespace Module
                 {
                     if (result == "Default")
                     {
-                        SingleYield = (SingleYield * 100 + 1) / 101;
+                        //SingleYield = (SingleYield * 100 + 1) / 101;
                         result = value;
                     }
                 }
@@ -46,13 +51,10 @@ namespace Module
         public bool IsFused { get; set; } = false;//是否烧录过
         public List<decimal> OutputP { get; set; } = [];
         public List<decimal> OutputT { get; set; } = [];
-
-        public double SingleYield { get; set; } = 1.0;//良率
-        public double MinYield { get; set; } = 0.8;//最小良率
-        public bool ContinuousNG { get; set; } = false;//连续NG
         #endregion
 
         public byte I2CAddress = 0x7F;
+        public byte Speed = 0x00;
         public Label SensorInfo = new()
         {
             AutoSize = false,
@@ -62,87 +64,6 @@ namespace Module
             TextAlign = ContentAlignment.TopCenter,
             Font = new Font("Segoe UI", 9)
         };
-
-        #region 寄存器操作
-        public SendData Read(byte address, byte count, byte speed = 0x00)
-        {
-            byte channelByte1 = 0x00;
-            byte channelByte2 = 0x00;
-            byte[] sendBytes;
-            SendData sendData;
-            if (SensorIndex >= 0 && SensorIndex < 8)
-            {
-                channelByte1 = 0x00;
-                channelByte2 = BytesTool.SetBit(channelByte2, (ushort)SensorIndex, true);
-            }
-            else if (SensorIndex >= 8 && SensorIndex < 16)
-            {
-                channelByte1 = BytesTool.SetBit(channelByte1, (ushort)(SensorIndex - 8), true);
-                channelByte2 = 0x00;
-            }
-            else
-            {
-                channelByte1 = 0xFF;
-                channelByte2 = 0xFF;
-                sendBytes = [0x24, DeviceAddress, 0x80, 0x20, channelByte1, channelByte2, speed, I2CAddress, address, count];
-                sendData = new(CRC16.CRC16_1(sendBytes), 12 + 16 * count);
-                return sendData;
-            }
-            sendBytes = [0x24, DeviceAddress, 0x80, 0x20, channelByte1, channelByte2, speed, I2CAddress, address, count];
-            sendData = new(CRC16.CRC16_1(sendBytes), 12 + count);
-            return sendData;
-        }
-        public SendData Write(byte address, byte count, byte[] data, byte speed = 0x00)
-        {
-            byte channelByte1 = 0x00;
-            byte channelByte2 = 0x00;
-            SendData sendData;
-            if (SensorIndex >= 0 && SensorIndex < 8)
-            {
-                channelByte1 = 0x00;
-                channelByte2 = BytesTool.SetBit(channelByte2, (ushort)SensorIndex, true);
-            }
-            else if (SensorIndex >= 8 && SensorIndex < 16)
-            {
-                channelByte1 = BytesTool.SetBit(channelByte1, (ushort)(SensorIndex - 8), true);
-                channelByte2 = 0x00;
-            }
-            else
-            {
-                channelByte1 = 0xFF;
-                channelByte2 = 0xFF;
-            }
-
-            byte[] header = [0x24, DeviceAddress, 0x80, 0x30, channelByte1, channelByte2, speed, I2CAddress, address, count];
-            byte[] sendBytes = BytesTool.SpliceBytes(header, data);
-            sendData = new(CRC16.CRC16_1(sendBytes), 12);
-            return sendData;
-        }
-        public SendData Fuse(byte address = 0x34, byte count = 28, byte speed = 0x00)
-        {
-            byte channelByte1 = 0x00;
-            byte channelByte2 = 0x00;
-            SendData sendData;
-            if (SensorIndex >= 0 && SensorIndex < 8)
-            {
-                channelByte1 = 0x00;
-                channelByte2 = BytesTool.SetBit(channelByte2, (ushort)SensorIndex, true);
-            }
-            else if (SensorIndex >= 8 && SensorIndex < 16)
-            {
-                channelByte1 = BytesTool.SetBit(channelByte1, (ushort)(SensorIndex - 8), true);
-                channelByte2 = 0x00;
-            }
-            else
-            {
-                channelByte1 = 0xFF;
-                channelByte2 = 0xFF;
-            }
-            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, channelByte1, channelByte2, speed, I2CAddress, address, count];
-            sendData = new SendData(CRC16.CRC16_1(sendBytes), 12);
-            return sendData;
-        }
-        #endregion
 
         public void SetLabelLoc(Point point)
         {
@@ -172,26 +93,140 @@ namespace Module
                 SensorInfo.BackColor = color;
         }
 
+        public void SetUID()
+        {
+            foreach (var data in RawDataList)
+                data.Uid = Uid;
+            foreach (var data in ValidationDataList)
+                data.Uid = Uid;
+        }
+
+        public void InitializeData(decimal[] tPoints, decimal[] pPoints)
+        {
+            Result = "Default";
+            IsFused = false;
+            RawDataList.Clear();
+            ValidationDataList.Clear();
+            for (int i = 0; i < tPoints.Length; i++)
+            {
+                for (int j = 0; j < pPoints.Length; j++)
+                {
+                    RawData data = new()
+                    {
+                        T_idx = i + 1,
+                        P_idx = j + 1,
+                        SetT = tPoints[i],
+                        SetP = pPoints[j]
+                    };
+                    RawDataList.Add(data);
+                }
+            }
+        }
+
+        #region 寄存器操作
+        public SendData Read(byte address, byte count)
+        {
+            byte channelByte1 = 0x00;
+            byte channelByte2 = 0x00;
+            byte[] sendBytes;
+            SendData sendData;
+            if (SensorIndex >= 0 && SensorIndex < 8)
+            {
+                channelByte1 = 0x00;
+                channelByte2 = BytesTool.SetBit(channelByte2, (ushort)SensorIndex, true);
+            }
+            else if (SensorIndex >= 8 && SensorIndex < 16)
+            {
+                channelByte1 = BytesTool.SetBit(channelByte1, (ushort)(SensorIndex - 8), true);
+                channelByte2 = 0x00;
+            }
+            else
+            {
+                channelByte1 = 0xFF;
+                channelByte2 = 0xFF;
+                sendBytes = [0x24, DeviceAddress, 0x80, 0x20, channelByte1, channelByte2, Speed, I2CAddress, address, count];
+                sendData = new(CRC16.CRC16_1(sendBytes), 12 + 16 * count);
+                return sendData;
+            }
+            sendBytes = [0x24, DeviceAddress, 0x80, 0x20, channelByte1, channelByte2, Speed, I2CAddress, address, count];
+            sendData = new(CRC16.CRC16_1(sendBytes), 12 + count);
+            return sendData;
+        }
+        public SendData Write(byte address, byte count, byte[] data)
+        {
+            byte channelByte1 = 0x00;
+            byte channelByte2 = 0x00;
+            SendData sendData;
+            if (SensorIndex >= 0 && SensorIndex < 8)
+            {
+                channelByte1 = 0x00;
+                channelByte2 = BytesTool.SetBit(channelByte2, (ushort)SensorIndex, true);
+            }
+            else if (SensorIndex >= 8 && SensorIndex < 16)
+            {
+                channelByte1 = BytesTool.SetBit(channelByte1, (ushort)(SensorIndex - 8), true);
+                channelByte2 = 0x00;
+            }
+            else
+            {
+                channelByte1 = 0xFF;
+                channelByte2 = 0xFF;
+            }
+
+            byte[] header = [0x24, DeviceAddress, 0x80, 0x30, channelByte1, channelByte2, Speed, I2CAddress, address, count];
+            byte[] sendBytes = BytesTool.SpliceBytes(header, data);
+            sendData = new(CRC16.CRC16_1(sendBytes), 12);
+            return sendData;
+        }
+        public SendData Fuse(byte address = 0x34, byte count = 28)
+        {
+            byte channelByte1 = 0x00;
+            byte channelByte2 = 0x00;
+            SendData sendData;
+            if (SensorIndex >= 0 && SensorIndex < 8)
+            {
+                channelByte1 = 0x00;
+                channelByte2 = BytesTool.SetBit(channelByte2, (ushort)SensorIndex, true);
+            }
+            else if (SensorIndex >= 8 && SensorIndex < 16)
+            {
+                channelByte1 = BytesTool.SetBit(channelByte1, (ushort)(SensorIndex - 8), true);
+                channelByte2 = 0x00;
+            }
+            else
+            {
+                channelByte1 = 0xFF;
+                channelByte2 = 0xFF;
+            }
+            byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x31, channelByte1, channelByte2, Speed, I2CAddress, address, count];
+            sendData = new SendData(CRC16.CRC16_1(sendBytes), 12);
+            return sendData;
+        }
+        #endregion
+
         public Sensor()
         {
 
         }
+
+        public abstract void Calculate();
+        public abstract void Validate(double maxPDiff = 10, double maxTDiff = 0.5);
+        public abstract string ShowData();
+        
     }
 
     public class SensorBOE2520 : Sensor
     {
         #region 标定数据
-        public int Uid { get; set; } = 0;
-        public List<RawDataBOE2520> CurrentRawData { get; set; } = [];
-        public CalibrationBOE2520 CurrentCalibrationData { get; set; } = new();
-        public List<ValidationBOE2520> CurrentValidationData { get; set; } = [];
+        public CEBOE2520 CoefficientData { get; set; } = new();
         #endregion
 
-        public SensorBOE2520(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x20) : base()
+        public SensorBOE2520(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x20, byte speed = 0x00)
         {
             DeviceAddress = deviceAddress;
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
+            Speed = speed;
             SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
             SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
             SensorInfo.Text = $"[{SensorIndex + 1}]";
@@ -286,20 +321,20 @@ namespace Module
             }
         }
         //采集一个数据
-        public RawDataBOE2520 GetData(SerialPortTool connection, int AcquisitionTimes)
+        public RawData GetData(SerialPortTool connection, int AcquisitionTimes)
         {
-            RawDataBOE2520 data = new()
+            RawData data = new()
             {
-                uid = GetSensorUID(connection)
+                Uid = GetSensorUID(connection)
             };
 
-            List<RawDataBOE2520> averageList = [];
+            List<RawData> averageList = [];
             for (int i = 0; i < AcquisitionTimes; i++)
             {
-                RawDataBOE2520 averageData = new();
+                RawData averageData = new();
                 GetSensorData(connection, out int temp, out int press);
-                averageData.UNCALTempCodes = temp;
-                averageData.RAW_C = press;
+                averageData.TRaw = temp;
+                averageData.PRaw = press;
                 averageList.Add(averageData);
             }
 
@@ -307,52 +342,27 @@ namespace Module
             int traw = 0;
             for (int i = 0; i < AcquisitionTimes; i++)
             {
-                praw += averageList[i].RAW_C;
-                traw += averageList[i].UNCALTempCodes;
+                praw += averageList[i].PRaw;
+                traw += averageList[i].TRaw;
             }
 
-            data.RAW_C = praw / AcquisitionTimes;
-            data.UNCALTempCodes = traw / AcquisitionTimes;
-            data.TProbe = ReadTemperature(connection);
+            data.PRaw = praw / AcquisitionTimes;
+            data.TRaw = traw / AcquisitionTimes;
+            data.TRef = ReadTemperature(connection);
             return data;
         }
         #endregion
 
         #region 数据处理
-        public void ReinitializeData(CalibrationParameter parameter)
-        {
-            Result = "Default";
-            IsFused = false;
-            CurrentRawData.Clear();
-            CurrentValidationData.Clear();
-            for (int i = 0; i < parameter.TempaturePoints.Count; i++)
-            {
-                for (int j = 0; j < parameter.PressurePoints.Count; j++)
-                {
-                    RawDataBOE2520 data = new()
-                    {
-                        T_idx = i + 1,
-                        P_idx = j + 1,
-                        SetT = parameter.TempaturePoints[i],
-                        SetP = parameter.PressurePoints[j]
-                    };
-                    CurrentRawData.Add(data);
-                }
-            }
-        }
         /// <summary>
         /// 计算系数
         /// </summary>
         /// <param name="method">计算方法，false为9系数计算</param>
-        public void Calculate(bool method = true)
+        public override void Calculate()
         {
-            CalibrationBOE2520? calib;
-            if (method)
-                calib = Calculation.StartCalibration12(CurrentRawData);
-            else
-                calib = Calculation.StartCalibration9(CurrentRawData);
-            if (calib != null) CurrentCalibrationData = calib;
-            CurrentCalibrationData.Date = DateTime.Now.ToString("G");
+            CEBOE2520? calib = Calculation.StartCalibration9(RawDataList);
+            if (calib != null) CoefficientData = calib;
+            CoefficientData.Date = DateTime.Now.ToString("G");
         }
         /// <summary>
         /// 压力验证
@@ -361,11 +371,11 @@ namespace Module
         /// <param name="sensorT">传感器读出温度值</param>
         /// <param name="paceRef">实际压力值</param>
         /// <param name="tProbe">实际温度值</param>
-        public void Verify(double maxPDiff = 10, double maxTDiff = 0.5)
+        public override void Validate(double maxPDiff = 10, double maxTDiff = 0.5)
         {
-            foreach (var verifyItem in CurrentValidationData)
+            foreach (var verifyItem in ValidationDataList)
             {
-                verifyItem.Verify(CurrentCalibrationData);
+                verifyItem.Validate(CoefficientData);
                 if (Math.Abs(verifyItem.PResidual) > maxPDiff) Result = "NG";
                 else if (Math.Abs(verifyItem.TResidual) > maxTDiff) Result = "NG";
                 else
@@ -377,17 +387,17 @@ namespace Module
         /// <summary>
         /// 显示数据
         /// </summary>
-        public string ShowData()
+        public override string ShowData()
         {
             string message = "";
             message += "计算数据：" + Environment.NewLine;
-            message += CurrentCalibrationData.Display() + Environment.NewLine;
+            message += CoefficientData.Show() + Environment.NewLine;
             message += "    采集的数据：" + Environment.NewLine;
-            for (int i = 0; i < CurrentRawData.Count; i++)
-                message += $"[{i}]{CurrentRawData[i].Display()}{Environment.NewLine}";
+            for (int i = 0; i < RawDataList.Count; i++)
+                message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
             message += "    验证的数据：" + Environment.NewLine;
-            for (int i = 0; i < CurrentValidationData.Count; i++)
-                message += $"[{i}]{CurrentValidationData[i].Display()}{Environment.NewLine}";
+            for (int i = 0; i < ValidationDataList.Count; i++)
+                message += $"[{i}]{ValidationDataList[i].Show()}{Environment.NewLine}";
             message += "---------------------------------------------------------------------------------------------------" + Environment.NewLine;
             return message;
         }
@@ -396,64 +406,81 @@ namespace Module
 
     public class SensorZXC6862 : Sensor
     {
+        public class MinBridgeOffset
+        {
+            public int SensorIndex { get; private set; } = 0;
+            public byte BridgeOffset { get; set; } = 0x00;
+            public int MinPressure { get; set; } = 0;
+
+            public MinBridgeOffset(int index, byte bridgeOffset, int minPress)
+            {
+                SensorIndex = index;
+                BridgeOffset = bridgeOffset;
+                MinPressure = minPress;
+            }
+
+            public void SetValue(byte bridgeOffset, int minPress)
+            {
+                if (Math.Abs(minPress) < Math.Abs(MinPressure))
+                {
+                    MinPressure = minPress;
+                    BridgeOffset = bridgeOffset;
+                }
+            }
+
+        }
+        public class TargetGain
+        {
+            public int SensorIndex { get; private set; } = 0;
+            public byte AMPGain { get; set; } = 0x00;
+            public int Pressure { get; set; } = 0;
+
+            public TargetGain(int index, byte gain, int press)
+            {
+                SensorIndex = index;
+                AMPGain = gain;
+                Pressure = press;
+            }
+
+            public void SetValue(byte ampGain, int pressure, int targetP = 700000)
+            {
+                int dP1 = Math.Abs(Pressure - targetP);
+                int dP2 = Math.Abs(pressure - targetP);
+                if (dP2 < dP1)
+                {
+                    AMPGain = ampGain;
+                    Pressure = pressure;
+                }
+            }
+        }
+
         #region 标定数据
-        public int Uid { get; set; } = 0;
-        public List<RawDataZXC6862> CurrentRawData { get; set; } = [];
-        public CalibrationZXC6862 CurrentCalibrationData { get; set; } = new();
-        public List<ValidationZXC6862> CurrentValidationData { get; set; } = [];
+        public CEZXC6862 CoefficientData { get; set; } = new();
         public int[] POffset { get; set; } = new int[32];
         public int[] PGain { get; set; } = new int[16];
         #endregion
 
-        public SensorZXC6862(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x77)
+        public SensorZXC6862(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x77, byte speed = 0x07)
         {
             DeviceAddress = deviceAddress;
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
+            Speed = speed;
             SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
             SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
             SensorInfo.Text = $"[{SensorIndex + 1}]";
         }
 
         #region 数据处理
-        public void ReinitializeData(CalibrationParameter parameter)
-        {
-            Result = "Default";
-            IsFused = false;
-            CurrentRawData.Clear();
-            CurrentValidationData.Clear();
-            for (int i = 0; i < parameter.TempaturePoints.Count; i++)
-            {
-                for (int j = 0; j < parameter.PressurePoints.Count; j++)
-                {
-                    RawDataZXC6862 data = new()
-                    {
-                        T_idx = i + 1,
-                        P_idx = j + 1,
-                        SetT = parameter.TempaturePoints[i],
-                        SetP = parameter.PressurePoints[j]
-                    };
-                    CurrentRawData.Add(data);
-                }
-            }
-        }
-
-        public void SetUID()
-        {
-            foreach (var data in CurrentRawData)
-            {
-                data.uid = Uid;
-            }
-        }
         /// <summary>
         /// 计算系数
         /// </summary>
         /// <param name="method">计算方法，false为9系数计算</param>
-        public void Calculate(bool method = true)
+        public override void Calculate()
         {
-            CalibrationZXC6862? calibration = Calculation.StartCalibration(CurrentRawData);
-            if (calibration != null) CurrentCalibrationData = calibration;
-            CurrentCalibrationData.Date = DateTime.Now.ToString("G");
+            CEZXC6862? calibration = Calculation.StartCalibration(RawDataList);
+            if (calibration != null) CoefficientData = calibration;
+            CoefficientData.Date = DateTime.Now.ToString("G");
         }
         /// <summary>
         /// 压力验证
@@ -462,11 +489,11 @@ namespace Module
         /// <param name="sensorT">传感器读出温度值</param>
         /// <param name="paceRef">实际压力值</param>
         /// <param name="tProbe">实际温度值</param>
-        public void Verify(double maxPDiff = 10, double maxTDiff = 0.5)
+        public override void Validate(double maxPDiff = 10, double maxTDiff = 0.5)
         {
-            foreach (var verifyItem in CurrentValidationData)
+            foreach (var verifyItem in ValidationDataList)
             {
-                verifyItem.Verify(CurrentCalibrationData);
+                verifyItem.Validate(CoefficientData);
                 if (Math.Abs(verifyItem.PResidual) > maxPDiff) Result = "NG";
                 else if (Math.Abs(verifyItem.TResidual) > maxTDiff) Result = "NG";
                 else
@@ -478,17 +505,17 @@ namespace Module
         /// <summary>
         /// 显示数据
         /// </summary>
-        public string ShowData()
+        public override string ShowData()
         {
             string message = "";
             message += "计算数据：" + Environment.NewLine;
-            message += CurrentCalibrationData.Display() + Environment.NewLine;
+            message += CoefficientData.Show() + Environment.NewLine;
             message += "    采集的数据：" + Environment.NewLine;
-            for (int i = 0; i < CurrentRawData.Count; i++)
-                message += $"[{i}]{CurrentRawData[i].Display()}{Environment.NewLine}";
+            for (int i = 0; i < RawDataList.Count; i++)
+                message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
             message += "    验证的数据：" + Environment.NewLine;
-            for (int i = 0; i < CurrentValidationData.Count; i++)
-                message += $"[{i}]{CurrentValidationData[i].Display()}{Environment.NewLine}";
+            for (int i = 0; i < ValidationDataList.Count; i++)
+                message += $"[{i}]{ValidationDataList[i].Show()}{Environment.NewLine}";
             message += "---------------------------------------------------------------------------------------------------" + Environment.NewLine;
             return message;
         }
@@ -498,27 +525,33 @@ namespace Module
     public class SensorZXW7570 : Sensor
     {
         #region 标定数据
-        public int Uid { get; set; } = 0;
-        public List<RawDataZXW7570> CurrentRawData { get; set; } = [];
-        public CalibrationZXW7570 CurrentCalibrationData { get; set; } = new();
-        public List<ValidationZXW7570> CurrentValidationData { get; set; } = [];
+        public CEZXW7570 CoefficientData { get; set; } = new();
         #endregion
 
-        public SensorZXW7570(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x7F)
+        public SensorZXW7570(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x7F, byte speed = 0x07)
         {
             DeviceAddress = deviceAddress;
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
+            Speed = speed;
             SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
             SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
             SensorInfo.Text = $"[{SensorIndex + 1}]";
         }
 
-        public void ClearData(CalibrationParameter parameter)
+        public override void Calculate()
         {
-            Result = "Default";
-            IsFused = false;
-            
+            throw new NotImplementedException();
+        }
+
+        public override void Validate(double maxPDiff = 10, double maxTDiff = 0.5)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override string ShowData()
+        {
+            throw new NotImplementedException();
         }
     }
 }

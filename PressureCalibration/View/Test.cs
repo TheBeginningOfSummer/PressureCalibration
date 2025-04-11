@@ -249,12 +249,12 @@ namespace PressureCalibration.View
                 for (int i = 0; i < points1.Count; i++)
                 {
                     if (i < 4)
-                        group.SensorDataGroup[i].SetLabelLoc(points1[i]);
+                        group.Sensors[i].SetLabelLoc(points1[i]);
                     if (i == 4)
                         group.SetLabelLoc(points1[i], 0);//TMP117[0]位置设置
                     if (i > 4)
                     {
-                        group.SensorDataGroup[i - 1].SetLabelLoc(points1[i]);
+                        group.Sensors[i - 1].SetLabelLoc(points1[i]);
                     }
                 }
                 x += Interval.X;
@@ -264,19 +264,19 @@ namespace PressureCalibration.View
                 for (int i = 0; i < points2.Count; i++)
                 {
                     if (i < 4)
-                        group.SensorDataGroup[i + 8].SetLabelLoc(points2[i]);
+                        group.Sensors[i + 8].SetLabelLoc(points2[i]);
                     if (i == 4)
                         group.SetLabelLoc(points2[i], 1);//TMP117[1]位置设置
                     if (i > 4)
                     {
-                        group.SensorDataGroup[i + 7].SetLabelLoc(points2[i]);
+                        group.Sensors[i + 7].SetLabelLoc(points2[i]);
                     }
                 }
                 x += Interval.X;
                 //将标签添加到界面上
                 FormKit.AddControl(PN温度分布, group.TInfo[0]);
                 FormKit.AddControl(PN温度分布, group.TInfo[1]);
-                foreach (var sensor in group.SensorDataGroup.Values)
+                foreach (var sensor in group.Sensors.Values)
                     FormKit.AddControl(PN温度分布, sensor.SensorInfo);
             }
         }
@@ -289,15 +289,15 @@ namespace PressureCalibration.View
             for (int i = 0; i < points1.Count; i++)
             {
                 if (i < 2)
-                    group.SensorDataGroup[i + indexOffset].SetLabelLoc(points1[i]);
+                    group.Sensors[i + indexOffset].SetLabelLoc(points1[i]);
                 else if (i == 2)
                     group.SetLabelLoc(points1[i], indexTemp);//TMP117[0]位置设置
                 else if (i > 2 && i < 5)
-                    group.SensorDataGroup[i - 1 + indexOffset].SetLabelLoc(points1[i]);
+                    group.Sensors[i - 1 + indexOffset].SetLabelLoc(points1[i]);
                 else if (i == 5)
                     group.SetLabelLoc(points1[i], indexTemp + 1);//TMP117[1]位置设置
                 else if (i < 8)
-                    group.SensorDataGroup[i - 2 + indexOffset].SetLabelLoc(points1[i]);
+                    group.Sensors[i - 2 + indexOffset].SetLabelLoc(points1[i]);
             }
         }
 
@@ -322,11 +322,11 @@ namespace PressureCalibration.View
                     FormKit.AddControl(PN温度分布, tLabel);
                 for (int i = 0; i < 6; i++)
                 {
-                    FormKit.AddControl(PN温度分布, group.SensorDataGroup[i].SensorInfo);
+                    FormKit.AddControl(PN温度分布, group.Sensors[i].SensorInfo);
                 }
                 for (int i = 8; i < 14; i++)
                 {
-                    FormKit.AddControl(PN温度分布, group.SensorDataGroup[i].SensorInfo);
+                    FormKit.AddControl(PN温度分布, group.Sensors[i].SensorInfo);
                 }
             }
         }

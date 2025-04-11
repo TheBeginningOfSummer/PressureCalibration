@@ -1,9 +1,250 @@
 ﻿using CSharpKit.DataManagement;
-using Data;
 using MathWorks.MATLAB.NET.Arrays;
+using SQLite;
 
 namespace Module
 {
+    public class RawData
+    {
+        [PrimaryKey, AutoIncrement]
+        public int ID { get; set; } = -1;
+
+        public int Uid { get; set; }
+        public int T_idx { get; set; }
+        public int P_idx { get; set; }
+        public decimal SetP { get; set; }
+        public decimal SetT { get; set; }
+        /// <summary>
+        /// 检测的压力值
+        /// </summary>
+        public decimal PRef { get; set; }
+        /// <summary>
+        /// 检测的温度值
+        /// </summary>
+        public decimal TRef { get; set; }
+        /// <summary>
+        /// 校准前压力原始值
+        /// </summary>
+        public int PRaw { get; set; }
+        /// <summary>
+        /// 校准前温度原始值
+        /// </summary>
+        public int TRaw { get; set; }
+        /// <summary>
+        /// 日期
+        /// </summary>
+        public string Date { get; set; } = DateTime.Now.ToString("G");
+
+        public virtual string Show()
+        {
+            return $"[Uid:{Uid}  SetP:{SetP}  SetT:{SetT}  PRef:{PRef:N4}  TRef:{TRef:N2}  PRaw:{PRaw}  TRaw:{TRaw}]";
+        }
+    }
+    public class Validation
+    {
+        [PrimaryKey, AutoIncrement]
+        public int ID { get; set; } = -1;
+
+        #region 采集
+        public int Uid { get; set; }
+        public decimal SetP { get; set; }
+        public decimal SetT { get; set; }
+        public decimal PRef { get; set; }
+        public decimal TRef { get; set; }
+        public int PRaw { get; set; }
+        public int TRaw { get; set; }
+        #endregion
+
+        #region 计算
+        public double PCal { get; set; }
+        public double TCal { get; set; }
+        public double PResidual { get; set; } = 999;
+        public double TResidual { get; set; } = 999;
+        #endregion
+
+        public string Date { get; set; } = DateTime.Now.ToString("G");
+
+        public Validation(int uid, decimal setP, decimal setT, decimal pRef, decimal tRef, int pRaw, int tRaw)
+        {
+            Uid = uid;
+            SetP = setP;
+            SetT = setT;
+            PRef = pRef;
+            TRef = tRef;
+            PRaw = pRaw;
+            TRaw = tRaw;
+        }
+
+        public Validation() { }
+
+        public virtual string Show()
+        {
+            return $"[Uid:{Uid}  SetP:{SetP}  SetT:{SetT}  PRef:{PRef:N2}  TRef:{TRef:N2}  PRaw:{PRaw}  TRaw:{TRaw}  TCal:{TCal:N2}  PCal:{PCal:N2}  PResidual:{PResidual:N2}  TResidual:{TResidual:N2}]";
+        }
+
+        public void Validate(ICoefficient coefficient)
+        {
+            if (coefficient is CEBOE2520 ceBOE2520)
+            {
+                Calculation.StartValidation(ceBOE2520, PRaw, TRaw, out double pCal, out double tCal);
+                PCal = pCal;
+                TCal = tCal;
+                PResidual = PCal - (double)PRef;
+                TResidual = TCal - (double)TRef;
+            }
+            else if (coefficient is CEZXC6862 ceZXC6862)
+            {
+                Calculation.StartValidation(ceZXC6862, PRaw, TRaw, out double pCal, out double tCal);
+                PCal = pCal;
+                TCal = tCal;
+                PResidual = PCal - (double)PRef;
+                TResidual = TCal - (double)TRef;
+            }
+        }
+    }
+
+    public interface ICoefficient
+    {
+        int ID { get; set; }
+        int Uid { get; set; }
+        string Date { get; set; }
+        string RegisterString { get; set; }
+        void SetRegisterData();
+        string Show();
+    }
+    public class CEBOE2520 : ICoefficient
+    {
+        [PrimaryKey, AutoIncrement]
+        public int ID { get; set; } = -1;
+        public int Uid { get; set; }
+        public string Date { get; set; } = DateTime.Now.ToString("G");
+
+        private string registerString = "";
+        public string RegisterString
+        {
+            get
+            {
+                registerString = DataConverter.BytesToHexString(RegisterData);
+                return registerString;
+            }
+            set
+            {
+                registerString = value;
+                RegisterData = DataConverter.HexStringToBytes(registerString);
+            }
+        }
+        public byte[] RegisterData = new byte[28];
+
+        public int b40 { get; set; }
+        public int b31 { get; set; }
+        public int b30 { get; set; }
+        public int b22 { get; set; }
+        public int b21 { get; set; }
+        public int b20 { get; set; }
+        public int b12 { get; set; }
+        public int b11 { get; set; }
+        public int b10 { get; set; }
+        public int b02 { get; set; }
+        public int b01 { get; set; }
+        public int b00 { get; set; }
+        public int A { get; set; }
+        public int alpha { get; set; }
+
+        public CEBOE2520() { }
+
+        public void SetRegisterData()
+        {
+
+        }
+
+        public string Show()
+        {
+            return $"[uid:{Uid}] b40:{b40}  b31:{b31}  b30:{b30}  b22:{b22}  b21:{b21}  b20:{b20}  b12:{b12}   b11:{b11}  b10:{b10}  b02:{b02}  b01:{b01}  b00:{b00}" +
+                    $"  A:{A}  alpha:{alpha}{Environment.NewLine}register:{DataConverter.BytesToHexString(RegisterData)}";
+        }
+    }
+    public class CEZXC6862 : ICoefficient
+    {
+        [PrimaryKey, AutoIncrement]
+        public int ID { get; set; } = -1;
+        public int Uid { get; set; }
+        public string Date { get; set; } = DateTime.Now.ToString("G");
+
+        private string registerString = "";
+        public string RegisterString
+        {
+            get
+            {
+                registerString = DataConverter.BytesToHexString(RegisterData);
+                return registerString;
+            }
+            set
+            {
+                registerString = value;
+                RegisterData = DataConverter.HexStringToBytes(registerString);
+            }
+        }
+        public byte[] RegisterData = new byte[25];
+
+        public int C00 { get; set; }
+        public int C01 { get; set; }
+        public int C10 { get; set; }
+        public int C11 { get; set; }
+        public int C20 { get; set; }
+        public int C21 { get; set; }
+        public int C30 { get; set; }
+        public int C0 { get; set; }
+        public int C1 { get; set; }
+
+        public CEZXC6862() { }
+
+        public void SetRegisterData()
+        {
+            RegisterData[0] = BytesTool.SetValueByBit(C0, 11, 4);
+            RegisterData[1] = (byte)((BytesTool.SetValueByBit(C0, 3, 0) << 4) | BytesTool.SetValueByBit(C1, 11, 8));
+            RegisterData[2] = BytesTool.SetValueByBit(C1, 7, 0);
+            RegisterData[3] = BytesTool.SetValueByBit(C00, 19, 12);
+            RegisterData[4] = BytesTool.SetValueByBit(C00, 11, 4);
+            RegisterData[5] = (byte)((BytesTool.SetValueByBit(C00, 3, 0) << 4) | BytesTool.SetValueByBit(C10, 19, 16));
+            RegisterData[6] = BytesTool.SetValueByBit(C10, 15, 8);
+            RegisterData[7] = BytesTool.SetValueByBit(C10, 7, 0);
+            RegisterData[8] = BytesTool.SetValueByBit(C01, 15, 8);
+            RegisterData[9] = BytesTool.SetValueByBit(C01, 7, 0);
+            RegisterData[10] = BytesTool.SetValueByBit(C11, 15, 8);
+            RegisterData[11] = BytesTool.SetValueByBit(C11, 7, 0);
+            RegisterData[12] = BytesTool.SetValueByBit(C20, 15, 8);
+            RegisterData[13] = BytesTool.SetValueByBit(C20, 7, 0);
+            RegisterData[14] = BytesTool.SetValueByBit(C21, 15, 8);
+            RegisterData[15] = BytesTool.SetValueByBit(C21, 7, 0);
+            RegisterData[16] = BytesTool.SetValueByBit(C30, 15, 8);
+            RegisterData[17] = BytesTool.SetValueByBit(C30, 7, 0);
+            RegisterData[24] = 0x80;
+        }
+
+        public string Show()
+        {
+            return $"[uid:{Uid}] C00:{C00}  C01:{C01}  C10:{C10}  C11:{C11}  C20:{C20}  C21:{C21}  C30:{C30}" +
+                $"  C0:{C0}  C1:{C1}{Environment.NewLine}register:{DataConverter.BytesToHexString(RegisterData)}";
+        }
+    }
+    public class CEZXW7570 : ICoefficient
+    {
+        public int ID { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int Uid { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string Date { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string RegisterString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public void SetRegisterData()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string Show()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class Calculation
     {
         #region BOE2520
@@ -30,14 +271,14 @@ namespace Module
             }
 
         }
-        public static CalibrationBOE2520? StartCalibration12(List<RawDataBOE2520> oriData)
+        public static CEBOE2520? StartCalibration12(List<RawData> oriData)
         {
             if (oriData == null || oriData.Count == 0) return null;
 
             int[] ROMData = [0, -75, 3657, 18, -181, -4508, -129, 3025, -207093, 135, -2246, 77723];
             int[] bits = [9, 10, 15, 7, 11, 18, 9, 13, 19, 11, 14, 20];
 
-            CalibrationBOE2520 data = new() { uid = oriData[0].uid };
+            CEBOE2520 data = new() { Uid = oriData[0].Uid };
 
             //开始温度拟合
             {
@@ -45,10 +286,10 @@ namespace Module
                 double[] mT = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawDataBOE2520 ori in oriData)
+                foreach (RawData ori in oriData)
                 {
-                    aT[index] = Convert.ToDouble(ori.Tens);
-                    mT[index] = Convert.ToDouble(ori.TProbe);
+                    aT[index] = Convert.ToDouble(ori.TRaw / 128 - 273.15m);
+                    mT[index] = Convert.ToDouble(ori.TRef);
                     index++;
                 }
 
@@ -68,11 +309,11 @@ namespace Module
                 double[] digC = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawDataBOE2520 ori in oriData)
+                foreach (RawData ori in oriData)
                 {
-                    P_ref[index] = Convert.ToDouble(ori.PACERef / 100);
-                    digT[index] = ori.UNCALTempCodes;
-                    digC[index] = ori.RAW_C;
+                    P_ref[index] = Convert.ToDouble(ori.PRef / 100);
+                    digT[index] = ori.TRaw;
+                    digC[index] = ori.PRaw;
                     index++;
                 }
 
@@ -155,20 +396,20 @@ namespace Module
                 int index = 0;
                 foreach (string s in ss)
                 {
-                    data.registerData[index++] = Convert.ToByte(s, 2);
+                    data.RegisterData[index++] = Convert.ToByte(s, 2);
                 }
             }
             //结束计算寄存器的值
             return data;
         }
-        public static CalibrationBOE2520? StartCalibration9(List<RawDataBOE2520> oriData)
+        public static CEBOE2520? StartCalibration9(List<RawData> oriData)
         {
             if (oriData == null || oriData.Count == 0) return null;
 
             int[] ROMData = [0, -75, 3657, 18, -181, -4508, -129, 3025, -207093, 135, -2246, 77723];
             int[] bits = [9, 10, 15, 7, 11, 18, 9, 13, 19, 11, 14, 20];
 
-            CalibrationBOE2520 data = new() { uid = oriData[0].uid };
+            CEBOE2520 data = new() { Uid = oriData[0].Uid };
 
             //开始温度拟合
             {
@@ -176,10 +417,10 @@ namespace Module
                 double[] mT = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawDataBOE2520 ori in oriData)
+                foreach (RawData ori in oriData)
                 {
-                    aT[index] = Convert.ToDouble(ori.Tens);
-                    mT[index] = Convert.ToDouble(ori.TProbe);
+                    aT[index] = Convert.ToDouble(ori.TRaw / 128 - 273.15m);
+                    mT[index] = Convert.ToDouble(ori.TRef);
                     index++;
                 }
 
@@ -199,11 +440,11 @@ namespace Module
                 double[] digC = new double[oriData.Count];
 
                 int index = 0;
-                foreach (RawDataBOE2520 ori in oriData)
+                foreach (RawData ori in oriData)
                 {
-                    P_ref[index] = Convert.ToDouble(ori.PACERef / 100);
-                    digT[index] = ori.UNCALTempCodes;
-                    digC[index] = ori.RAW_C;
+                    P_ref[index] = Convert.ToDouble(ori.PRef / 100);
+                    digT[index] = ori.TRaw;
+                    digC[index] = ori.PRaw;
                     index++;
                 }
 
@@ -286,7 +527,7 @@ namespace Module
                 int index = 0;
                 foreach (string s in ss)
                 {
-                    data.registerData[index++] = Convert.ToByte(s, 2);
+                    data.RegisterData[index++] = Convert.ToByte(s, 2);
                 }
             }
             //结束计算寄存器的值
@@ -301,7 +542,7 @@ namespace Module
         /// <param name="p">实际压力值</param>
         /// <param name="Pcal">传感器读取值经系数校正的压力值</param>
         /// <param name="residual">传感器压力值与压控实际压力值的差值</param>
-        public static void StartValidation(CalibrationBOE2520 calibPara, double y, double t, double p, ref double Pcal, ref double residual)
+        public static void StartValidation(CEBOE2520 calibPara, double y, double t, double p, ref double Pcal, ref double residual)
         {
             double[] digT = [t];
             MWNumericArray para11 = new MWNumericArray(1, 1, digT);
@@ -330,7 +571,7 @@ namespace Module
         /// <param name="Pcal">传感器读取值经系数校正的压力值</param>
         /// <param name="residual">传感器压力值与压控实际压力值的差值</param>
         /// <param name="tCal">系数校正后的温度值</param>
-        public static void StartValidation(CalibrationBOE2520 calibPara, double raw_C, double uncalTempCodes, out double pCal, out double tCal)
+        public static void StartValidation(CEBOE2520 calibPara, double raw_C, double uncalTempCodes, out double pCal, out double tCal)
         {
             MWNumericArray para11 = new(1, 1, [uncalTempCodes]);
             MWArray digT = boe.Raw2Temp(boe.Temp2Raw(para11, 0, 0), calibPara.alpha, calibPara.A);
@@ -368,10 +609,10 @@ namespace Module
         #region ZXC6862
         private readonly static ZXCalibration.ZXP zx = new();
 
-        public static CalibrationZXC6862? StartCalibration(List<RawDataZXC6862> oriData, int usedDataLen = 7, double kp = 1040384, double kt = 524288)
+        public static CEZXC6862? StartCalibration(List<RawData> oriData, int usedDataLen = 7, double kp = 1040384, double kt = 524288)
         {
             if (oriData == null || oriData.Count == 0) return null;
-            CalibrationZXC6862 data = new() { uid = oriData[0].uid };
+            CEZXC6862 data = new() { Uid = oriData[0].Uid };
 
             double[] pRefArray = new double[usedDataLen];
             double[] tRefArray = new double[usedDataLen];
@@ -408,7 +649,7 @@ namespace Module
             return data;
         }
 
-        public static void StartValidation(CalibrationZXC6862 cal, double pRaw, double tRaw, out double pCal, out double tCal, double kp = 1040384, double kt = 524288)
+        public static void StartValidation(CEZXC6862 cal, double pRaw, double tRaw, out double pCal, out double tCal, double kp = 1040384, double kt = 524288)
         {
             double pRawsc = pRaw / kp;
             double tRawsc = tRaw / kt;
