@@ -109,6 +109,7 @@ namespace Module
         int Uid { get; set; }
         string Date { get; set; }
         string RegisterString { get; set; }
+        byte[] RegisterData { get; set; }
         void SetRegisterData();
         string Show();
     }
@@ -133,7 +134,7 @@ namespace Module
                 RegisterData = DataConverter.HexStringToBytes(registerString);
             }
         }
-        public byte[] RegisterData = new byte[28];
+        public byte[] RegisterData { get; set; } = new byte[28];
 
         public int b40 { get; set; }
         public int b31 { get; set; }
@@ -184,7 +185,7 @@ namespace Module
                 RegisterData = DataConverter.HexStringToBytes(registerString);
             }
         }
-        public byte[] RegisterData = new byte[25];
+        public byte[] RegisterData { get; set; } = new byte[25];
 
         public int C00 { get; set; }
         public int C01 { get; set; }
@@ -233,6 +234,9 @@ namespace Module
         public int Uid { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public string Date { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public string RegisterString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public byte[] RegisterData { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public CEZXW7570() { }
 
         public void SetRegisterData()
         {

@@ -99,14 +99,6 @@ namespace Module
             }
         }
         /// <summary>
-        /// 整体良率
-        /// </summary>
-        public double OverallYield { get; set; } = 1.0;
-        /// <summary>
-        /// 最小良率
-        /// </summary>
-        public double MinYield { get; set; } = 0.9;
-        /// <summary>
         /// 采集卡连接（保存）
         /// </summary>
         public BindingList<SerialPortTool> Connection { get; set; } = [];
@@ -196,8 +188,8 @@ namespace Module
                 nameof(SensorCount) => "传感器数",
                 nameof(SensorType) => "类型",
                 nameof(IsTestVer) => "测试版本",
-                nameof(OverallYield) => "总良率",
-                nameof(MinYield) => "最小良率",
+                //nameof(OverallYield) => "总良率",
+                //nameof(MinYield) => "最小良率",
                 nameof(Connection) => "连接",
                 nameof(IsCalibrate) => "是否标定",
                 nameof(IsShowData) => "数据显示",
@@ -403,23 +395,16 @@ namespace Module
             TempTest tempData = new();
             sensorTest = new();
             if (IsRunning) return tempData;
-            for (int i = 1; i <= GroupDic.Count; i++)
+            foreach (var group in GroupDic.Values)
             {
-                try
-                {
-                    GroupDic[i].SetTargetT(targetT, offsetT);
-                    decimal[] t = GroupDic[i].ReadTemperature(IsTestVer);
-                    tempData.TempList.Add(t);
-                    GroupDic[i].GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
-                    sensorTest.Temperature.Add(tArray);
-                    sensorTest.Pressure.Add(pArray);
-                    //采集监视数据
-                    MonitoringData(monitorData, GroupDic[i], t, null);
-                }
-                catch (Exception)
-                {
-                    return tempData;
-                }
+                group.SetTargetT(targetT, offsetT);
+                decimal[] t = group.ReadTemperature(IsTestVer);
+                group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
+                tempData.TempList.Add(t);
+                sensorTest.Temperature.Add(tArray);
+                sensorTest.Pressure.Add(pArray);
+                //采集监视数据
+                MonitoringData(monitorData, group, t, null);
             }
             if (IsShowData)
                 DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());
@@ -674,8 +659,8 @@ namespace Module
                             else
                                 group.GetSensor(j).Result = "NG";
                         }
-                        if (CalPara.IsSave)
-                            group.SaveDatabase().Wait();
+                        //if (CalPara.IsSave)
+                        //    group.SaveDatabase().Wait();
                     }
                 }
                 else

@@ -78,8 +78,8 @@ namespace Module
 
         #region 组件
         protected readonly Random random = new();
-        public readonly PressController PACE;
-        public readonly Database DB;
+        public PressController PACE;
+        public Database DB;
         #endregion
 
         public readonly ConcurrentDictionary<int, Sensor> Sensors = [];
@@ -152,13 +152,20 @@ namespace Module
             {
                 short v1 = 0, v2 = 0, v3 = 0, v4 = 0;
                 byte[] sendBytes = [0x24, DeviceAddress, 0x80, 0x21, 0x00, 0x0F, 0x00, 0x48, 0x00, 0x02];
-                var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
-                if (result.Length >= 18)
+                try
                 {
-                    v1 = BitConverter.ToInt16([result[17], result[16]]);
-                    v2 = BitConverter.ToInt16([result[15], result[14]]);
-                    v3 = BitConverter.ToInt16([result[13], result[12]]);
-                    v4 = BitConverter.ToInt16([result[11], result[10]]);
+                    var result = Connection.WriteRead(CRC16.CRC16_1(sendBytes), 20);
+                    if (result.Length >= 18)
+                    {
+                        v1 = BitConverter.ToInt16([result[17], result[16]]);
+                        v2 = BitConverter.ToInt16([result[15], result[14]]);
+                        v3 = BitConverter.ToInt16([result[13], result[12]]);
+                        v4 = BitConverter.ToInt16([result[11], result[10]]);
+                    }
+                }
+                catch (Exception)
+                {
+                    //防止程序因超时跳出，而是返回0
                 }
                 decimal[] value = [v1 * 0.0078125M, v2 * 0.0078125M, v3 * 0.0078125M, v4 * 0.0078125M];
                 SetTLabelInfo(value);
@@ -306,8 +313,34 @@ namespace Module
         }
         #endregion
 
-        #region 公共方法
-        public abstract void InitializeData();
+        /// <summary>
+        /// 初始化测试数据容器，清除数据并添加新的测试数据容器
+        /// </summary>
+        public void InitializeRawDataList()
+        {
+            //初始化每个传感器数据
+            for (int i = 0; i < SensorCount; i++)
+                Sensors[i].InitializeData([.. TempaturePoints], [.. PressurePoints]);
+        }
+
+        public void GetNecessaryComponent(PressController pace, Database db)
+        {
+            PACE = pace;
+            DB = db;
+        }
+
+        public async Task SaveDatabase<T>() where T : new()
+        {
+            for (int i = 0; i < Sensors.Count; i++)
+            {
+                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
+                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
+                if (Sensors[i].CoefficientData is T t)
+                    await DB.AddDataAsync(t);
+            }
+        }
+
+        #region 抽象方法
         public abstract void InitializeACQ();
         public abstract int[] GetSensorsUID();
         public abstract void GetSensorsData(out int[] tRawArray, out int[] pRawArray);
@@ -320,7 +353,6 @@ namespace Module
         public abstract void SelectSensor();
         public abstract bool SaveData(string path = "Data\\SensorData\\");
         public abstract void LoadData(string fileName, string path = "Data\\SensorData\\");
-        public abstract Task SaveDatabase();
         public abstract string Show();
         #endregion
 
@@ -452,7 +484,7 @@ namespace Module
             for (int i = Sensors.Count - 1; i >= 0; i--)
             {
                 if (Sensors[i] is SensorBOE2520 sensor)
-                    bytes.AddRange(sensor.CoefficientData.RegisterData);
+                    bytes.AddRange(sensor.CoefficientData!.RegisterData);
             }
             return Connection.WriteRead(WriteAll(address, length, [.. bytes], I2CSpeed));
         }
@@ -538,27 +570,33 @@ namespace Module
             tArray = new decimal[SensorCount];
             pArray = new decimal[SensorCount];
             byte[] tempBytes = new byte[4];
-            byte[] pressBytes = new byte[4];
-
-            BOE2520Output();
-            pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
-            tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
-            for (int i = 0; i < SensorCount; i++)
+            _ = new byte[4];
+            try
             {
-                if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                BOE2520Output();
+                pressResult = ReceivedData.ParseData(ReadAll(0x17, 3), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x1A, 2), SensorCount);
+                for (int i = 0; i < SensorCount; i++)
                 {
-                    Array.Clear(tempBytes);
+                    if (pressResult[i].IsEffective && tempResult[i].IsEffective)
+                    {
+                        Array.Clear(tempBytes);
 
-                    tempResult[i].Data.CopyTo(tempBytes, 0);
-                    tArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
-                    Sensors[i].OutputT.Add(tArray[i]);
-                    
-                    pressResult[i].Data.CopyTo(tempBytes, 0);
-                    pArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
-                    Sensors[i].OutputP.Add(pArray[i]);
+                        tempResult[i].Data.CopyTo(tempBytes, 0);
+                        tArray[i] = BitConverter.ToInt32(tempBytes) / 128m - 273.15m;
+                        Sensors[i].OutputT.Add(tArray[i]);
 
-                    Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
+                        pressResult[i].Data.CopyTo(tempBytes, 0);
+                        pArray[i] = BitConverter.ToInt32(tempBytes) / 64m;
+                        Sensors[i].OutputP.Add(pArray[i]);
+
+                        Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
+                    }
                 }
+            }
+            catch (Exception)
+            {
+                //防止通信超时中断测试，返回全是0的数组
             }
         }
         /// <summary>
@@ -628,16 +666,6 @@ namespace Module
         }
         #endregion
 
-        /// <summary>
-        /// 初始化测试数据容器，清除数据并添加新的测试数据容器
-        /// </summary>
-        public override void InitializeData()
-        {
-            //初始化每个传感器数据
-            for (int i = 0; i < SensorCount; i++)
-                Sensors[i].InitializeData([.. TempaturePoints], [.. PressurePoints]);
-        }
-
         public override void Calculate()
         {
             foreach (SensorBOE2520 sensorData in Sensors.Values.Cast<SensorBOE2520>())
@@ -704,15 +732,6 @@ namespace Module
             }
         }
 
-        public override async Task SaveDatabase()
-        {
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
-                await DB.AddDataAsync(((SensorBOE2520)Sensors[i]).CoefficientData);
-                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
-            }
-        }
         /// <summary>
         /// 显示采集组数据
         /// </summary>
@@ -774,7 +793,6 @@ namespace Module
 
         public override void InitializeACQ()
         {
-            InitializeData();
             Thread.Sleep(40);
             CheckOperating();//检测芯片初始化
             GetSensorsUID();//采集芯片ID
@@ -1036,7 +1054,7 @@ namespace Module
             for (int i = Sensors.Count - 1; i >= 0; i--)
             {
                 if (Sensors[i] is SensorZXC6862 sensor)
-                    bytes.AddRange(sensor.CoefficientData.RegisterData);
+                    bytes.AddRange(sensor.CoefficientData!.RegisterData);
             }
 
             List<byte> bytes2 = [];
@@ -1135,12 +1153,11 @@ namespace Module
         /// <param name="pArray">压力值</param>
         public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false)
         {
-            //ReceivedData[] tempResult;
-            //ReceivedData[] pressResult;
+            ReceivedData[] tempResult;
+            ReceivedData[] pressResult;
             tArray = new decimal[SensorCount];
             pArray = new decimal[SensorCount];
-            //byte[] tempBytes = new byte[2];
-            //byte[] pressBytes = new byte[4];
+
             if (isTest)
             {
                 for (int i = 0; i < SensorCount; i++)
@@ -1152,6 +1169,38 @@ namespace Module
                 return;
             }
 
+            byte[] tempBytes = new byte[2];
+            byte[] pressBytes = new byte[4];
+            try
+            {
+                //Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount), 0x07));
+                pressResult = ReceivedData.ParseData(ReadAll(0x00, 3, I2CSpeed), SensorCount);
+                tempResult = ReceivedData.ParseData(ReadAll(0x03, 3, I2CSpeed), SensorCount);
+                for (int i = 0; i < SensorCount; i++)
+                {
+                    if (pressResult[i].IsEffective || tempResult[i].IsEffective)
+                    {
+                        Array.Clear(tempBytes);
+                        Array.Clear(pressBytes);
+
+                        tempResult[i].Data.CopyTo(tempBytes, 0);
+                        Array.Reverse(tempBytes);
+                        tArray[i] = BitConverter.ToInt16(tempBytes) / (decimal)Math.Pow(2, 8);
+                        //SensorDataGroup[i].OutputT.Add(tArray[i]);
+
+                        pressResult[i].Data.CopyTo(pressBytes, 1);
+                        Array.Reverse(pressBytes);
+                        pArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
+                        //SensorDataGroup[i].OutputP.Add(pArray[i]);
+
+                        Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                //避免超时报错跳出运行
+            }
         }
         /// <summary>
         /// 采集一次组中所有传感器的数据(单温度单压力)
@@ -1186,16 +1235,6 @@ namespace Module
             }
         }
         #endregion
-
-        /// <summary>
-        /// 初始化测试数据容器，清除数据并添加新的测试数据容器
-        /// </summary>
-        public override void InitializeData()
-        {
-            //初始化每个传感器数据
-            for (int i = 0; i < SensorCount; i++)
-                Sensors[i].InitializeData(TempaturePoints.ToArray(), PressurePoints.ToArray());
-        }
 
         public override void Calculate()
         {
@@ -1264,15 +1303,6 @@ namespace Module
             }
         }
 
-        public override async Task SaveDatabase()
-        {
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
-                await DB.AddDataAsync(((SensorZXC6862)Sensors[i]).CoefficientData);
-                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
-            }
-        }
         /// <summary>
         /// 显示采集组数据
         /// </summary>
@@ -1431,15 +1461,6 @@ namespace Module
             }
         }
 
-        public override async Task SaveDatabase()
-        {
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                await DB.AddAllDataAsync<RawData>(Sensors[i].RawDataList);
-                //await DB.AddDataAsync(Sensors[i].CoefficientData);
-                await DB.AddAllDataAsync<Validation>(Sensors[i].ValidationDataList);
-            }
-        }
         /// <summary>
         /// 显示采集组数据
         /// </summary>
@@ -1462,11 +1483,6 @@ namespace Module
         }
 
         public override decimal[] GetData(decimal setP, decimal setT, out decimal press, bool isTest = false)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override void InitializeData()
         {
             throw new NotImplementedException();
         }

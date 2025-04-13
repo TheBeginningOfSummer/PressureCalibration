@@ -8,6 +8,7 @@ namespace Module
         #region 数据
         public virtual List<RawData> RawDataList { get; set; } = [];
         public virtual List<Validation> ValidationDataList { get; set; } = [];
+        public ICoefficient? CoefficientData { get; set; }
         #endregion
 
         #region 参数
@@ -217,10 +218,6 @@ namespace Module
 
     public class SensorBOE2520 : Sensor
     {
-        #region 标定数据
-        public CEBOE2520 CoefficientData { get; set; } = new();
-        #endregion
-
         public SensorBOE2520(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x20, byte speed = 0x00)
         {
             DeviceAddress = deviceAddress;
@@ -361,7 +358,8 @@ namespace Module
         public override void Calculate()
         {
             CEBOE2520? calib = Calculation.StartCalibration9(RawDataList);
-            if (calib != null) CoefficientData = calib;
+            if (calib == null) return;
+            CoefficientData = calib;
             CoefficientData.Date = DateTime.Now.ToString("G");
         }
         /// <summary>
@@ -375,6 +373,7 @@ namespace Module
         {
             foreach (var verifyItem in ValidationDataList)
             {
+                if (CoefficientData == null) continue;
                 verifyItem.Validate(CoefficientData);
                 if (Math.Abs(verifyItem.PResidual) > maxPDiff) Result = "NG";
                 else if (Math.Abs(verifyItem.TResidual) > maxTDiff) Result = "NG";
@@ -391,7 +390,7 @@ namespace Module
         {
             string message = "";
             message += "计算数据：" + Environment.NewLine;
-            message += CoefficientData.Show() + Environment.NewLine;
+            message += CoefficientData?.Show() + Environment.NewLine;
             message += "    采集的数据：" + Environment.NewLine;
             for (int i = 0; i < RawDataList.Count; i++)
                 message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
@@ -455,7 +454,6 @@ namespace Module
         }
 
         #region 标定数据
-        public CEZXC6862 CoefficientData { get; set; } = new();
         public int[] POffset { get; set; } = new int[32];
         public int[] PGain { get; set; } = new int[16];
         #endregion
@@ -479,7 +477,8 @@ namespace Module
         public override void Calculate()
         {
             CEZXC6862? calibration = Calculation.StartCalibration(RawDataList);
-            if (calibration != null) CoefficientData = calibration;
+            if (calibration == null) return;
+            CoefficientData = calibration;
             CoefficientData.Date = DateTime.Now.ToString("G");
         }
         /// <summary>
@@ -493,6 +492,7 @@ namespace Module
         {
             foreach (var verifyItem in ValidationDataList)
             {
+                if (CoefficientData == null) continue;
                 verifyItem.Validate(CoefficientData);
                 if (Math.Abs(verifyItem.PResidual) > maxPDiff) Result = "NG";
                 else if (Math.Abs(verifyItem.TResidual) > maxTDiff) Result = "NG";
@@ -509,7 +509,7 @@ namespace Module
         {
             string message = "";
             message += "计算数据：" + Environment.NewLine;
-            message += CoefficientData.Show() + Environment.NewLine;
+            message += CoefficientData?.Show() + Environment.NewLine;
             message += "    采集的数据：" + Environment.NewLine;
             for (int i = 0; i < RawDataList.Count; i++)
                 message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
@@ -524,10 +524,6 @@ namespace Module
 
     public class SensorZXW7570 : Sensor
     {
-        #region 标定数据
-        public CEZXW7570 CoefficientData { get; set; } = new();
-        #endregion
-
         public SensorZXW7570(byte deviceAddress, int sensorIndex, byte i2CAddress = 0x7F, byte speed = 0x07)
         {
             DeviceAddress = deviceAddress;
