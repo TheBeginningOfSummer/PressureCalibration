@@ -84,16 +84,9 @@ namespace Module
                             for (int i = 0; i < receivedDataCount; i++)
                             {
                                 bool isEffective = BytesTool.GetBit(sensorAddress, (ushort)i);
-                                if (isEffective)
-                                {
-                                    count--;
-                                    byte[] register = BytesTool.CutBytesByLength(registerData, count * registerLength, registerLength);
-                                    recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Read, register);
-                                }
-                                else
-                                {
-                                    recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Read, []);
-                                }
+                                count--;
+                                byte[] register = BytesTool.CutBytesByLength(registerData, count * registerLength, registerLength);
+                                recivedList[i] = new ReceivedData(deviceAddress, i, isFault, isEffective, ReceivedType.Read, register);
                             }
                             break;
                         case 0x30://写入是否成功
@@ -195,8 +188,8 @@ namespace Module
         public string Show()
         {
             if (DataType == ReceivedType.Read)
-                return $"设备:{DeviceAddress}  消息类型:{DataType}  传感器地址：{SensorIndex}  是否有效：{IsEffective}{Environment.NewLine}" +
-                    $"数据：{DataConverter.BytesToHexString(Data)}";
+                return $"设备:{DeviceAddress:D2}  消息类型:{DataType}  传感器地址：{SensorIndex:D2}  是否有效：{IsEffective}" +
+                    $"  数据：{DataConverter.BytesToHexString(Data)}";
             else if (DataType == ReceivedType.Timeout)
                 return $"数据无法解析或超时";
             else if (DataType == ReceivedType.Info)

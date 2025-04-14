@@ -3,7 +3,6 @@ using Module;
 using System.ComponentModel;
 using WinformKit;
 using ReaLTaiizor.Controls;
-using static Module.Sensor;
 
 namespace PressureCalibration
 {

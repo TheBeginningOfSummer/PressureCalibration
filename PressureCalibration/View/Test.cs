@@ -53,6 +53,17 @@ namespace PressureCalibration.View
             }
         }
 
+        private double targetT = 15;
+        public double TargetT
+        {
+            get => targetT;
+            set
+            {
+                targetT = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetT)));
+            }
+        }
+
         private int tInterval = 2;
         public int TInterval
         {
@@ -123,6 +134,9 @@ namespace PressureCalibration.View
                 case "6862":
                     ZXC6862TPicture(Acquisition.Instance.GroupDic);
                     break;
+                case "6862T":
+                    ZXC6862TPicture2(Acquisition.Instance.GroupDic);
+                    break;
                 default:break;
             }
             Bindings();
@@ -141,7 +155,8 @@ namespace PressureCalibration.View
             BGW压力.WorkerSupportsCancellation = true;
             BGW运动.WorkerSupportsCancellation = true;
             //温度
-            TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature)));
+            TTB设置温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature)));
+            TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(TargetT)));
             TTB温度采集间隔.DataBindings.Add(new Binding("Text", this, nameof(TInterval)));
             TTB温度测试名称.DataBindings.Add(new Binding("Text", this, nameof(TempTestName)));
             //压力
@@ -167,7 +182,7 @@ namespace PressureCalibration.View
                     do
                     {
                         TempTest tempTest = Acquisition.Instance.
-                            GetTestData(out SensorTest sensorTest, (decimal)Temperature, decimal.Parse(TTB偏差温度.Text));
+                            GetTestData(out SensorTest sensorTest, (decimal)TargetT, decimal.Parse(TTB偏差温度.Text));
                         temperatureList.Add(tempTest);//添加数据到收集的数据
                         sensorTestList.Add(sensorTest);
                         Thread.Sleep(1000 * TInterval);
@@ -328,6 +343,34 @@ namespace PressureCalibration.View
                 {
                     FormKit.AddControl(PN温度分布, group.Sensors[i].SensorInfo);
                 }
+            }
+        }
+
+        public void ZXC6862TPicture2(ConcurrentDictionary<int, Group> groupCollection)
+        {
+            PN温度分布.Controls.Clear();
+            //九宫格左上角初始位置
+            int x = IniPoint.X;
+            int y = IniPoint.Y;
+            List<Point> points1 = FormKit.GetLBPos2_4(x, y, Offset, Offset, direction: false);
+            Interval.X = 250;
+            int count = 0;
+            foreach (GroupZXC6862 group in groupCollection.Values.Cast<GroupZXC6862>())
+            {
+                if (count == 0)
+                    for (int i = 0; i < group.TInfo.Length; i++)
+                    {
+                        group.SetLabelLoc(points1[i], i);
+                    }
+                else
+                    for (int i = 0; i < group.TInfo.Length; i++)
+                    {
+                        group.SetLabelLoc(points1[i + 4], i);
+                    }
+
+                foreach (var tLabel in group.TInfo)
+                    FormKit.AddControl(PN温度分布, tLabel);
+                count++;
             }
         }
 

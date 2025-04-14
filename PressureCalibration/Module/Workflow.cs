@@ -213,7 +213,7 @@ namespace Module
             //初始化采集组
             for (int i = 1; i <= CardAmount; i++)
             {
-                Group group = new GroupBOE2520(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
+                Group group = new GroupBOE2520(Connection[0], Pace, DB, (byte)i, SensorCount);
                 //初始化采集组
                 switch (SensorType)
                 {
@@ -221,10 +221,13 @@ namespace Module
                         group = new GroupBOE2520(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
                         break;
                     case "6862":
-                        group = new GroupZXC6862(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
+                        group = new GroupZXC6862(Connection[0], Pace, DB, (byte)i, SensorCount);
+                        break;
+                    case "6862T":
+                        group = new GroupZXC6862(Connection[0], Pace, DB, (byte)i, SensorCount);
                         break;
                     case "7570":
-                        group = new GroupZXW7570(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
+                        group = new GroupZXW7570(Connection[0], Pace, DB, (byte)i, SensorCount);
                         break;
                     default: break;
                 }
@@ -399,12 +402,13 @@ namespace Module
             {
                 group.SetTargetT(targetT, offsetT);
                 decimal[] t = group.ReadTemperature(IsTestVer);
-                group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
                 tempData.TempList.Add(t);
-                sensorTest.Temperature.Add(tArray);
-                sensorTest.Pressure.Add(pArray);
+
+                //group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
+                //sensorTest.Temperature.Add(tArray);
+                //sensorTest.Pressure.Add(pArray);
                 //采集监视数据
-                MonitoringData(monitorData, group, t, null);
+                MonitoringData(monitorData, group, t, 0);
             }
             if (IsShowData)
                 DataMonitor.Cache.Writer.TryWrite(monitorData.ToDictionary());

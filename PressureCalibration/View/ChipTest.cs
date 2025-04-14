@@ -164,7 +164,7 @@ namespace PressureCalibration.View
                 for (int i = 0; i < receivedData.Length; i++)
                 {
                     if (receivedData[i] == null) continue;
-                    FormKit.UpdateMessage(RTB信息, $"[{i}]  {receivedData[i]?.Show()}");
+                    FormKit.UpdateMessage(RTB信息, $"[{i:D2}]  {receivedData[i]?.Show()}");
                 }
             }
         }

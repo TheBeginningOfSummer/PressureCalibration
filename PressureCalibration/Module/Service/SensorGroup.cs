@@ -122,12 +122,12 @@ namespace Module
                     color = Color.Orange;
                 if (TInfo[i].IsHandleCreated)
                 {
-                    TInfo[i].Invoke(() => TInfo[i].Text = $"{value[i]:N2}℃");
+                    TInfo[i].Invoke(() => TInfo[i].Text = $"[{i}]{Environment.NewLine}{value[i]:N2}℃");
                     TInfo[i].BackColor = color;
                 }
                 else
                 {
-                    TInfo[i].Text = $"{value[i]:N2}℃";
+                    TInfo[i].Text = $"[{i}]{Environment.NewLine}{value[i]:N2}℃";
                     TInfo[i].BackColor = color;
                 }
             }
@@ -322,13 +322,21 @@ namespace Module
             for (int i = 0; i < SensorCount; i++)
                 Sensors[i].InitializeData([.. TempaturePoints], [.. PressurePoints]);
         }
-
-        public void GetNecessaryComponent(PressController pace, Database db)
+        /// <summary>
+        /// 设置使用的压力控制器和数据库
+        /// </summary>
+        /// <param name="pace"></param>
+        /// <param name="db"></param>
+        public void SetNecessaryComponent(PressController pace, Database db)
         {
             PACE = pace;
             DB = db;
         }
-
+        /// <summary>
+        /// 保存数据到数据库
+        /// </summary>
+        /// <typeparam name="T">系数类的类型</typeparam>
+        /// <returns></returns>
         public async Task SaveDatabase<T>() where T : new()
         {
             for (int i = 0; i < Sensors.Count; i++)

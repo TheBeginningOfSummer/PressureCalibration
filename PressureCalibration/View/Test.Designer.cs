@@ -232,7 +232,7 @@
             // 
             TTB温度采集间隔.Name = "TTB温度采集间隔";
             TTB温度采集间隔.Size = new Size(30, 23);
-            TTB温度采集间隔.Text = "5";
+            TTB温度采集间隔.Text = "1";
             // 
             // sToolStripMenuItem
             // 
