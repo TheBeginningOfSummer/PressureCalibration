@@ -9,7 +9,6 @@ namespace PressureCalibration
     public partial class MainForm : Form
     {
         readonly Acquisition ACQ = Acquisition.Instance;
-        readonly Service service = Service.Instance;
 
         public MainForm()
         {

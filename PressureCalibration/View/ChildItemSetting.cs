@@ -1,4 +1,6 @@
-﻿using CSharpKit.Communication;
+﻿using CSharpKit;
+using CSharpKit.Communication;
+using Module;
 using Services;
 using UIKit;
 
@@ -8,30 +10,43 @@ namespace PressureCalibration.View
     {
         readonly SettingInfo settingInfo = new();
 
-        public ChildItemSetting(BaseAxis currentAxis)
+        public ChildItemSetting(ISetting s)
         {
             InitializeComponent();
-            Text = $"{currentAxis.ControllerName} {currentAxis.Name} 轴号 {currentAxis.Number}";
 
-            //变量点
-            int x = settingInfo.IniPoint.X;
-            int y = settingInfo.IniPoint.Y;
-            int rowCount = 0;
-            settingInfo.SetChildParameter(this, currentAxis, ref x, ref y, ref rowCount,
-                "State", "IsMoving", "TargetPosition", "CurrentPosition", "CurrentSpeed");
-        }
+            if (s is BaseAxis currentAxis)
+            {
+                Text = $"{currentAxis.ControllerName} {currentAxis.Name} 轴号 {currentAxis.Number}";
 
-        public ChildItemSetting(SerialPortTool currentCom)
-        {
-            InitializeComponent();
-            Text = $"{currentCom.PortName}";
+                //变量点
+                int x = settingInfo.IniPoint.X;
+                int y = settingInfo.IniPoint.Y;
+                int rowCount = 0;
+                settingInfo.SetChildParameter(this, currentAxis, ref x, ref y, ref rowCount,
+                    "State", "IsMoving", "TargetPosition", "CurrentPosition", "CurrentSpeed");
+            }
+            if (s is SerialPortTool currentCom)
+            {
+                Text = $"{currentCom.PortName}";
 
-            //变量点
-            int x = settingInfo.IniPoint.X;
-            int y = settingInfo.IniPoint.Y;
-            int rowCount = 0;
-            settingInfo.SetChildParameter(this, currentCom, ref x, ref y, ref rowCount, 
-                "Parity", "DataBits", "StopBits");
+                //变量点
+                int x = settingInfo.IniPoint.X;
+                int y = settingInfo.IniPoint.Y;
+                int rowCount = 0;
+                settingInfo.SetChildParameter(this, currentCom, ref x, ref y, ref rowCount,
+                    "Parity", "DataBits", "StopBits");
+            }
+            if (s is Group currentGroup)
+            {
+                Text = $"{currentGroup.PortName}";
+
+                //变量点
+                int x = settingInfo.IniPoint.X;
+                int y = settingInfo.IniPoint.Y;
+                int rowCount = 0;
+                settingInfo.SetChildParameter(this, currentGroup, ref x, ref y, ref rowCount,
+                    "Parity", "DataBits", "StopBits");
+            }
         }
 
     }

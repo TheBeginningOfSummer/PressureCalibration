@@ -1,4 +1,4 @@
-﻿using CSharpKit.Communication;
+﻿using CSharpKit;
 using CSharpKit.FileManagement;
 using Module;
 using Services;
@@ -29,13 +29,9 @@ namespace PressureCalibration.View
 
         private void SetChildItem(object? argument)
         {
-            if (argument is ZmotionAxis axis)
+            if (argument is ISetting setting)
             {
-                new ChildItemSetting(axis).Show();
-            }
-            if (argument is SerialPortTool sp)
-            {
-                new ChildItemSetting(sp).Show();
+                new ChildItemSetting(setting).Show();
             }
         }
 

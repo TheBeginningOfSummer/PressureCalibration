@@ -155,7 +155,7 @@ namespace PressureCalibration.View
             BGW压力.WorkerSupportsCancellation = true;
             BGW运动.WorkerSupportsCancellation = true;
             //温度
-            TTB设置温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature)));
+            TTB设置温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature), false, DataSourceUpdateMode.OnPropertyChanged));
             TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(TargetT)));
             TTB温度采集间隔.DataBindings.Add(new Binding("Text", this, nameof(TInterval)));
             TTB温度测试名称.DataBindings.Add(new Binding("Text", this, nameof(TempTestName)));
@@ -354,24 +354,22 @@ namespace PressureCalibration.View
             int y = IniPoint.Y;
             List<Point> points1 = FormKit.GetLBPos2_4(x, y, Offset, Offset, direction: false);
             Interval.X = 250;
-            int count = 0;
-            foreach (GroupZXC6862 group in groupCollection.Values.Cast<GroupZXC6862>())
+            if (groupCollection.Count >= 2)
             {
-                if (count == 0)
-                    for (int i = 0; i < group.TInfo.Length; i++)
-                    {
-                        group.SetLabelLoc(points1[i], i);
-                    }
-                else
-                    for (int i = 0; i < group.TInfo.Length; i++)
-                    {
-                        group.SetLabelLoc(points1[i + 4], i);
-                    }
+                groupCollection[1].SetLabelLoc(points1[2], 0);
+                groupCollection[1].SetLabelLoc(points1[5], 1);
+                groupCollection[1].SetLabelLoc(points1[3], 2);
+                groupCollection[1].SetLabelLoc(points1[4], 3);
 
-                foreach (var tLabel in group.TInfo)
-                    FormKit.AddControl(PN温度分布, tLabel);
-                count++;
+                groupCollection[2].SetLabelLoc(points1[0], 0);
+                groupCollection[2].SetLabelLoc(points1[1], 1);
+                groupCollection[2].SetLabelLoc(points1[6], 2);
+                groupCollection[2].SetLabelLoc(points1[7], 3);
             }
+            foreach (var tLabel in groupCollection[1].TInfo)
+                FormKit.AddControl(PN温度分布, tLabel);
+            foreach (var tLabel in groupCollection[2].TInfo)
+                FormKit.AddControl(PN温度分布, tLabel);
         }
 
         private void TMI采集温度_Click(object sender, EventArgs e)

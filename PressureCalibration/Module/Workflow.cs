@@ -71,37 +71,49 @@ namespace Module
         }
         #endregion
 
-        #region 参数、数据
+        #region 参数
+        /// <summary>
+        /// 采集的温度点
+        /// </summary>
+        public BindingList<decimal> TempaturePoints { get; set; } = [15, 30, 50];
+        /// <summary>
+        /// 采集的压力点
+        /// </summary>
+        public BindingList<decimal> PressurePoints { get; set; } = [55000, 65000, 80000, 90000, 105000];
+        /// <summary>
+        /// 验证的压力点
+        /// </summary>
+        public BindingList<decimal> ValidatePressures { get; set; } = [50000, 100000, 110000];
+        /// <summary>
+        /// 烧录的最大温差
+        /// </summary>
+        public double FuseTDiff { get; set; } = 0.5;
+        /// <summary>
+        /// 烧录时的最大差值
+        /// </summary>
+        public double FusePDiff { get; set; } = 30;
+
         /// <summary>
         /// 数据采集组（采集卡）数量，可以用来初始化采集卡的地址
         /// </summary>
-        public int CardAmount { get; set; } = 8;//采集卡数量
+        public int CardAmount { get; set; } = 2;//采集卡数量
+        /// <summary>
+        /// 传感器类型
+        /// </summary>
+        public string SensorType { get; set; } = "7570";
         /// <summary>
         /// 每个采集组的传感器数量
         /// </summary>
         public int SensorCount { get; set; } = 16;
         /// <summary>
-        /// 传感器类型
+        /// 串口连接
         /// </summary>
-        public string SensorType { get; set; } = "7570";
+        public BindingList<SerialPortTool> PortList { get; set; } = [];
+        #endregion
 
-        private bool isTestVer = false;
-        /// <summary>
-        /// 测试版本
-        /// </summary>
-        public bool IsTestVer
-        {
-            get { return isTestVer; }
-            set
-            {
-                isTestVer = value;
-                OnPpChanged(nameof(IsTestVer));
-            }
-        }
-        /// <summary>
-        /// 采集卡连接（保存）
-        /// </summary>
-        public BindingList<SerialPortTool> Connection { get; set; } = [];
+        #region 数据
+        //[JsonIgnore]
+        //public BindingList<Group> CurrentGroups { get; set; } = [];
         /// <summary>
         /// 采集的数据，地址-采集卡
         /// </summary>
@@ -116,7 +128,38 @@ namespace Module
         public readonly List<string> DisplayedKeys = [];
         #endregion
 
-        #region 控制变量
+        #region 开关
+        private bool isTestVer = false;
+        /// <summary>
+        /// 测试版本
+        /// </summary>
+        public bool IsTestVer
+        {
+            get { return isTestVer; }
+            set
+            {
+                isTestVer = value;
+                OnPpChanged(nameof(IsTestVer));
+            }
+        }
+
+        private bool isFuse = false;
+        /// <summary>
+        /// 是否烧录
+        /// </summary>
+        public bool IsFuse
+        {
+            get { return isFuse; }
+            set { isFuse = value; OnPpChanged(nameof(IsFuse)); }
+        }
+
+        private bool isSave = false;
+        public bool IsSave
+        {
+            get { return isSave; }
+            set { isSave = value; OnPpChanged(nameof(IsSave)); }
+        }
+
         private bool isCalibrate = true;
         /// <summary>
         /// 是否标定
@@ -144,6 +187,9 @@ namespace Module
                 OnPpChanged(nameof(IsShowData));
             }
         }
+        #endregion
+
+        #region 控制
         /// <summary>
         /// 当前温度索引
         /// </summary>
@@ -177,6 +223,7 @@ namespace Module
             Tec = CFG.TEC;
             Motion = CFG.Zmotion;
 
+            if (PortList.Count == 0) PortList.Add(new SerialPortTool());
             InMonitor = new InputMonitor(Motion);
         }
 
@@ -184,55 +231,67 @@ namespace Module
         {
             return name switch
             {
+                nameof(TempaturePoints) => "采集温度(℃)",
+                nameof(PressurePoints) => "采集压力(Pa)",
+                nameof(ValidatePressures) => "验证压力(Pa)",
+
                 nameof(CardAmount) => "采集卡数",
                 nameof(SensorCount) => "传感器数",
                 nameof(SensorType) => "类型",
                 nameof(IsTestVer) => "测试版本",
+                nameof(IsFuse) => "是否烧录",
+                nameof(IsSave) => "数据保存",
+                nameof(IsShowData) => "数据显示",
+                nameof(IsCalibrate) => "是否标定",
                 //nameof(OverallYield) => "总良率",
                 //nameof(MinYield) => "最小良率",
-                nameof(Connection) => "连接",
-                nameof(IsCalibrate) => "是否标定",
-                nameof(IsShowData) => "数据显示",
+                //nameof(Connection) => "连接",
                 _ => name,
             };
         }
 
+        public Group? InitializeGroup(string sensorType, byte address)
+        {
+            Group? group = null;
+            //初始化采集组
+            switch (sensorType)
+            {
+                case "BOE2520":
+                    group = new GroupBOE2520(Pace, DB, address, SensorCount);
+                    break;
+                case "6862":
+                    group = new GroupZXC6862(Pace, DB, address, SensorCount);
+                    break;
+                case "6862T":
+                    group = new GroupZXC6862(Pace, DB, address, SensorCount);
+                    break;
+                case "7570":
+                    group = new GroupZXW7570(Pace, DB, address, SensorCount);
+                    break;
+                default: return group;
+            }
+            group.TempaturePoints = TempaturePoints;
+            group.PressurePoints = PressurePoints;
+            group.ValidatePressures = ValidatePressures;
+            group.FuseTDiff = FuseTDiff;
+            group.FusePDiff = FusePDiff;
+            group.Connection = PortList[0];
+            //var port = PortList.Where(p => p.PortName == group.PortName).FirstOrDefault();
+            //if (port != null) group.Connection = port;
+            return group;
+        }
+
         public override void LoaderInitialize()
         {
-            //初始化通信端口数量
-            for (int i = 0; i < CardAmount; i++)
-            {
-                if (Connection.Count < CardAmount)//端口过少时，添加端口
-                {
-                    if (i < Connection.Count)
-                        continue;
-                    else
-                        Connection.Add(new SerialPortTool() { Name = $"端口{i + 1}" });
-                }
-            }
             //初始化采集组
             for (int i = 1; i <= CardAmount; i++)
             {
-                Group group = new GroupBOE2520(Connection[0], Pace, DB, (byte)i, SensorCount);
-                //初始化采集组
-                switch (SensorType)
+                Group? group = InitializeGroup(SensorType, (byte)i);
+                if (group != null)
                 {
-                    case "BOE2520":
-                        group = new GroupBOE2520(Connection[i - 1], Pace, DB, (byte)i, SensorCount);
-                        break;
-                    case "6862":
-                        group = new GroupZXC6862(Connection[0], Pace, DB, (byte)i, SensorCount);
-                        break;
-                    case "6862T":
-                        group = new GroupZXC6862(Connection[0], Pace, DB, (byte)i, SensorCount);
-                        break;
-                    case "7570":
-                        group = new GroupZXW7570(Connection[0], Pace, DB, (byte)i, SensorCount);
-                        break;
-                    default: break;
+                    //分配给板卡1-9的设备地址
+                    GroupDic.TryAdd(i, group);
                 }
-                //分配给板卡1-9的设备地址
-                GroupDic.TryAdd(i, group);
                 //初始化采集温度数据
                 for (int j = 1; j <= 4; j++)
                     DisplayedKeys.Add($"D{i}T{j}");
@@ -288,21 +347,21 @@ namespace Module
 
         public void Open()
         {
-            for (int i = 0; i < Connection.Count; i++)
+            foreach (var port in PortList)
             {
-                if (Connection[i].Open())
-                    WorkProcess?.Invoke($"连接采集卡端口{i + 1}成功！");
+                if (port.Open())
+                    WorkProcess?.Invoke($"采集卡{port.PortName}连接成功！");
                 else
-                    WorkProcess?.Invoke($"连接采集卡端口{i + 1}失败！");
+                    WorkProcess?.Invoke($"采集卡{port.PortName}连接失败！");
             }
         }
 
         public void Close()
         {
-            for (int i = 0; i < Connection.Count; i++)
+            foreach (var port in PortList)
             {
-                if (Connection[i].Close())
-                    WorkProcess?.Invoke($"断开采集卡端口{i}成功！");
+                if (port.Close())
+                    WorkProcess?.Invoke($"断开采集卡{port.PortName}成功！");
             }
         }
 
@@ -429,6 +488,7 @@ namespace Module
             //按分组采集
             foreach (var groupList in GroupByCom.Values)
             {
+
                 var t = Task.Run(() =>
                 {
                     foreach (var acq in groupList)
@@ -607,7 +667,7 @@ namespace Module
         /// <returns></returns>
         public bool ACQCaliData(decimal targetT)
         {
-            decimal[] setPPara = [.. CalPara.PressurePoints];
+            decimal[] setPPara = [.. PressurePoints];
 
             for (int i = 0; i < setPPara.Length; i++)
             {
@@ -626,7 +686,7 @@ namespace Module
         /// <returns></returns>
         public bool ACQVerifyData()
         {
-            decimal[] setPData = [.. CalPara.VerifyPressures];
+            decimal[] setPData = [.. ValidatePressures];
 
             foreach (decimal setPress in setPData)
             {
@@ -846,13 +906,12 @@ namespace Module
     {
         public void Process(Acquisition context)
         {
-            decimal[] actualTData = [.. context.CalPara.TempaturePoints];
-            var targetTemp = actualTData[context.CurrentTempIndex];
-            context.WorkProcess?.Invoke($"等待温度{targetTemp}");
+            var targetT = context.TempaturePoints[context.CurrentTempIndex];
+            context.WorkProcess?.Invoke($"等待温度{targetT}");
 
             try
             {
-                if (context.WaitTemperature(targetTemp))
+                if (context.WaitTemperature(targetT))
                 {
                     context.WorkProcess?.Invoke($"温度OK。");
                     context.SetState(new WaitP());
@@ -870,11 +929,10 @@ namespace Module
     {
         public void Process(Acquisition context)
         {
-            decimal[] actualTData = [.. context.CalPara.TempaturePoints];
-            var targetTemp = actualTData[context.CurrentTempIndex];
+            var targetT = context.TempaturePoints[context.CurrentTempIndex];
             decimal[] setTData = [.. context.CalPara.SetTPoints];
 
-            if (context.ACQCaliData(targetTemp))
+            if (context.ACQCaliData(targetT))
             {
                 //for (int i = 1; i <= context.GroupDic.Count; i++)
                 //{

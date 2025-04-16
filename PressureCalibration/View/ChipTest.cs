@@ -124,9 +124,11 @@ namespace PressureCalibration.View
                             e.Result += $"{Environment.NewLine}第{i}路芯片UID：{resultUID[i]}";
                         break;
                     case "readOutput":
+                        string pUnit = "Pa";
+                        if (group is GroupZXW7570) pUnit = "MPa";
                         group.GetSensorsOutput(out decimal[] tempArray, out decimal[] pressArray);
                         for (int i = 0; i < group.SensorCount; i++)
-                            e.Result += $"{Environment.NewLine}芯片{i.ToString().PadLeft(2, '0')}  温度值：{tempArray[i]:F2}℃  压力值：{pressArray[i]:N6}MPa";
+                            e.Result += $"{Environment.NewLine}芯片{i.ToString().PadLeft(2, '0')}  温度值：{tempArray[i]:F2}℃  压力值：{pressArray[i]:N6}{pUnit}";
                         break;
                     case "readData":
                         e.Result = group.Show();

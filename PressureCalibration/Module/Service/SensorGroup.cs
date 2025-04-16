@@ -1,14 +1,21 @@
-﻿using CSharpKit.Communication;
+﻿using CSharpKit;
+using CSharpKit.Communication;
 using CSharpKit.DataManagement;
 using CSharpKit.FileManagement;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 using static Module.SensorZXC6862;
 
 namespace Module
 {
-    public abstract class Group
+    [JsonDerivedType(typeof(GroupBOE2520), typeDiscriminator: "boe2520")]
+    [JsonDerivedType(typeof(GroupZXC6862), typeDiscriminator: "zxc6862")]
+    [JsonDerivedType(typeof(GroupZXW7570), typeDiscriminator: "zxw7570")]
+    public abstract class Group : ISetting
     {
+        public string Name { get; set; } = "Default";
+
         #region 参数
         /// <summary>
         /// 采集的温度点
@@ -22,16 +29,6 @@ namespace Module
         /// 验证的压力点
         /// </summary>
         public BindingList<decimal> ValidatePressures { get; set; } = [50000, 100000, 110000];
-
-        private bool isFuse = false;
-        /// <summary>
-        /// 是否烧录
-        /// </summary>
-        public bool IsFuse
-        {
-            get { return isFuse; }
-            set { isFuse = value; }
-        }
         /// <summary>
         /// 烧录的最大温差
         /// </summary>
@@ -42,14 +39,6 @@ namespace Module
         public double FusePDiff { get; set; } = 30;
 
         /// <summary>
-        /// I2C地址
-        /// </summary>
-        public byte I2CAddress { get; set; } = 0x7F;
-        /// <summary>
-        /// I2C速度
-        /// </summary>
-        public byte I2CSpeed { get; set; } = 0x00;
-        /// <summary>
         /// 采集地址
         /// </summary>
         public byte DeviceAddress { get; set; }
@@ -58,10 +47,19 @@ namespace Module
         /// </summary>
         public int SensorCount { get; set; } = 16;
         /// <summary>
+        /// I2C地址
+        /// </summary>
+        public byte I2CAddress { get; set; } = 0x7F;
+        /// <summary>
+        /// I2C速度
+        /// </summary>
+        public byte I2CSpeed { get; set; } = 0x00;
+        public string PortName { get; set; } = "COM4";
+
+        /// <summary>
         /// 采集卡连接
         /// </summary>
-        public SerialPortTool Connection { get; set; } = new();
-
+        public SerialPortTool Connection = new();
         /// <summary>
         /// 传感器选择数组
         /// </summary>
@@ -87,7 +85,15 @@ namespace Module
         {
             return Sensors[sensorIndex];
         }
+        /// <summary>
+        /// 采集卡采集额度温度信息
+        /// </summary>
         public Label[] TInfo = new Label[4];
+        /// <summary>
+        /// 设置目标温度和偏移温度
+        /// </summary>
+        /// <param name="targetT">目标温度</param>
+        /// <param name="offsetT">偏移温度</param>
         public void SetTargetT(decimal targetT = 15, decimal offsetT = 1)
         {
             TargetT = targetT;
@@ -361,8 +367,42 @@ namespace Module
         public abstract void SelectSensor();
         public abstract bool SaveData(string path = "Data\\SensorData\\");
         public abstract void LoadData(string fileName, string path = "Data\\SensorData\\");
-        public abstract string Show();
         #endregion
+        public string Show()
+        {
+            string message = "";
+            for (int i = 0; i < Sensors.Count; i++)
+            {
+                message += $"[{i}]{Sensors[i].ShowData()}{Environment.NewLine}";
+            }
+            return $"设备地址：{DeviceAddress}  传感器数量：{SensorCount}{Environment.NewLine}{message}";
+        }
+        public string Translate(string name)
+        {
+            return name switch
+            {
+                nameof(TempaturePoints) => "采集温度(℃)",
+                //nameof(SetTPoints) => "设置温度(℃)",
+                nameof(PressurePoints) => "采集压力(Pa)",
+                nameof(ValidatePressures) => "验证压力(Pa)",
+                //nameof(MaxTemperatureDiff) => "采集温差(℃)",
+                //nameof(MaxPressureDiff) => "采集压差(Pa)",
+                //nameof(TTimeout) => "温度超时(S)",
+                //nameof(PTimeout) => "压力超时(S)",
+                nameof(FusePDiff) => "烧录压差(Pa)",
+                nameof(FuseTDiff) => "烧录温差(℃)",
+                nameof(DeviceAddress) => "设备地址",
+
+                //nameof(CheckTemperatures) => "检测温度",
+                //nameof(CheckPressures) => "检测压力",
+                //nameof(CheckPressureDiff) => "检测压力差",
+                //nameof(CheckTemperatureDiff) => "检测温度差",
+                //nameof(IsTestVer) => "测试版本",
+                //nameof(Method) => "计算方法",
+                _ => name,
+            };
+        }
+        
 
         public Group(PressController pace, Database db)
         {
@@ -393,6 +433,7 @@ namespace Module
             SensorCount = sensorCount;
             I2CAddress = 0x20;
             I2CSpeed = 0x00;
+            Name = $"D{DeviceAddress}";
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
             {
@@ -409,6 +450,7 @@ namespace Module
             SensorCount = sensorCount;
             I2CAddress = 0x20;
             I2CSpeed = 0x00;
+            Name = $"D{DeviceAddress}";
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
             {
@@ -740,20 +782,6 @@ namespace Module
             }
         }
 
-        /// <summary>
-        /// 显示采集组数据
-        /// </summary>
-        /// <returns></returns>
-        public override string Show()
-        {
-            string message = "";
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                message += $"[{i}]{Sensors[i].ShowData()}{Environment.NewLine}";
-            }
-            return $"设备地址：{DeviceAddress}  传感器数量：{SensorCount}{Environment.NewLine}{message}";
-        }
-
         public override void InitializeACQ()
         {
             throw new NotImplementedException();
@@ -771,6 +799,26 @@ namespace Module
             DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
             I2CAddress = 0x77;
+            Name = $"D{DeviceAddress}";
+            BridgeOffset = new MinBridgeOffset[SensorCount];
+            AMPGain = new TargetGain[SensorCount];
+
+            SelectedSensor = new bool[SensorCount];
+            for (int i = 0; i < SensorCount; i++)
+            {
+                SensorZXC6862 sensor = new(deviceAddress, i);
+                sensor.InitializeData(TempaturePoints.ToArray(), PressurePoints.ToArray());
+                Sensors.TryAdd(i, sensor);
+                SelectedSensor[i] = false;
+            }
+        }
+
+        public GroupZXC6862(PressController pace, Database db, byte deviceAddress, int sensorCount = 16) : base(pace, db)
+        {
+            DeviceAddress = deviceAddress;
+            SensorCount = sensorCount;
+            I2CAddress = 0x77;
+            Name = $"D{DeviceAddress}";
             BridgeOffset = new MinBridgeOffset[SensorCount];
             AMPGain = new TargetGain[SensorCount];
 
@@ -1311,20 +1359,6 @@ namespace Module
             }
         }
 
-        /// <summary>
-        /// 显示采集组数据
-        /// </summary>
-        /// <returns></returns>
-        public override string Show()
-        {
-            string message = "";
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                message += $"[{i}]{Sensors[i].ShowData()}{Environment.NewLine}";
-            }
-            return $"设备地址：{DeviceAddress}  传感器数量：{SensorCount}{Environment.NewLine}{message}";
-        }
-
     }
 
     public class GroupZXW7570 : Group
@@ -1335,6 +1369,23 @@ namespace Module
             DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
             I2CAddress = 0x7F;
+            Name = $"D{DeviceAddress}";
+
+            SelectedSensor = new bool[SensorCount];
+            for (int i = 0; i < SensorCount; i++)
+            {
+                SensorZXW7570 sensor = new(deviceAddress, i);
+                Sensors.TryAdd(i, sensor);
+                SelectedSensor[i] = false;
+            }
+        }
+
+        public GroupZXW7570(PressController pace, Database db, byte deviceAddress, int sensorCount = 16) : base(pace, db)
+        {
+            DeviceAddress = deviceAddress;
+            SensorCount = sensorCount;
+            I2CAddress = 0x7F;
+            Name = $"D{DeviceAddress}";
 
             SelectedSensor = new bool[SensorCount];
             for (int i = 0; i < SensorCount; i++)
@@ -1467,17 +1518,6 @@ namespace Module
             {
                 Sensors.AddOrUpdate(item.Key, item.Value, (key, oldValue) => { return item.Value; });
             }
-        }
-
-        /// <summary>
-        /// 显示采集组数据
-        /// </summary>
-        /// <returns></returns>
-        public override string Show()
-        {
-            string message = "";
-            
-            return $"设备地址：{DeviceAddress}  传感器数量：{SensorCount}{Environment.NewLine}{message}";
         }
 
         public override byte[] WriteAllFuseData(byte address = 52, byte length = 28)

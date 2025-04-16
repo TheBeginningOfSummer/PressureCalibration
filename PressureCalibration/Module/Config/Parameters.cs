@@ -10,21 +10,9 @@ namespace Module
         /// </summary>
         public int PressDelay { get; set; } = 10;
         /// <summary>
-        /// 采集的温度点
-        /// </summary>
-        public BindingList<decimal> TempaturePoints { get; set; } = [15, 30, 50];
-        /// <summary>
         /// 采集温度设置点
         /// </summary>
         public BindingList<decimal> SetTPoints { get; set; } = [15, 30, 50];
-        /// <summary>
-        /// 采集的压力点
-        /// </summary>
-        public BindingList<decimal> PressurePoints { get; set; } = [55000, 65000, 80000, 90000, 105000];
-        /// <summary>
-        /// 验证的压力点
-        /// </summary>
-        public BindingList<decimal> VerifyPressures { get; set; } = [50000, 100000, 110000];
         /// <summary>
         /// 采集数据时稳定的温差
         /// </summary>
@@ -42,25 +30,6 @@ namespace Module
         /// </summary>
         public decimal PTimeout { get; set; } = 120;
         /// <summary>
-        /// 烧录的最大温差
-        /// </summary>
-        public double FuseTDiff { get; set; } = 0.5;
-        /// <summary>
-        /// 烧录时的最大差值
-        /// </summary>
-        public double FusePDiff { get; set; } = 30;
-
-        private bool isFuse = false;
-        /// <summary>
-        /// 是否烧录
-        /// </summary>
-        public bool IsFuse
-        {
-            get { return isFuse; }
-            set { isFuse = value; OnPpChanged(nameof(IsFuse)); }
-        }
-
-        /// <summary>
         /// 检测温度
         /// </summary>
         public BindingList<decimal> CheckTemperatures { get; set; } = [-20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80];
@@ -77,13 +46,6 @@ namespace Module
         /// </summary>
         public decimal CheckPressureDiff { get; set; } = 80;
 
-        private bool isSave = false;
-        public bool IsSave
-        {
-            get { return isSave; }
-            set { isSave = value; OnPpChanged(nameof(IsSave)); }
-        }
-
         public CalibrationParameter()
         {
             
@@ -94,17 +56,17 @@ namespace Module
             return name switch
             {
                 nameof(PressDelay) => "压力延时(S)",
-                nameof(TempaturePoints) => "采集温度(℃)",
+                //nameof(TempaturePoints) => "采集温度(℃)",
                 nameof(SetTPoints) => "设置温度(℃)",
-                nameof(PressurePoints) => "采集压力(Pa)",
-                nameof(VerifyPressures) => "验证压力(Pa)",
+                //nameof(PressurePoints) => "采集压力(Pa)",
+                //nameof(VerifyPressures) => "验证压力(Pa)",
                 nameof(MaxTemperatureDiff) => "采集温差(℃)",
                 nameof(MaxPressureDiff) => "采集压差(Pa)",
                 nameof(TTimeout) => "温度超时(S)",
                 nameof(PTimeout) => "压力超时(S)",
-                nameof(FusePDiff) => "烧录压差(Pa)",
-                nameof(FuseTDiff) => "烧录温差(℃)",
-                nameof(IsFuse) => "是否烧录",
+                //nameof(FusePDiff) => "烧录压差(Pa)",
+                //nameof(FuseTDiff) => "烧录温差(℃)",
+                //nameof(IsFuse) => "是否烧录",
 
                 nameof(CheckTemperatures) => "检测温度",
                 nameof(CheckPressures) => "检测压力",
@@ -112,7 +74,6 @@ namespace Module
                 nameof(CheckTemperatureDiff) => "检测温度差",
                 //nameof(IsTestVer) => "测试版本",
                 //nameof(Method) => "计算方法",
-                nameof(IsSave) => "数据保存",
                 _ => name,
             };
         }

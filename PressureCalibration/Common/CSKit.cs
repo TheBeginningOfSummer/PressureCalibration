@@ -923,6 +923,12 @@ namespace CSharpKit
                 StopBits = iStopBits;
             }
 
+            public SerialPortTool(int iBaudRate, string portName)
+            {
+                BaudRate = iBaudRate;
+                PortName = portName;
+            }
+
             public SerialPortTool()
             {
 
@@ -973,6 +979,7 @@ namespace CSharpKit
             {
                 try
                 {
+                    if (MySerialPort.IsOpen) return true;
                     Close();
                     MySerialPort.BaudRate = BaudRate;
                     MySerialPort.PortName = PortName;

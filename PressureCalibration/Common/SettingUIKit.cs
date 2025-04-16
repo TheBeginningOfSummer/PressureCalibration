@@ -50,6 +50,51 @@ namespace UIKit
             SetParameter(parent, SettingPara, ref x, ref y, ref rowCount, "CurrentState", "Instance", "Axes");
             #endregion
         }
+        /// <summary>
+        /// 绑定列表到界面
+        /// </summary>
+        /// <typeparam name="T">列表的类型</typeparam>
+        /// <typeparam name="TS">包含列表的原类的实例类型</typeparam>
+        /// <param name="bindingList">列表</param>
+        /// <param name="parent">要绑定到的控件</param>
+        /// <param name="propertyName">属性名称</param>
+        /// <param name="source">源类实例</param>
+        /// <param name="x">控件起始x</param>
+        /// <param name="y">控件起始y</param>
+        public void SetBindingValueListUI<T, TS>(BindingList<T> bindingList, Control parent, string propertyName, TS source, int x, int y) where TS : Loader
+        {
+            ComboBox cBox = FormKit.AddSettingBox<ComboBox>
+                (parent, new Point(x, y), $"{propertyName}", source.Translate($"{propertyName}"), "", bindingList, 60, Offset);
+            cBox.Tag = propertyName;
+            var b1 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                (new Point(x + 150, y - 5), $"BN[{propertyName}]添加", "添加", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
+            var b2 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                (new Point(x + 190, y - 5), $"BN[{propertyName}]更改", "更改", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
+            var b3 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                (new Point(x + 230, y - 5), $"BN[{propertyName}]删除", "删除", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
+
+            b1.Command = new RelayCommand<object>(AddItem);
+            b2.Command = new RelayCommand<object>(ChangeItem);
+            b3.Command = new RelayCommand<object>(RemoveItem);
+
+            b1.Font = new Font("Segoe UI", 7f);
+            b2.Font = new Font("Segoe UI", 7f);
+            b3.Font = new Font("Segoe UI", 7f);
+        }
+
+        public void SetBindingClassListUI<T, TS>(BindingList<T> bindingList, Control parent, string propertyName, TS source, int x, int y) where TS : Loader
+        {
+            ComboBox cBox = FormKit.AddSettingBox<ComboBox>
+                (parent, new Point(x, y), $"{propertyName}", source.Translate($"{propertyName}"), "", bindingList, 60, Offset);
+            cBox.DisplayMember = "Name";
+            cBox.ValueMember = "Name";
+            cBox.Tag = propertyName;
+
+            var b1 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
+                (new Point(x + 150, y - 5), $"BN[{propertyName}]设置", "设置", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
+            b1.Command = new RelayCommand<object>(SetItem);
+            b1.Font = new Font("Segoe UI", 7f);
+        }
 
         public void SetParameter<T>(Control parent, T? instance, ref int x, ref int y, ref int rowCount, params string[] ignore) where T : Loader
         {
@@ -63,65 +108,31 @@ namespace UIKit
                 if (ignore.Contains(property.Name)) continue;
                 if (property.Name == "SerialPort" || property.Name == "SocketPort") continue;
                 //属性分类
-                if (property.GetValue(instance) is bool)
+                Type dataType = property.PropertyType;
+                if (dataType == typeof(bool))
                 {
-                    var checkBox = FormKit.AddSettingBox<CheckBox>(parent, new Point(x, y), $"{property.Name}",
-                        instance.Translate($"{property.Name}"), "", xOffset: Offset);
+                    var checkBox = FormKit.AddSettingBox<CheckBox>
+                        (parent, new Point(x, y), $"{property.Name}", instance.Translate($"{property.Name}"), "", xOffset: Offset);
                     checkBox.DataBindings.Add("Checked", instance, property.Name, false, DataSourceUpdateMode.OnPropertyChanged);
                 }
-                else if (property.GetValue(instance) is BindingList<decimal> decimalList)
+                else if (dataType.IsGenericType && dataType.GetGenericTypeDefinition() == typeof(BindingList<>))
                 {
-                    ComboBox cBox = FormKit.AddSettingBox<ComboBox>(parent, new Point(x, y), $"{property.Name}",
-                        instance.Translate($"{property.Name}"), "", decimalList, 60, Offset);
-                    cBox.Tag = property.Name;
-                    var b1 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 150, y - 5), $"BN[{property.Name}]添加", "添加", new Size(40, 25), Color.DodgerBlue, Color.White,
-                        cmdPara: cBox));
-                    var b2 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 190, y - 5), $"BN[{property.Name}]更改", "更改", new Size(40, 25), Color.DodgerBlue, Color.White,
-                        cmdPara: cBox));
-                    var b3 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 230, y - 5), $"BN[{property.Name}]删除", "删除", new Size(40, 25), Color.DodgerBlue, Color.White,
-                        cmdPara: cBox));
-
-                    b1.Command = new RelayCommand<object>(AddItem);
-                    b2.Command = new RelayCommand<object>(ChangeItem);
-                    b3.Command = new RelayCommand<object>(RemoveItem);
-
-                    b1.Font = new Font("Segoe UI", 7f);
-                    b2.Font = new Font("Segoe UI", 7f);
-                    b3.Font = new Font("Segoe UI", 7f);
-                }
-                else if (property.GetValue(instance) is BindingList<string> stringList)
-                {
-                    ComboBox cBox = FormKit.AddSettingBox<ComboBox>(parent, new Point(x, y), $"{property.Name}",
-                        instance.Translate($"{property.Name}"), "", stringList, 60, Offset);
-                    
-                    var b1 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 150, y - 5), $"BN[{property.Name}]添加", "添加", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
-                    var b2 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 190, y - 5), $"BN[{property.Name}]设置", "设置", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
-                    var b3 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 230, y - 5), $"BN[{property.Name}]删除", "删除", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
-                    b1.Command = new RelayCommand<object>(AddItem);
-                    b2.Command = new RelayCommand<object>(SetItem);
-                    b3.Command = new RelayCommand<object>(RemoveItem);
-                    b1.Font = new Font("Segoe UI", 7f);
-                    b2.Font = new Font("Segoe UI", 7f);
-                    b3.Font = new Font("Segoe UI", 7f);
-                }
-                else if (property.GetValue(instance) is BindingList<SerialPortTool> comList)
-                {
-                    ComboBox cBox = FormKit.AddSettingBox<ComboBox>(parent, new Point(x, y), $"{property.Name}",
-                        instance.Translate($"{property.Name}"), "", comList, 60, Offset);
-                    cBox.DisplayMember = "Name";
-                    cBox.ValueMember = "Name";
-                    cBox.Tag = property.Name;
-
-                    var b1 = FormKit.AddControl(parent, FormKit.ControlFactory<Button>
-                        (new Point(x + 150, y - 5), $"BN[{property.Name}]设置", "设置", new Size(40, 25), Color.DodgerBlue, Color.White, cmdPara: cBox));
-                    b1.Command = new RelayCommand<object>(SetItem);
-                    b1.Font = new Font("Segoe UI", 7f);
+                    var value = property.GetValue(instance);
+                    if (value == null) continue;
+                    dynamic valueEX = Convert.ChangeType(value, dataType);
+                    Type itemType = dataType.GetGenericArguments()[0];
+                    if (itemType.IsValueType)
+                    {
+                        SetBindingValueListUI(valueEX, parent, property.Name, instance, x, y);
+                    }
+                    else if (property.GetValue(instance) is BindingList<string> stringList)
+                    {
+                        SetBindingValueListUI(stringList, parent, property.Name, instance, x, y);
+                    }
+                    else if (itemType.IsClass)
+                    {
+                        SetBindingClassListUI(valueEX, parent, property.Name, instance, x, y);
+                    }
                 }
                 else
                 {
@@ -249,20 +260,14 @@ namespace UIKit
                 //得到输入的数据
                 string input = Interaction.InputBox($"请输入要添加的值：", "提示", "");
                 if (input == "") return;
-                //得到要修改数据
-                string propName = GetPropName(cBox.Name);
-                var propInfo = SettingPara?.GetType().GetProperty(propName);
-                if (propInfo == null) return;
-                if (propInfo.GetValue(SettingPara) is BindingList<decimal> list)
+                if (cBox.DataSource == null) return;
+                Type dataType = cBox.DataSource.GetType();
+                if (dataType.IsGenericType && dataType.GetGenericTypeDefinition() == typeof(BindingList<>))
                 {
-                    if (!decimal.TryParse(input, out var decimalValue)) return;
-                    list.Add(decimalValue);
-                    CommandAction?.Invoke("Add");
-                    FormKit.ShowInfoBox("已添加");
-                }
-                else if (propInfo.GetValue(SettingPara) is BindingList<string> stringList)
-                {
-                    stringList.Add(input);
+                    Type itemType = dataType.GetGenericArguments()[0];
+                    dynamic list = cBox.DataSource;
+                    dynamic value = Convert.ChangeType(input, itemType);
+                    list.Add(value);
                     CommandAction?.Invoke("Add");
                     FormKit.ShowInfoBox("已添加");
                 }
@@ -276,15 +281,15 @@ namespace UIKit
                 //得到输入的数据
                 string input = Interaction.InputBox($"请输入修改值：", "提示", "");
                 if (input == "") return;
-                //得到要修改数据
-                string propName = GetPropName(cBox.Name);
-                var propInfo = SettingPara?.GetType().GetProperty(propName);
-                if (propInfo == null) return;
-                if (propInfo.GetValue(SettingPara) is BindingList<decimal> list)
+                if (cBox.DataSource == null) return;
+                Type dataType = cBox.DataSource.GetType();
+                if (dataType.IsGenericType && dataType.GetGenericTypeDefinition() == typeof(BindingList<>))
                 {
+                    Type itemType = dataType.GetGenericArguments()[0];
+                    dynamic list = cBox.DataSource;
+                    dynamic value = Convert.ChangeType(input, itemType);
                     if (list.Count == 0) return;
-                    if (!decimal.TryParse(input, out var decimalValue)) return;
-                    list[cBox.SelectedIndex] = decimalValue;
+                    list[cBox.SelectedIndex] = value;
                     FormKit.ShowInfoBox("已修改");
                 }
             }
@@ -294,20 +299,13 @@ namespace UIKit
         {
             if (argument is ComboBox cBox)
             {
-                string propName = GetPropName(cBox.Name);
-                var propInfo = SettingPara?.GetType().GetProperty(propName);
-                if (propInfo == null) return;
-                if (propInfo.GetValue(SettingPara) is BindingList<decimal> list)
+                if (cBox.DataSource == null) return;
+                Type dataType = cBox.DataSource.GetType();
+                if (dataType.IsGenericType && dataType.GetGenericTypeDefinition() == typeof(BindingList<>))
                 {
+                    dynamic list = cBox.DataSource;
                     if (list.Count == 0) return;
                     list.RemoveAt(cBox.SelectedIndex);
-                    CommandAction?.Invoke("Remove");
-                    FormKit.ShowInfoBox($"已删除");
-                }
-                else if (propInfo.GetValue(SettingPara) is BindingList<string> stringList)
-                {
-                    if (stringList.Count == 0) return;
-                    stringList.RemoveAt(cBox.SelectedIndex);
                     CommandAction?.Invoke("Remove");
                     FormKit.ShowInfoBox($"已删除");
                 }
@@ -318,20 +316,18 @@ namespace UIKit
         {
             if (argument is ComboBox cBox)
             {
+                if (cBox.DataSource == null) return;
+                Type dataType = cBox.DataSource.GetType();
+                if (dataType.IsGenericType && dataType.GetGenericTypeDefinition() == typeof(BindingList<>))
+                {
+                    dynamic list = cBox.DataSource;
+                    if (list.Count == 0) return;
+                    CommandAction?.Invoke(list[cBox.SelectedIndex]);
+                }
                 if (SettingPara is ZmotionMotionControl zmotion)
                 {
                     if (zmotion.Axes.TryGetValue(cBox.Text, out ZmotionAxis? axis))
                         CommandAction?.Invoke(axis);
-                }
-                else
-                {
-                    if(cBox.Tag is string name)
-                    {
-                        var info = SettingPara?.GetType().GetProperty(name);
-                        if (info == null) return;
-                        if (info.GetValue(SettingPara) is BindingList<SerialPortTool> comList)
-                            CommandAction?.Invoke(comList[cBox.SelectedIndex]);
-                    }
                 }
             }
         }

@@ -277,7 +277,7 @@
             // TMI测试
             // 
             TMI测试.Name = "TMI测试";
-            TMI测试.Size = new Size(180, 22);
+            TMI测试.Size = new Size(100, 22);
             TMI测试.Tag = "test";
             TMI测试.Text = "测试";
             TMI测试.Click += TMI窗口_Click;
@@ -285,7 +285,7 @@
             // TMI监视
             // 
             TMI监视.Name = "TMI监视";
-            TMI监视.Size = new Size(180, 22);
+            TMI监视.Size = new Size(100, 22);
             TMI监视.Tag = "monitor";
             TMI监视.Text = "监视";
             TMI监视.Click += TMI窗口_Click;
@@ -293,7 +293,7 @@
             // TMI芯片
             // 
             TMI芯片.Name = "TMI芯片";
-            TMI芯片.Size = new Size(180, 22);
+            TMI芯片.Size = new Size(100, 22);
             TMI芯片.Tag = "chip";
             TMI芯片.Text = "芯片";
             TMI芯片.Click += TMI窗口_Click;

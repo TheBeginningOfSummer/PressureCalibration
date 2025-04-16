@@ -94,36 +94,6 @@ namespace Module
                 SensorInfo.BackColor = color;
         }
 
-        public void SetUID()
-        {
-            foreach (var data in RawDataList)
-                data.Uid = Uid;
-            foreach (var data in ValidationDataList)
-                data.Uid = Uid;
-        }
-
-        public void InitializeData(decimal[] tPoints, decimal[] pPoints)
-        {
-            Result = "Default";
-            IsFused = false;
-            RawDataList.Clear();
-            ValidationDataList.Clear();
-            for (int i = 0; i < tPoints.Length; i++)
-            {
-                for (int j = 0; j < pPoints.Length; j++)
-                {
-                    RawData data = new()
-                    {
-                        T_idx = i + 1,
-                        P_idx = j + 1,
-                        SetT = tPoints[i],
-                        SetP = pPoints[j]
-                    };
-                    RawDataList.Add(data);
-                }
-            }
-        }
-
         #region 寄存器操作
         public SendData Read(byte address, byte count)
         {
@@ -210,9 +180,55 @@ namespace Module
 
         }
 
+        public void SetUID()
+        {
+            foreach (var data in RawDataList)
+                data.Uid = Uid;
+            foreach (var data in ValidationDataList)
+                data.Uid = Uid;
+        }
+
+        public void InitializeData(decimal[] tPoints, decimal[] pPoints)
+        {
+            Result = "Default";
+            IsFused = false;
+            RawDataList.Clear();
+            ValidationDataList.Clear();
+            for (int i = 0; i < tPoints.Length; i++)
+            {
+                for (int j = 0; j < pPoints.Length; j++)
+                {
+                    RawData data = new()
+                    {
+                        T_idx = i + 1,
+                        P_idx = j + 1,
+                        SetT = tPoints[i],
+                        SetP = pPoints[j]
+                    };
+                    RawDataList.Add(data);
+                }
+            }
+        }
+        /// <summary>
+        /// 显示数据
+        /// </summary>
+        public string ShowData()
+        {
+            string message = "";
+            message += "计算数据：" + Environment.NewLine;
+            message += CoefficientData?.Show() + Environment.NewLine;
+            message += "    采集的数据：" + Environment.NewLine;
+            for (int i = 0; i < RawDataList.Count; i++)
+                message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
+            message += "    验证的数据：" + Environment.NewLine;
+            for (int i = 0; i < ValidationDataList.Count; i++)
+                message += $"[{i}]{ValidationDataList[i].Show()}{Environment.NewLine}";
+            message += "---------------------------------------------------------------------------------------------------" + Environment.NewLine;
+            return message;
+        }
+
         public abstract void Calculate();
         public abstract void Validate(double maxPDiff = 10, double maxTDiff = 0.5);
-        public abstract string ShowData();
         
     }
 
@@ -383,23 +399,6 @@ namespace Module
                 }
             }
         }
-        /// <summary>
-        /// 显示数据
-        /// </summary>
-        public override string ShowData()
-        {
-            string message = "";
-            message += "计算数据：" + Environment.NewLine;
-            message += CoefficientData?.Show() + Environment.NewLine;
-            message += "    采集的数据：" + Environment.NewLine;
-            for (int i = 0; i < RawDataList.Count; i++)
-                message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
-            message += "    验证的数据：" + Environment.NewLine;
-            for (int i = 0; i < ValidationDataList.Count; i++)
-                message += $"[{i}]{ValidationDataList[i].Show()}{Environment.NewLine}";
-            message += "---------------------------------------------------------------------------------------------------" + Environment.NewLine;
-            return message;
-        }
         #endregion
     }
 
@@ -502,23 +501,6 @@ namespace Module
                 }
             }
         }
-        /// <summary>
-        /// 显示数据
-        /// </summary>
-        public override string ShowData()
-        {
-            string message = "";
-            message += "计算数据：" + Environment.NewLine;
-            message += CoefficientData?.Show() + Environment.NewLine;
-            message += "    采集的数据：" + Environment.NewLine;
-            for (int i = 0; i < RawDataList.Count; i++)
-                message += $"[{i}]{RawDataList[i].Show()}{Environment.NewLine}";
-            message += "    验证的数据：" + Environment.NewLine;
-            for (int i = 0; i < ValidationDataList.Count; i++)
-                message += $"[{i}]{ValidationDataList[i].Show()}{Environment.NewLine}";
-            message += "---------------------------------------------------------------------------------------------------" + Environment.NewLine;
-            return message;
-        }
         #endregion
     }
 
@@ -545,9 +527,5 @@ namespace Module
             throw new NotImplementedException();
         }
 
-        public override string ShowData()
-        {
-            throw new NotImplementedException();
-        }
     }
 }
