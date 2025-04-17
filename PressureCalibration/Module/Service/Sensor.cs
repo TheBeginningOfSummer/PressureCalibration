@@ -240,6 +240,7 @@ namespace Module
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
             Speed = speed;
+            CoefficientData = new CEBOE2520();
             SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
             SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
             SensorInfo.Text = $"[{SensorIndex + 1}]";
@@ -463,6 +464,7 @@ namespace Module
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
             Speed = speed;
+            CoefficientData = new CEZXC6862();
             SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
             SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
             SensorInfo.Text = $"[{SensorIndex + 1}]";
@@ -512,6 +514,7 @@ namespace Module
             SensorIndex = sensorIndex;
             I2CAddress = i2CAddress;
             Speed = speed;
+            CoefficientData = new CEZXW7570();
             SensorInfo.Name = $"LB[D{DeviceAddress}S{SensorIndex}]";
             SensorInfo.Tag = $"D{DeviceAddress}S{SensorIndex}";
             SensorInfo.Text = $"[{SensorIndex + 1}]";

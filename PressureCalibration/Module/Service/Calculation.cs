@@ -222,6 +222,79 @@ namespace Module
             RegisterData[24] = 0x80;
         }
 
+        public void GetCoefficient()
+        {
+            C0 = GetC0C00([RegisterData[0], RegisterData[1]]);
+            C1 = GetC1C10([RegisterData[1], RegisterData[2]]);
+
+            C00 = GetC0C00([RegisterData[3], RegisterData[4], RegisterData[5]]);
+            C10 = GetC1C10([RegisterData[5], RegisterData[6], RegisterData[7]]);
+            C01 = GetOthers([RegisterData[8], RegisterData[9]]);
+            C11 = GetOthers([RegisterData[10], RegisterData[11]]);
+            C20 = GetOthers([RegisterData[12], RegisterData[13]]);
+            C21 = GetOthers([RegisterData[14], RegisterData[15]]);
+            C30 = GetOthers([RegisterData[16], RegisterData[17]]);
+        }
+
+        public static int GetC1C10(byte[] value)
+        {
+            if (value.Length > 4) return 0;
+            byte[] bytes;
+            if (BytesTool.GetBit(value[0], 3))
+            {
+                bytes = [0xFF, 0xFF, 0xFF, 0xFF];
+                value[0] = (byte)(value[0] | 0xF0);
+                value.CopyTo(bytes, 4 - value.Length);
+            }
+            else
+            {
+                bytes = new byte[4];
+                value[0] = (byte)(value[0] & 0x0F);
+                value.CopyTo(bytes, 4 - value.Length);
+            }
+            Array.Reverse(bytes);//大小端
+            int result = BitConverter.ToInt32(bytes, 0);
+            return result;
+        }
+
+        public static int GetC0C00(byte[] value)
+        {
+            if (value.Length > 4) return 0;
+            byte[] bytes;
+            if (BytesTool.GetBit(value[0], 7))
+            {
+                bytes = [0xFF, 0xFF, 0xFF, 0xFF];
+                value.CopyTo(bytes, 4 - value.Length);
+            }
+            else
+            {
+                bytes = new byte[4];
+                value.CopyTo(bytes, 4 - value.Length);
+            }
+            Array.Reverse(bytes);
+            int result = BitConverter.ToInt32(bytes, 0);
+            return result >> 4;
+        }
+
+        public static int GetOthers(byte[] value)
+        {
+            if (value.Length > 4) return 0;
+            byte[] bytes;
+            if (BytesTool.GetBit(value[0], 7))
+            {
+                bytes = [0xFF, 0xFF, 0xFF, 0xFF];
+                value.CopyTo(bytes, 4 - value.Length);
+            }
+            else
+            {
+                bytes = new byte[4];
+                value.CopyTo(bytes, 4 - value.Length);
+            }
+            Array.Reverse(bytes);
+            int result = BitConverter.ToInt32(bytes, 0);
+            return result;
+        }
+
         public string Show()
         {
             return $"[uid:{Uid}] C00:{C00}  C01:{C01}  C10:{C10}  C11:{C11}  C20:{C20}  C21:{C21}  C30:{C30}" +

@@ -163,6 +163,11 @@ namespace PressureCalibration
                 oriData.Add(rawData);
             }
             var r = Calculation.StartCalibration(oriData);
+            var ceoff = new CEZXC6862();
+            ceoff.RegisterData = r.RegisterData;
+            UpdateMessage("计算前：" + ceoff.Show());
+            ceoff.GetCoefficient();
+            UpdateMessage("计算后：" + ceoff.Show());
             if (r == null) return;
             Calculation.StartValidation(r, 872639, 153638, out double pcal, out double tcal);
             UpdateMessage($"pcal:{pcal}  tcal:{tcal}");

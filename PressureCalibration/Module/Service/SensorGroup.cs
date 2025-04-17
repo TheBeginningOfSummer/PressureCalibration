@@ -402,7 +402,6 @@ namespace Module
                 _ => name,
             };
         }
-        
 
         public Group(PressController pace, Database db)
         {
@@ -1209,6 +1208,7 @@ namespace Module
         /// <param name="pArray">压力值</param>
         public override void GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, bool isTest = false)
         {
+            ReceivedData[] registerResult;
             ReceivedData[] tempResult;
             ReceivedData[] pressResult;
             tArray = new decimal[SensorCount];
@@ -1225,32 +1225,30 @@ namespace Module
                 return;
             }
 
-            byte[] tempBytes = new byte[2];
-            byte[] pressBytes = new byte[4];
             try
             {
-                //Connection.WriteRead(WriteAll(0x30, 1, GetArray(0x0A, SensorCount), 0x07));
+                registerResult = ReceivedData.ParseData(ReadAll(0x10, 18, I2CSpeed), SensorCount);
+                Thread.Sleep(100);
+                Connection.WriteRead(WriteAll(0x06, 1, GetArray(0x36, SensorCount), I2CSpeed));//压力采样速率和精度
+                Connection.WriteRead(WriteAll(0x07, 1, GetArray(0xB0, SensorCount), I2CSpeed));//温度采样速率和精度
+                Connection.WriteRead(WriteAll(0x09, 1, GetArray(0x04, SensorCount), I2CSpeed));//寄存器偏移
+                Connection.WriteRead(WriteAll(0x08, 1, GetArray(0x07, SensorCount), I2CSpeed));//开始采集
+                Thread.Sleep(500);
                 pressResult = ReceivedData.ParseData(ReadAll(0x00, 3, I2CSpeed), SensorCount);
                 tempResult = ReceivedData.ParseData(ReadAll(0x03, 3, I2CSpeed), SensorCount);
+                Connection.WriteRead(WriteAll(0x08, 1, GetArray(0x00, SensorCount), I2CSpeed));//停止采集
                 for (int i = 0; i < SensorCount; i++)
                 {
-                    if (pressResult[i].IsEffective || tempResult[i].IsEffective)
-                    {
-                        Array.Clear(tempBytes);
-                        Array.Clear(pressBytes);
+                    CEZXC6862 coefficient = (CEZXC6862)Sensors[i].CoefficientData!;
+                    registerResult[i].Data.CopyTo(coefficient.RegisterData, 0);
+                    coefficient.GetCoefficient();
+                    int pRaw = CEZXC6862.GetOthers(pressResult[i].Data);
+                    int tRaw = CEZXC6862.GetOthers(tempResult[i].Data);
 
-                        tempResult[i].Data.CopyTo(tempBytes, 0);
-                        Array.Reverse(tempBytes);
-                        tArray[i] = BitConverter.ToInt16(tempBytes) / (decimal)Math.Pow(2, 8);
-                        //SensorDataGroup[i].OutputT.Add(tArray[i]);
-
-                        pressResult[i].Data.CopyTo(pressBytes, 1);
-                        Array.Reverse(pressBytes);
-                        pArray[i] = BitConverter.ToInt32(pressBytes) / (decimal)Math.Pow(2, 23);
-                        //SensorDataGroup[i].OutputP.Add(pArray[i]);
-
-                        Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
-                    }
+                    Calculation.StartValidation(coefficient, pRaw, tRaw, out double pcal, out double tcal);
+                    pArray[i] = (decimal)pcal;
+                    tArray[i] = (decimal)tcal;
+                    Sensors[i].SetSensorInfo(tArray[i], pArray[i]);
                 }
             }
             catch (Exception)
