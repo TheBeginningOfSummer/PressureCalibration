@@ -13,14 +13,16 @@ namespace Module
             string dataDirectory = Application.StartupPath + path;
             if (!Directory.Exists(dataDirectory)) Directory.CreateDirectory(dataDirectory);
             string fileName = $"{dataDirectory}[{DateTime.Now:yyyy-MM-dd HHmmss}]{name}.xlsx";
-            if (typeof(T) == typeof(SensorBOE2520))
-                SaveExcel((SensorBOE2520)(object)data, fileName);
-            else if (typeof(T) == typeof(ConcurrentDictionary<int, GroupBOE2520>))
-                SaveExcel((ConcurrentDictionary<int, GroupBOE2520>)(object)data, fileName);
+            if (data is Sensor sensor)
+                SaveExcel(sensor, fileName);
+            else if (data is ConcurrentDictionary<int, Group> groupCollection)
+                SaveExcel(groupCollection, fileName);
             else if (typeof(T) == typeof(List<TempTest>))
                 SaveExcel((List<TempTest>)(object)data, fileName);
             else if (typeof(T) == typeof(List<PressureTest>))
                 SaveExcel((List<PressureTest>)(object)data, fileName);
+            else if (typeof(T) == typeof(List<SensorTest>))
+                SaveExcel((List<SensorTest>)(object)data, fileName);
             else
                 return false;
             return true;
@@ -67,7 +69,7 @@ namespace Module
             }
         }
 
-        public static void SaveExcel(SensorBOE2520 sensorData, string flieName = @"d:\myExcel.xlsx")
+        public static void SaveExcel(Sensor sensorData, string flieName = @"d:\myExcel.xlsx")
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             FileInfo file = new(flieName);
@@ -89,14 +91,14 @@ namespace Module
                 int index3 = 1;
                 AddData(sensorData.CoefficientData, worksheet3, ref index3);
                 worksheet3.Cells[1, 18].Value = "Register";
-                worksheet3.Cells[index3, 18].Value = sensorData.CoefficientData.RegisterString;//index3已在AddData方法+1此处不用+1
+                worksheet3.Cells[index3, 18].Value = sensorData.CoefficientData!.RegisterString;//index3已在AddData方法+1此处不用+1
                 //save方法就保存我们这个对象，他就会去执行我们刚刚赋值的那些东西
                 myExcelPackage.Save();
                 Thread.Sleep(500);
             }
         }
 
-        public static void SaveExcel(ConcurrentDictionary<int, GroupBOE2520> allSensorData, string flieName = @"d:\myExcel.xlsx")
+        public static void SaveExcel(ConcurrentDictionary<int, Group> allSensorData, string flieName = @"d:\myExcel.xlsx")
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             FileInfo file = new(flieName);
@@ -119,10 +121,10 @@ namespace Module
                 {
                     for (int i = 0; i < group.Sensors.Count; i++)
                     {
-                        SensorBOE2520 sensorData = (SensorBOE2520)group.Sensors[i];
+                        Sensor sensorData = (Sensor)group.Sensors[i];
                         AddData(sensorData.RawDataList, worksheet1, ref index1);
                         AddData(sensorData.ValidationDataList, worksheet2, ref index2);
-                        worksheet3.Cells[index3 + 1, 18].Value = sensorData.CoefficientData.RegisterString;
+                        worksheet3.Cells[index3 + 1, 18].Value = sensorData.CoefficientData!.RegisterString;
                         AddData(sensorData.CoefficientData, worksheet3, ref index3);
                     }
                 }
@@ -217,6 +219,64 @@ namespace Module
                     }
                     sheet.Cells[i + 2, 1].Value = testData[i].Date;
                     sheet.Cells[i + 2, 2].Value = testData[i].Pressure;
+                }
+                myExcelPackage.Save();
+            }
+        }
+
+        public static void GetDataExcel(ExcelPackage myExcelPackage, Dictionary<string, ExcelWorksheet> dataSheet, int dataRow, string date, decimal[] data, string sheetName = "Device", string header = "T")
+        {
+            if (dataSheet.TryGetValue(sheetName, out ExcelWorksheet? value))
+            {
+                for (int k = 0; k < data.Length; k++)
+                {
+                    value.Cells[dataRow + 2, 1].Value = date;
+                    value.Cells[dataRow + 2, k + 2].Value = data[k];
+                }
+            }
+            else
+            {
+                //创建ExcelWorkSheet对象，这个对象就是面对表的，是工作簿中单个表
+                dataSheet.Add(sheetName, myExcelPackage.Workbook.Worksheets.Add(sheetName));
+                if (dataRow == 0)
+                {
+                    dataSheet[sheetName].Cells[1, 1].Value = "时间";
+                    for (int k = 0; k < data.Length; k++)
+                    {
+                        dataSheet[sheetName].Cells[1, k + 2].Value = $"{header}{k + 1}";
+                    }
+                }
+                for (int k = 0; k < data.Length; k++)
+                {
+                    dataSheet[sheetName].Cells[dataRow + 2, 1].Value = date;
+                    dataSheet[sheetName].Cells[dataRow + 2, k + 2].Value = data[k];
+                }
+            }
+        }
+
+        public static void SaveExcel(List<SensorTest> testData, string flieName = @"d:\myExcel.xlsx")
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            FileInfo file = new(flieName);
+            if (file.Exists)
+            {
+                file.Delete();
+                file = new FileInfo(flieName);
+            }
+            Dictionary<string, ExcelWorksheet> tempDic = [];
+            using (ExcelPackage myExcelPackage = new(file))
+            {
+                for (int i = 0; i < testData.Count; i++)
+                {
+                    string date = testData[i].Date;
+                    for (int j = 0; j < testData[i].Temperature.Count; j++)
+                    {
+                        GetDataExcel(myExcelPackage, tempDic, i, date, testData[i].Temperature[j], $"Device{j + 1}_T");
+                    }
+                    for (int j = 0; j < testData[i].Pressure.Count; j++)
+                    {
+                        GetDataExcel(myExcelPackage, tempDic, i, date, testData[i].Pressure[j], $"Device{j + 1}_P", "P");
+                    }
                 }
                 myExcelPackage.Save();
             }

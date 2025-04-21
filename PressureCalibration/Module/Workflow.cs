@@ -463,9 +463,9 @@ namespace Module
                 decimal[] t = group.ReadTemperature(IsTestVer);
                 tempData.TempList.Add(t);
 
-                //group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
-                //sensorTest.Temperature.Add(tArray);
-                //sensorTest.Pressure.Add(pArray);
+                group.GetSensorsOutput(out decimal[] tArray, out decimal[] pArray, IsTestVer);
+                sensorTest.Temperature.Add(tArray);
+                sensorTest.Pressure.Add(pArray);
                 //采集监视数据
                 MonitoringData(monitorData, group, t, 0);
             }

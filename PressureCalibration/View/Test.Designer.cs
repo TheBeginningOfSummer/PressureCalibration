@@ -120,7 +120,7 @@
             HTP测试.Name = "HTP测试";
             HTP测试.PixelOffsetType = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
             HTP测试.SelectedIndex = 0;
-            HTP测试.Size = new Size(984, 641);
+            HTP测试.Size = new Size(1252, 718);
             HTP测试.SizeMode = TabSizeMode.Fixed;
             HTP测试.SmoothingType = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             HTP测试.TabIndex = 0;
@@ -137,7 +137,7 @@
             TP温度测试.Location = new Point(0, 40);
             TP温度测试.Name = "TP温度测试";
             TP温度测试.Padding = new Padding(3);
-            TP温度测试.Size = new Size(984, 601);
+            TP温度测试.Size = new Size(1252, 678);
             TP温度测试.TabIndex = 0;
             TP温度测试.Text = "温度测试";
             TP温度测试.UseVisualStyleBackColor = true;
@@ -148,7 +148,7 @@
             GPB温度分布.Controls.Add(PN温度分布);
             GPB温度分布.Location = new Point(421, 33);
             GPB温度分布.Name = "GPB温度分布";
-            GPB温度分布.Size = new Size(557, 564);
+            GPB温度分布.Size = new Size(825, 641);
             GPB温度分布.TabIndex = 2;
             GPB温度分布.TabStop = false;
             GPB温度分布.Text = "温度分布（℃）";
@@ -159,7 +159,7 @@
             PN温度分布.Dock = DockStyle.Fill;
             PN温度分布.Location = new Point(3, 25);
             PN温度分布.Name = "PN温度分布";
-            PN温度分布.Size = new Size(551, 536);
+            PN温度分布.Size = new Size(819, 613);
             PN温度分布.TabIndex = 0;
             // 
             // RTB温度信息
@@ -170,7 +170,7 @@
             RTB温度信息.Location = new Point(4, 31);
             RTB温度信息.Margin = new Padding(1);
             RTB温度信息.Name = "RTB温度信息";
-            RTB温度信息.Size = new Size(413, 566);
+            RTB温度信息.Size = new Size(413, 643);
             RTB温度信息.TabIndex = 1;
             RTB温度信息.Text = "";
             // 
@@ -179,7 +179,7 @@
             MS温度测试.Items.AddRange(new ToolStripItem[] { TMI温控, 采集间隔ToolStripMenuItem, TTB温度采集间隔, sToolStripMenuItem, 偏差温度ToolStripMenuItem, TTB偏差温度, toolStripMenuItem1, 目标温度ToolStripMenuItem, TTB目标温度, 设置温度ToolStripMenuItem, TTB设置温度, TMI温度设置, TMI温度采集, TTB温度测试名称, 温度测试名称 });
             MS温度测试.Location = new Point(3, 3);
             MS温度测试.Name = "MS温度测试";
-            MS温度测试.Size = new Size(978, 27);
+            MS温度测试.Size = new Size(1246, 27);
             MS温度测试.TabIndex = 0;
             MS温度测试.Text = "menuStrip1";
             // 
@@ -649,7 +649,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(984, 641);
+            ClientSize = new Size(1252, 718);
             Controls.Add(HTP测试);
             MainMenuStrip = MS温度测试;
             Name = "Test";

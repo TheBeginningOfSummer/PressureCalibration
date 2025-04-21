@@ -798,6 +798,7 @@ namespace Module
             DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
             I2CAddress = 0x77;
+            I2CSpeed = 0x07;
             Name = $"D{DeviceAddress}";
             BridgeOffset = new MinBridgeOffset[SensorCount];
             AMPGain = new TargetGain[SensorCount];
@@ -817,6 +818,7 @@ namespace Module
             DeviceAddress = deviceAddress;
             SensorCount = sensorCount;
             I2CAddress = 0x77;
+            I2CSpeed = 0x07;
             Name = $"D{DeviceAddress}";
             BridgeOffset = new MinBridgeOffset[SensorCount];
             AMPGain = new TargetGain[SensorCount];
@@ -825,7 +827,7 @@ namespace Module
             for (int i = 0; i < SensorCount; i++)
             {
                 SensorZXC6862 sensor = new(deviceAddress, i);
-                sensor.InitializeData(TempaturePoints.ToArray(), PressurePoints.ToArray());
+                sensor.InitializeData([.. TempaturePoints], [.. PressurePoints]);
                 Sensors.TryAdd(i, sensor);
                 SelectedSensor[i] = false;
             }

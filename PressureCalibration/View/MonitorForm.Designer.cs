@@ -38,6 +38,8 @@
             TMI清除 = new ToolStripMenuItem();
             CKBP1 = new CheckBox();
             CKBP2 = new CheckBox();
+            TMI打开 = new ToolStripMenuItem();
+            TMI保存 = new ToolStripMenuItem();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -85,7 +87,7 @@
             // menuStrip1
             // 
             menuStrip1.BackColor = Color.Transparent;
-            menuStrip1.Items.AddRange(new ToolStripItem[] { TMI停止, TMI刷新, TMI清除 });
+            menuStrip1.Items.AddRange(new ToolStripItem[] { TMI停止, TMI刷新, TMI清除, TMI打开, TMI保存 });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Size = new Size(1150, 25);
@@ -139,6 +141,20 @@
             CKBP2.Text = "P2";
             CKBP2.UseVisualStyleBackColor = true;
             // 
+            // TMI打开
+            // 
+            TMI打开.Name = "TMI打开";
+            TMI打开.Size = new Size(44, 21);
+            TMI打开.Text = "打开";
+            TMI打开.Click += TMI打开_Click;
+            // 
+            // TMI保存
+            // 
+            TMI保存.Name = "TMI保存";
+            TMI保存.Size = new Size(44, 21);
+            TMI保存.Text = "保存";
+            TMI保存.Click += TMI保存_Click;
+            // 
             // MonitorForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -172,5 +188,7 @@
         private ToolStripMenuItem TMI清除;
         private CheckBox CKBP1;
         private CheckBox CKBP2;
+        private ToolStripMenuItem TMI打开;
+        private ToolStripMenuItem TMI保存;
     }
 }

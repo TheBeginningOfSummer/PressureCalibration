@@ -76,7 +76,7 @@
             HRTB信息.SelectedText = "";
             HRTB信息.SelectionLength = 0;
             HRTB信息.SelectionStart = 0;
-            HRTB信息.Size = new Size(250, 327);
+            HRTB信息.Size = new Size(373, 471);
             HRTB信息.TabIndex = 5;
             HRTB信息.TabStop = false;
             HRTB信息.UseSystemPasswordChar = false;
@@ -100,7 +100,7 @@
             ATP主选项卡.SelectedTabBackColor = Color.White;
             ATP主选项卡.SelectedTextColor = Color.White;
             ATP主选项卡.ShowOuterBorders = false;
-            ATP主选项卡.Size = new Size(1154, 721);
+            ATP主选项卡.Size = new Size(1470, 760);
             ATP主选项卡.SizeMode = TabSizeMode.Fixed;
             ATP主选项卡.SquareColor = Color.DodgerBlue;
             ATP主选项卡.TabCursor = Cursors.Hand;
@@ -118,7 +118,7 @@
             TP操作.Location = new Point(124, 4);
             TP操作.Name = "TP操作";
             TP操作.Padding = new Padding(3);
-            TP操作.Size = new Size(1026, 713);
+            TP操作.Size = new Size(1342, 752);
             TP操作.TabIndex = 0;
             TP操作.Text = "操作";
             // 
@@ -127,7 +127,7 @@
             label1.Anchor = AnchorStyles.Top;
             label1.AutoSize = true;
             label1.Font = new Font("Microsoft YaHei UI", 20F, FontStyle.Bold);
-            label1.Location = new Point(418, 24);
+            label1.Location = new Point(576, 24);
             label1.Name = "label1";
             label1.Size = new Size(231, 36);
             label1.TabIndex = 10;
@@ -141,7 +141,7 @@
             LBN断电.ForeColor = Color.White;
             LBN断电.HoverColor = Color.DodgerBlue;
             LBN断电.Image = null;
-            LBN断电.Location = new Point(698, 612);
+            LBN断电.Location = new Point(856, 651);
             LBN断电.Name = "LBN断电";
             LBN断电.Size = new Size(90, 40);
             LBN断电.TabIndex = 9;
@@ -155,7 +155,7 @@
             LBN暂停.ForeColor = Color.White;
             LBN暂停.HoverColor = Color.DodgerBlue;
             LBN暂停.Image = null;
-            LBN暂停.Location = new Point(418, 612);
+            LBN暂停.Location = new Point(576, 651);
             LBN暂停.Name = "LBN暂停";
             LBN暂停.Size = new Size(90, 40);
             LBN暂停.TabIndex = 8;
@@ -170,7 +170,7 @@
             LBN切换.ForeColor = Color.White;
             LBN切换.HoverColor = Color.DodgerBlue;
             LBN切换.Image = null;
-            LBN切换.Location = new Point(558, 612);
+            LBN切换.Location = new Point(716, 651);
             LBN切换.Name = "LBN切换";
             LBN切换.Size = new Size(90, 40);
             LBN切换.TabIndex = 7;
@@ -185,7 +185,7 @@
             LBN运行.ForeColor = Color.White;
             LBN运行.HoverColor = Color.DodgerBlue;
             LBN运行.Image = null;
-            LBN运行.Location = new Point(278, 612);
+            LBN运行.Location = new Point(436, 651);
             LBN运行.Name = "LBN运行";
             LBN运行.Size = new Size(90, 40);
             LBN运行.TabIndex = 6;
@@ -200,7 +200,7 @@
             TP查看.Location = new Point(124, 4);
             TP查看.Name = "TP查看";
             TP查看.Padding = new Padding(3);
-            TP查看.Size = new Size(1026, 713);
+            TP查看.Size = new Size(1342, 752);
             TP查看.TabIndex = 1;
             TP查看.Text = "查看";
             // 
@@ -219,7 +219,7 @@
             GB结果.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             GB结果.Location = new Point(220, 6);
             GB结果.Name = "GB结果";
-            GB结果.Size = new Size(577, 459);
+            GB结果.Size = new Size(893, 498);
             GB结果.TabIndex = 0;
             GB结果.TabStop = false;
             GB结果.Text = "Result";
@@ -236,7 +236,7 @@
             HF压力标定.Location = new Point(0, 0);
             HF压力标定.Margin = new Padding(0);
             HF压力标定.Name = "HF压力标定";
-            HF压力标定.Size = new Size(1184, 40);
+            HF压力标定.Size = new Size(1500, 40);
             HF压力标定.TabIndex = 1;
             HF压力标定.Text = "压力标定";
             HF压力标定.ThemeColor = Color.DimGray;
@@ -246,9 +246,9 @@
             TS设置.Dock = DockStyle.Right;
             TS设置.GripStyle = ToolStripGripStyle.Hidden;
             TS设置.Items.AddRange(new ToolStripItem[] { TSB设置, TDB窗口, TDB导出, TSB清除 });
-            TS设置.Location = new Point(1154, 40);
+            TS设置.Location = new Point(1468, 40);
             TS设置.Name = "TS设置";
-            TS设置.Size = new Size(30, 721);
+            TS设置.Size = new Size(32, 760);
             TS设置.TabIndex = 8;
             TS设置.Text = "toolStrip1";
             // 
@@ -259,9 +259,9 @@
             TSB设置.Image = Properties.Resources.baseline_build_black_24dp;
             TSB设置.ImageTransparentColor = Color.Magenta;
             TSB设置.Name = "TSB设置";
-            TSB设置.Size = new Size(27, 20);
+            TSB设置.Size = new Size(29, 20);
             TSB设置.Tag = "setting";
-            TSB设置.Text = "toolStripButton1";
+            TSB设置.Text = "设置";
             TSB设置.Click += TMI窗口_Click;
             // 
             // TDB窗口
@@ -271,7 +271,7 @@
             TDB窗口.Image = Properties.Resources.application_16x;
             TDB窗口.ImageTransparentColor = Color.Magenta;
             TDB窗口.Name = "TDB窗口";
-            TDB窗口.Size = new Size(27, 20);
+            TDB窗口.Size = new Size(29, 20);
             TDB窗口.Text = "窗口";
             // 
             // TMI测试
@@ -305,7 +305,7 @@
             TDB导出.Image = (Image)resources.GetObject("TDB导出.Image");
             TDB导出.ImageTransparentColor = Color.Magenta;
             TDB导出.Name = "TDB导出";
-            TDB导出.Size = new Size(27, 20);
+            TDB导出.Size = new Size(29, 20);
             TDB导出.Text = "导出";
             // 
             // TMI导出Excel
@@ -330,22 +330,22 @@
             TSB清除.Image = (Image)resources.GetObject("TSB清除.Image");
             TSB清除.ImageTransparentColor = Color.Magenta;
             TSB清除.Name = "TSB清除";
-            TSB清除.Size = new Size(27, 20);
-            TSB清除.Text = "toolStripButton1";
+            TSB清除.Size = new Size(29, 20);
+            TSB清除.Text = "清除";
             TSB清除.Click += TMI清除_Click;
             // 
             // MainForm
             // 
             AutoScaleMode = AutoScaleMode.None;
             BackColor = Color.LightGray;
-            ClientSize = new Size(1184, 761);
+            ClientSize = new Size(1500, 800);
             Controls.Add(TS设置);
             Controls.Add(HF压力标定);
             Controls.Add(ATP主选项卡);
             FormBorderStyle = FormBorderStyle.None;
             Icon = (Icon)resources.GetObject("$this.Icon");
             Margin = new Padding(2, 3, 2, 3);
-            MaximumSize = new Size(1280, 984);
+            MaximumSize = new Size(1500, 984);
             MinimumSize = new Size(190, 40);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;

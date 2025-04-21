@@ -156,13 +156,13 @@ namespace PressureCalibration.View
             BGW运动.WorkerSupportsCancellation = true;
             //温度
             TTB设置温度.DataBindings.Add(new Binding("Text", this, nameof(Temperature), false, DataSourceUpdateMode.OnPropertyChanged));
-            TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(TargetT)));
-            TTB温度采集间隔.DataBindings.Add(new Binding("Text", this, nameof(TInterval)));
-            TTB温度测试名称.DataBindings.Add(new Binding("Text", this, nameof(TempTestName)));
+            TTB目标温度.DataBindings.Add(new Binding("Text", this, nameof(TargetT), false, DataSourceUpdateMode.OnPropertyChanged));
+            TTB温度采集间隔.DataBindings.Add(new Binding("Text", this, nameof(TInterval), false, DataSourceUpdateMode.OnPropertyChanged));
+            TTB温度测试名称.DataBindings.Add(new Binding("Text", this, nameof(TempTestName), false, DataSourceUpdateMode.OnPropertyChanged));
             //压力
-            TTB目标压力.DataBindings.Add(new Binding("Text", this, nameof(Pressure)));
-            TTB压力采集间隔.DataBindings.Add(new Binding("Text", this, nameof(PInterval)));
-            TTB压力测试名称.DataBindings.Add(new Binding("Text", this, nameof(PressTestName)));
+            TTB目标压力.DataBindings.Add(new Binding("Text", this, nameof(Pressure), false, DataSourceUpdateMode.OnPropertyChanged));
+            TTB压力采集间隔.DataBindings.Add(new Binding("Text", this, nameof(PInterval), false, DataSourceUpdateMode.OnPropertyChanged));
+            TTB压力测试名称.DataBindings.Add(new Binding("Text", this, nameof(PressTestName), false, DataSourceUpdateMode.OnPropertyChanged));
 
             CMB轴列表.DataSource = config.Zmotion.AxesName;
         }
@@ -417,11 +417,14 @@ namespace PressureCalibration.View
                     case "clear":
                         RTB温度信息.Clear();
                         temperatureList.Clear();
+                        sensorTestList.Clear();
                         FormKit.ShowInfoBox("数据清除完成。");
                         break;
                     case "excel":
-                        if (ExcelOutput.Output(temperatureList, name: TempTestName))
-                            FormKit.UpdateMessage(RTB温度信息, "导出数据完成。");
+                        if (ExcelOutput.Output(temperatureList, name: $"{TempTestName}T"))
+                            FormKit.UpdateMessage(RTB温度信息, "导出温度数据完成。");
+                        if (ExcelOutput.Output(sensorTestList, name: $"{TempTestName}S"))
+                            FormKit.UpdateMessage(RTB温度信息, "导出传感器数据完成。");
                         break;
                     case "picture":
                         Bitmap bitmap = new(this.Width, this.Height);
